@@ -1,4 +1,4 @@
-unit package Excel::Writer::XLSX::Workbook;
+unit class Excel::Writer::XLSX::Workbook;
 
 ###############################################################################
 #
@@ -39,6 +39,48 @@ use 6.c;
 #
 ###############################################################################
 
+has $!tempdir            = undef;
+has $!date_1904          = 0;
+has $!activesheet        = 0;
+has $!firstsheet         = 0;
+has $!selected           = 0;
+has $!fileclosed         = 0;
+has $!filehandle         = undef;
+has $!internal_fh        = 0;
+has $!sheet_name         = 'Sheet';
+has $!chart_name         = 'Chart';
+has $!sheetname_count    = 0;
+has $!chartname_count    = 0;
+has @!worksheets         = [];
+has @!charts             = [];
+has @!drawings           = [];
+has %!sheetnames         = {};
+has @!formats            = [];
+has @!xf_formats         = [];
+has %!xf_format_indices  = {};
+has @!dxf_formats        = [];
+has %!dxf_format_indices = {};
+has @!palette            = [];
+has $!font_count         = 0;
+has $!num_format_count   = 0;
+has @!defined_names      = [];
+has @!named_ranges       = [];
+has @!custom_colors      = [];
+has %!doc_properties     = {};
+has @!custom_properties  = [];
+has @!createtime         = [ gmtime() ];
+has $!num_vml_files      = 0;
+has $!num_comment_files  = 0;
+has $!optimization       = 0;
+has $!x_window           = 240;
+has $!y_window           = 15;
+has $!window_width       = 16095;
+has $!window_height      = 9660;
+has $!tab_ratio          = 500;
+has $!excel2003_style    = 0;
+
+has %!default_format_properties = {};
+
 
 ###############################################################################
 #
@@ -46,55 +88,13 @@ use 6.c;
 #
 # Constructor.
 #
-method new {
+submethod BUILD {
 
 #NYI     my $class = shift;
     my $self  = Excel::Writer::XLSX::Package::XMLwriter.new();
 
     $self.filename = $_[0] || '';
     my $options = $_[1] || {};
-
-#NYI     $self->{_tempdir}            = undef;
-#NYI     $self->{_date_1904}          = 0;
-#NYI     $self->{_activesheet}        = 0;
-#NYI     $self->{_firstsheet}         = 0;
-#NYI     $self->{_selected}           = 0;
-#NYI     $self->{_fileclosed}         = 0;
-#NYI     $self->{_filehandle}         = undef;
-#NYI     $self->{_internal_fh}        = 0;
-#NYI     $self->{_sheet_name}         = 'Sheet';
-#NYI     $self->{_chart_name}         = 'Chart';
-#NYI     $self->{_sheetname_count}    = 0;
-#NYI     $self->{_chartname_count}    = 0;
-#NYI     $self->{_worksheets}         = [];
-#NYI     $self->{_charts}             = [];
-#NYI     $self->{_drawings}           = [];
-#NYI     $self->{_sheetnames}         = {};
-#NYI     $self->{_formats}            = [];
-#NYI     $self->{_xf_formats}         = [];
-#NYI     $self->{_xf_format_indices}  = {};
-#NYI     $self->{_dxf_formats}        = [];
-#NYI     $self->{_dxf_format_indices} = {};
-#NYI     $self->{_palette}            = [];
-#NYI     $self->{_font_count}         = 0;
-#NYI     $self->{_num_format_count}   = 0;
-#NYI     $self->{_defined_names}      = [];
-#NYI     $self->{_named_ranges}       = [];
-#NYI     $self->{_custom_colors}      = [];
-#NYI     $self->{_doc_properties}     = {};
-#NYI     $self->{_custom_properties}  = [];
-#NYI     $self->{_createtime}         = [ gmtime() ];
-#NYI     $self->{_num_vml_files}      = 0;
-#NYI     $self->{_num_comment_files}  = 0;
-#NYI     $self->{_optimization}       = 0;
-#NYI     $self->{_x_window}           = 240;
-#NYI     $self->{_y_window}           = 15;
-#NYI     $self->{_window_width}       = 16095;
-#NYI     $self->{_window_height}      = 9660;
-#NYI     $self->{_tab_ratio}          = 500;
-#NYI     $self->{_excel2003_style}    = 0;
-
-#NYI     $self->{_default_format_properties} = {};
 
 #NYI     if ( exists $options->{tempdir} ) {
 #NYI         $self->{_tempdir} = $options->{tempdir};
