@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::XMLwriter;
+unit class Excel::Writer::XLSX::Package::XMLwriter;
 
 ###############################################################################
 #
@@ -8,20 +8,18 @@ package Excel::Writer::XLSX::Package::XMLwriter;
 #
 # Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
 #
-# Documentation after __END__
-#
+# Documentation at end
 
-# perltidy with the following options: -mbl=2 -pt=0 -nola
+use 6.c;
 
-use 5.008002;
-use strict;
-use warnings;
-use Exporter;
-use Carp;
-use IO::File;
+has $fh;
 
-our @ISA     = qw(Exporter);
-our $VERSION = '0.96';
+#NYI use Exporter;
+#NYI use Carp;
+#NYI use IO::File;
+#NYI 
+#NYI our @ISA     = qw(Exporter);
+#NYI our $VERSION = '0.96';
 
 #
 # NOTE: this module is a light weight re-implementation of XML::Writer. See
@@ -30,49 +28,27 @@ our $VERSION = '0.96';
 # loops by Excel::Writer::XLSX.
 #
 
-# Note "local $\ = undef" protect print statements from -l on commandline.
-
-
 ###############################################################################
 #
-# new()
+# BUILD()
 #
 # Constructor.
-#
-sub new {
 
-    my $class = shift;
-
-    # FH may be undef and set later in _set_xml_writer(), see below.
-    my $fh = shift;
-
-    my $self = { _fh => $fh };
-
-    bless $self, $class;
-
-    return $self;
+submethod BUILD(:$!fh) {
+  # nothing explicit to do here
 }
 
 
 ###############################################################################
 #
-# _set_xml_writer()
+# set_xml_writer()
 #
 # Set the XML writer filehandle for the object. This can either be done
 # in the constructor (usually for testing since the file name isn't generally
 # known at that stage) or later via this method.
-#
-sub _set_xml_writer {
 
-    my $self     = shift;
-    my $filename = shift;
-
-    my $fh = IO::File->new( $filename, 'w' );
-    croak "Couldn't open file $filename for writing.\n" unless $fh;
-
-    binmode $fh, ':utf8';
-
-    $self->{_fh} = $fh;
+method set_xml_writer($filename) {
+  $!fh = $filename.IO.open: :w; # UTF8 is the default
 }
 
 
@@ -82,14 +58,8 @@ sub _set_xml_writer {
 #
 # Write the XML declaration.
 #
-sub xml_declaration {
-
-    my $self = shift;
-    local $\ = undef;
-
-    print { $self->{_fh} }
-      qq(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n);
-
+method xml_declaration {
+    $!fh.print qq(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n);
 }
 
 
@@ -99,23 +69,16 @@ sub xml_declaration {
 #
 # Write an XML start tag with optional attributes.
 #
-sub xml_start_tag {
+method xml_start_tag($tag is copy, *%options) {
 
-    my $self = shift;
-    my $tag  = shift;
+  for *%options.kv -> $key, $value {
+        $value .= escape_attributes;
 
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
-        $value = _escape_attributes( $value );
-
-        $tag .= qq( $key="$value");
+        $tag ~= qq( $key="$value");
     }
 
-    local $\ = undef;
-    print { $self->{_fh} } "<$tag>";
+    $!fh.print "<{$tag}>";
 }
-
 
 ###############################################################################
 #
@@ -123,39 +86,25 @@ sub xml_start_tag {
 #
 # Write an XML start tag with optional, unencoded, attributes.
 # This is a minor speed optimisation for elements that don't need encoding.
-#
-sub xml_start_tag_unencoded {
 
-    my $self = shift;
-    my $tag  = shift;
+method xml_start_tag_unencoded($tag is copy, *%options) {
 
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
+  for *%options.kv -> $key, $value {
+    $tag .= qq( $key="$value");
+  }
 
-        $tag .= qq( $key="$value");
-    }
-
-    local $\ = undef;
-    print { $self->{_fh} } "<$tag>";
+  $!fh.print "<$tag>";
 }
-
 
 ###############################################################################
 #
 # xml_end_tag()
 #
 # Write an XML end tag.
-#
-sub xml_end_tag {
 
-    my $self = shift;
-    my $tag  = shift;
-    local $\ = undef;
-
-    print { $self->{_fh} } "</$tag>";
+method xml_end_tag($tag) {
+    $!fh.print "</$tag>";
 }
-
 
 ###############################################################################
 #
@@ -163,24 +112,15 @@ sub xml_end_tag {
 #
 # Write an empty XML tag with optional attributes.
 #
-sub xml_empty_tag {
+method xml_empty_tag($tag is copy, *%options) {
 
-    my $self = shift;
-    my $tag  = shift;
+  for *%options.kv -> $key, $value {
+    $value .= escape_attributes;
+    $tag ~= qq( $key="$value");
+  }
 
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
-        $value = _escape_attributes( $value );
-
-        $tag .= qq( $key="$value");
-    }
-
-    local $\ = undef;
-
-    print { $self->{_fh} } "<$tag/>";
+  $!fh.print "<$tag/>";
 }
-
 
 ###############################################################################
 #
@@ -189,21 +129,12 @@ sub xml_empty_tag {
 # Write an empty XML tag with optional, unencoded, attributes.
 # This is a minor speed optimisation for elements that don't need encoding.
 #
-sub xml_empty_tag_unencoded {
+method xml_empty_tag_unencoded($tag is copy, *%options) {
 
-    my $self = shift;
-    my $tag  = shift;
-
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
-
-        $tag .= qq( $key="$value");
-    }
-
-    local $\ = undef;
-
-    print { $self->{_fh} } "<$tag/>";
+  for *%options.kv -> $key, $value {
+    $tag ~= qq( $key="$value");
+  }
+  $!fh.print "<$tag/>";
 }
 
 
@@ -214,25 +145,18 @@ sub xml_empty_tag_unencoded {
 # Write an XML element containing data with optional attributes.
 # XML characters in the data are encoded.
 #
-sub xml_data_element {
+method xml_data_element($tag is copy, $data is copy, *%options) {
 
-    my $self    = shift;
-    my $tag     = shift;
-    my $data    = shift;
-    my $end_tag = $tag;
+  my $end_tag = $tag;
 
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
-        $value = _escape_attributes( $value );
+  for *%options.kv -> $key, $value {
+    $value .= escape_attributes;
+    $tag ~= qq( $key="$value");
+  }
 
-        $tag .= qq( $key="$value");
-    }
+  $data .= escape_data;
 
-    $data = _escape_data( $data );
-
-    local $\ = undef;
-    print { $self->{_fh} } "<$tag>$data</$end_tag>";
+  $!fh.print "<$tag>$data</$end_tag>";
 }
 
 
@@ -243,22 +167,14 @@ sub xml_data_element {
 # Write an XML unencoded element containing data with optional attributes.
 # This is a minor speed optimisation for elements that don't need encoding.
 #
-sub xml_data_element_unencoded {
+method xml_data_element_unencoded($tag is copy, $data, *%options) {
 
-    my $self    = shift;
-    my $tag     = shift;
-    my $data    = shift;
-    my $end_tag = $tag;
+  my $end_tag = $tag;
 
-    while ( @_ ) {
-        my $key   = shift @_;
-        my $value = shift @_;
-
-        $tag .= qq( $key="$value");
-    }
-
-    local $\ = undef;
-    print { $self->{_fh} } "<$tag>$data</$end_tag>";
+  for *options.kv -> $key, $value {
+    $tag ~= qq( $key="$value");
+  }
+  $!fh.print "<$tag>$data</$end_tag>";
 }
 
 
@@ -268,20 +184,15 @@ sub xml_data_element_unencoded {
 #
 # Optimised tag writer for <c> cell string elements in the inner loop.
 #
-sub xml_string_element {
+method xml_string_element(^%options) {
 
-    my $self  = shift;
-    my $index = shift;
-    my $attr  = '';
+  my $attr  = '';
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
+  for *%options.kv -> $key, $value {
+    $attr ~= qq( $key="$value");
+  }
 
-    local $\ = undef;
-    print { $self->{_fh} } "<c$attr t=\"s\"><v>$index</v></c>";
+  $!fh.print "<c$attr t=\"s\"><v>$index</v></c>";
 }
 
 
@@ -291,23 +202,17 @@ sub xml_string_element {
 #
 # Optimised tag writer for shared strings <si> elements.
 #
-sub xml_si_element {
+method xml_si_element($string is copy, *%options) {
 
-    my $self   = shift;
-    my $string = shift;
-    my $attr   = '';
+  my $attr   = '';
 
+  for *%options.kv -> $key, $value {
+    $attr ~= qq( $key="$value");
+  }
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
+  $string .= escape_data;
 
-    $string = _escape_data( $string );
-
-    local $\ = undef;
-    print { $self->{_fh} } "<si><t$attr>$string</t></si>";
+  $!fh.print "<si><t$attr>$string</t></si>";
 }
 
 
@@ -317,14 +222,8 @@ sub xml_si_element {
 #
 # Optimised tag writer for shared strings <si> rich string elements.
 #
-sub xml_rich_si_element {
-
-    my $self   = shift;
-    my $string = shift;
-
-
-    local $\ = undef;
-    print { $self->{_fh} } "<si>$string</si>";
+method xml_rich_si_element($string) {
+  $!fh.print "<si>$string</si>";
 }
 
 
@@ -334,20 +233,14 @@ sub xml_rich_si_element {
 #
 # Optimised tag writer for <c> cell number elements in the inner loop.
 #
-sub xml_number_element {
+sub xml_number_element($number, *%options) {
 
-    my $self   = shift;
-    my $number = shift;
-    my $attr   = '';
+  my $attr   = '';
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
-
-    local $\ = undef;
-    print { $self->{_fh} } "<c$attr><v>$number</v></c>";
+  for *%options.kv -> $key, $value {
+    $attr ~= qq( $key="$value");
+  }
+  $!fh.print "<c$attr><v>$number</v></c>";
 }
 
 
@@ -357,23 +250,17 @@ sub xml_number_element {
 #
 # Optimised tag writer for <c> cell formula elements in the inner loop.
 #
-sub xml_formula_element {
+method xml_formula_element($formula is copy, $result, *%options) {
 
-    my $self    = shift;
-    my $formula = shift;
-    my $result  = shift;
-    my $attr    = '';
+  my $attr    = '';
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
+  for *%options.kv -> $key, $value {
+    $attr ~= qq( $key="$value");
+  }
 
-    $formula = _escape_data( $formula );
+  $formula .= escape_data;
 
-    local $\ = undef;
-    print { $self->{_fh} } "<c$attr><f>$formula</f><v>$result</v></c>";
+  $!fh.print "<c$attr><f>$formula</f><v>$result</v></c>";
 }
 
 
@@ -383,28 +270,21 @@ sub xml_formula_element {
 #
 # Optimised tag writer for inlineStr cell elements in the inner loop.
 #
-sub xml_inline_string {
+method xml_inline_string($string is copy, $preserve, *%options) {
 
-    my $self     = shift;
-    my $string   = shift;
-    my $preserve = shift;
-    my $attr     = '';
-    my $t_attr   = '';
+  my $attr     = '';
+  my $t_attr   = '';
 
-    # Set the <t> attribute to preserve whitespace.
-    $t_attr = ' xml:space="preserve"' if $preserve;
+  # Set the <t> attribute to preserve whitespace.
+  $t_attr = ' xml:space="preserve"' if $preserve;
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
+  for *%options.kv -> $key, $value {
+    $attr .= qq( $key="$value");
+  }
 
-    $string = _escape_data( $string );
+  $string .= escape_data;
 
-    local $\ = undef;
-    print { $self->{_fh} }
-      "<c$attr t=\"inlineStr\"><is><t$t_attr>$string</t></is></c>";
+  $!fh.print "<c$attr t=\"inlineStr\"><is><t$t_attr>$string</t></is></c>";
 }
 
 
@@ -414,35 +294,31 @@ sub xml_inline_string {
 #
 # Optimised tag writer for rich inlineStr cell elements in the inner loop.
 #
-sub xml_rich_inline_string {
+method xml_rich_inline_string($string, *%options) {
 
-    my $self   = shift;
-    my $string = shift;
-    my $attr   = '';
+  my $attr   = '';
 
-    while ( @_ ) {
-        my $key   = shift;
-        my $value = shift;
-        $attr .= qq( $key="$value");
-    }
+  for *%options.kv -> $key, $value {
+    $attr ~= qq( $key="$value");
+  }
 
-    local $\ = undef;
-    print { $self->{_fh} } "<c$attr t=\"inlineStr\"><is>$string</is></c>";
+  $!fh.print "<c$attr t=\"inlineStr\"><is>$string</is></c>";
 }
 
 
-###############################################################################
-#
-# xml_get_fh()
-#
-# Return the output filehandle.
-#
-sub xml_get_fh {
-
-    my $self = shift;
-
-    return $self->{_fh};
-}
+#NYI: use accessor for $!fh instead
+#NYI ###############################################################################
+#NYI #
+#NYI # xml_get_fh()
+#NYI #
+#NYI # Return the output filehandle.
+#NYI #
+#NYI sub xml_get_fh {
+#NYI 
+#NYI     my $self = shift;
+#NYI 
+#NYI     return $self->{_fh};
+#NYI }
 
 
 ###############################################################################
@@ -451,53 +327,39 @@ sub xml_get_fh {
 #
 # Escape XML characters in attributes.
 #
-sub _escape_attributes {
+method escape_attributes($str is copy) {
 
-    my $str = $_[0];
+  return $str if $str !~ m/<["&<>\n]>/;
 
-    return $str if $str !~ m/["&<>\n]/;
+  $str ~~ s:g/\&/&amp;/g;
+  $str ~~ s:g/\"/&quot;/g;
+  $str ~~ s:g/\</&lt;/g;
+  $str ~~ s:g/\>/&gt;/g;
+  $str ~~ s:g/\n/&#xA;/g;
 
-    for ( $str ) {
-        s/&/&amp;/g;
-        s/"/&quot;/g;
-        s/</&lt;/g;
-        s/>/&gt;/g;
-        s/\n/&#xA;/g;
-    }
-
-    return $str;
+  return $str;
 }
 
 
 ###############################################################################
 #
-# _escape_data()
+# escape_data()
 #
 # Escape XML characters in data sections. Note, this is different from
-# _escape_attributes() in that double quotes are not escaped by Excel.
+# escape_attributes() in that double quotes are not escaped by Excel.
 #
-sub _escape_data {
+method escape_data($str is copy) {
 
-    my $str = $_[0];
+  return $str if $str !~ m/<[&<>]>/;
 
-    return $str if $str !~ m/[&<>]/;
+  $str ~~ s:g/&/&amp;/g;
+  $str ~~ s:g/</&lt;/g;
+  $str ~~ s:g/>/&gt;/g;
 
-    for ( $str ) {
-        s/&/&amp;/g;
-        s/</&lt;/g;
-        s/>/&gt;/g;
-    }
-
-    return $str;
+  return $str;
 }
 
-
-1;
-
-
-__END__
-
-=pod
+=begin pod
 
 =head1 NAME
 

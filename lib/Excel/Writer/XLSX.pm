@@ -1,44 +1,39 @@
-#NYI package Excel::Writer::XLSX;
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Excel::Writer::XLSX - Create a new file in the Excel 2007+ XLSX format.
-#NYI #
-#NYI # Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
-#NYI #
-#NYI # Documentation after __END__
-#NYI #
-#NYI 
-#NYI use 5.008002;
-#NYI use strict;
-#NYI use warnings;
+unit module Excel::Writer::XLSX;
+
+###############################################################################
+#
+# Excel::Writer::XLSX - Create a new file in the Excel 2007+ XLSX format.
+#
+# Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
+# Copyright 2017,      Kevin Pye
+#
+# Documentation at end
+#
+
+use 6.c;
+
 #NYI use Exporter;
-#NYI 
-#NYI use strict;
-#NYI use Excel::Writer::XLSX::Workbook;
-#NYI 
+
+use Excel::Writer::XLSX::Workbook;
+
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Workbook Exporter);
 #NYI our $VERSION = '0.96';
 #NYI 
 #NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # new()
-#NYI #
-#NYI sub new {
-#NYI 
-#NYI     my $class = shift;
-#NYI     my $self  = Excel::Writer::XLSX::Workbook->new( @_ );
-#NYI 
-#NYI     # Check for file creation failures before re-blessing
-#NYI     bless $self, $class if defined $self;
-#NYI 
-#NYI     return $self;
-#NYI }
-#NYI 
-#NYI 
-#NYI 1;
-#NYI 
+###############################################################################
+#
+# new()
+#
+method new {
+
+    my $class = shift;
+    my $self  = Excel::Writer::XLSX::Workbook->new( @_ );
+
+    # Check for file creation failures before re-blessing
+    bless $self, $class if defined $self;
+
+    return $self;
+}
 #NYI 
 #NYI __END__
 #NYI 
