@@ -81,6 +81,17 @@ has $!excel2003_style    = 0;
 
 has %!default_format_properties = {};
 
+# Structures for the shared strings data.
+has $!str_total  = 0;
+has $!str_unique = 0;
+has %!str_table  = {};
+has $!str_array  = [];
+
+# Formula calculation default settings.
+has $!calc_id      = 124519;
+has $!calc_mode    = 'auto';
+has $!calc_on_load = 1;
+
 
 ###############################################################################
 #
@@ -116,17 +127,6 @@ submethod BUILD {
 #NYI     if ( exists $options->{excel2003_style} ) {
 #NYI         $self->{_excel2003_style} = 1;
 #NYI     }
-
-#NYI     # Structures for the shared strings data.
-#NYI     $self->{_str_total}  = 0;
-#NYI     $self->{_str_unique} = 0;
-#NYI     $self->{_str_table}  = {};
-#NYI     $self->{_str_array}  = [];
-
-#NYI     # Formula calculation default settings.
-#NYI     $self->{_calc_id}      = 124519;
-#NYI     $self->{_calc_mode}    = 'auto';
-#NYI     $self->{_calc_on_load} = 1;
 
 
 #NYI     bless $self, $class;
@@ -176,51 +176,49 @@ submethod BUILD {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _assemble_xml_file()
-#NYI #
-#NYI # Assemble and write the XML file.
-#NYI #
-#NYI sub _assemble_xml_file {
+###############################################################################
+#
+# assemble_xml_file()
+#
+# Assemble and write the XML file.
+#
+method assemble_xml_file {
 
-#NYI     my $self = shift;
+    # Prepare format object for passing to Style.pm.
+    self.prepare_format_properties();
 
-#NYI     # Prepare format object for passing to Style.pm.
-#NYI     $self->_prepare_format_properties();
+    self.xml_declaration;
 
-#NYI     $self->xml_declaration;
+    # Write the root workbook element.
+    self.write_workbook();
 
-#NYI     # Write the root workbook element.
-#NYI     $self->_write_workbook();
+    # Write the XLSX file version.
+    self.write_file_version();
 
-#NYI     # Write the XLSX file version.
-#NYI     $self->_write_file_version();
+    # Write the workbook properties.
+    self.write_workbook_pr();
 
-#NYI     # Write the workbook properties.
-#NYI     $self->_write_workbook_pr();
+    # Write the workbook view properties.
+    self.write_book_views();
 
-#NYI     # Write the workbook view properties.
-#NYI     $self->_write_book_views();
+    # Write the worksheet names and ids.
+    self.write_sheets();
 
-#NYI     # Write the worksheet names and ids.
-#NYI     $self->_write_sheets();
+    # Write the workbook defined names.
+    self.write_defined_names();
 
-#NYI     # Write the workbook defined names.
-#NYI     $self->_write_defined_names();
+    # Write the workbook calculation properties.
+    self.write_calc_pr();
 
-#NYI     # Write the workbook calculation properties.
-#NYI     $self->_write_calc_pr();
+    # Write the workbook extension storage.
+    # self.write_ext_lst();
 
-#NYI     # Write the workbook extension storage.
-#NYI     #$self->_write_ext_lst();
+    # Close the workbook tag.
+    self.xml_end_tag( 'workbook' );
 
-#NYI     # Close the workbook tag.
-#NYI     $self->xml_end_tag( 'workbook' );
-
-#NYI     # Close the XML writer filehandle.
-#NYI     $self->xml_get_fh()->close();
-#NYI }
+    # Close the XML writer filehandle.
+    self.xml_get_fh().close();
+}
 
 
 ###############################################################################
@@ -232,39 +230,37 @@ submethod BUILD {
 method close {
 
     # In case close() is called twice, by user and by DESTROY.
-    return if .fileclosed;
+    return if $!fileclosed;
 
-#NYI     # Test filehandle in case new() failed and the user didn't check.
-#NYI     return undef if !defined $self->{_filehandle};
+    # Test filehandle in case new() failed and the user didn't check.
+    return Nil unless $!filehandle;
 
-    .fileclosed: 1;
-    .store_workbook;
+    $!fileclosed = 1;
+    self.store_workbook;
 
-#NYI     # Return the file close value.
-#NYI     if ( $self->{_internal_fh} ) {
-#NYI         return $self->{_filehandle}->close();
-#NYI     }
-#NYI     else {
-#NYI         # Return true and let users deal with their own filehandles.
-#NYI         return 1;
-#NYI     }
+    # Return the file close value.
+    if $!self_internal_fh {
+        return $!filehandle.close();
+    }
+    else {
+        # Return true and let users deal with their own filehandles.
+        return 1;
+    }
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # DESTROY()
-#NYI #
-#NYI # Close the workbook if it hasn't already been explicitly closed.
-#NYI #
-#NYI sub DESTROY {
-
-#NYI     my $self = shift;
+###############################################################################
+#
+# DESTROY()
+#
+# Close the workbook if it hasn't already been explicitly closed.
+#
+method DESTROY {
 
 #NYI     local ( $@, $!, $^E, $? );
 
-#NYI     $self->close() if not $self->{_fileclosed};
-#NYI }
+    self.close() unless $!fileclosed;
+}
 
 
 #NYI ###############################################################################
@@ -292,21 +288,18 @@ method close {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # get_worksheet_by_name(name)
-#NYI #
-#NYI # Return a worksheet object in the workbook using the sheetname.
-#NYI #
-#NYI sub get_worksheet_by_name {
+###############################################################################
+#
+# get_worksheet_by_name(name)
+#
+# Return a worksheet object in the workbook using the sheetname.
+#
+method get_worksheet_by_name($sheetname) {
 
-#NYI     my $self      = shift;
-#NYI     my $sheetname = shift;
+    return Nil unless $sheetname.defined;
 
-#NYI     return undef if not defined $sheetname;
-
-#NYI     return $self->{_sheetnames}->{$sheetname};
-#NYI }
+    return $!sheetnames{$sheetname};
+}
 
 
 #NYI ###############################################################################
@@ -326,53 +319,52 @@ method close {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_worksheet($name)
-#NYI #
-#NYI # Add a new worksheet to the Excel workbook.
-#NYI #
-#NYI # Returns: reference to a worksheet object
-#NYI #
-#NYI sub add_worksheet {
+###############################################################################
+#
+# add_worksheet($name)
+#
+# Add a new worksheet to the Excel workbook.
+#
+# Returns: reference to a worksheet object
+#
+method add_worksheet($name) {
 
-#NYI     my $self  = shift;
-#NYI     my $index = @{ $self->{_worksheets} };
-#NYI     my $name  = $self->_check_sheetname( $_[0] );
-#NYI     my $fh    = undef;
+    my $index = @{ $self->{_worksheets} };
+    my $name  = check_sheetname( $name );
+    my $fh    = Nil;
 
-#NYI     # Porters take note, the following scheme of passing references to Workbook
-#NYI     # data (in the \$self->{_foo} cases) instead of a reference to the Workbook
-#NYI     # itself is a workaround to avoid circular references between Workbook and
-#NYI     # Worksheet objects. Feel free to implement this in any way the suits your
-#NYI     # language.
-#NYI     #
-#NYI     my @init_data = (
-#NYI         $fh,
-#NYI         $name,
-#NYI         $index,
+    # Porters take note, the following scheme of passing references to Workbook
+    # data (in the \$self->{_foo} cases) instead of a reference to the Workbook
+    # itself is a workaround to avoid circular references between Workbook and
+    # Worksheet objects. Feel free to implement this in any way the suits your
+    # language.
+    #
+    my @init_data = (
+        $fh,
+        $name,
+        $index,
 
-#NYI         \$self->{_activesheet},
-#NYI         \$self->{_firstsheet},
+#NYI        \$self->{_activesheet},
+#NYI        \$self->{_firstsheet},
 
-#NYI         \$self->{_str_total},
-#NYI         \$self->{_str_unique},
-#NYI         \$self->{_str_table},
+#NYI        \$self->{_str_total},
+#NYI        \$self->{_str_unique},
+#NYI        \$self->{_str_table},
 
-#NYI         $self->{_date_1904},
-#NYI         $self->{_palette},
-#NYI         $self->{_optimization},
-#NYI         $self->{_tempdir},
-#NYI         $self->{_excel2003_style},
+#NYI        $self->{_date_1904},
+#NYI        $self->{_palette},
+#NYI        $self->{_optimization},
+#NYI        $self->{_tempdir},
+#NYI        $self->{_excel2003_style},
 
-#NYI     );
+    );
 
-#NYI     my $worksheet = Excel::Writer::XLSX::Worksheet->new( @init_data );
-#NYI     $self->{_worksheets}->[$index] = $worksheet;
-#NYI     $self->{_sheetnames}->{$name} = $worksheet;
+    my $worksheet = Excel::Writer::XLSX::Worksheet->new( @init_data );
+    @!worksheets[$index] = $worksheet;
+    %!sheetnames{$name}  = $worksheet;
 
-#NYI     return $worksheet;
-#NYI }
+    return $worksheet;
+}
 
 
 #NYI ###############################################################################
@@ -461,270 +453,243 @@ method close {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _check_sheetname( $name )
-#NYI #
-#NYI # Check for valid worksheet names. We check the length, if it contains any
-#NYI # invalid characters and if the name is unique in the workbook.
-#NYI #
-#NYI sub _check_sheetname {
+###############################################################################
+#
+# _check_sheetname( $name )
+#
+# Check for valid worksheet names. We check the length, if it contains any
+# invalid characters and if the name is unique in the workbook.
+#
+method check_sheetname($name = '', $chart = 0) {
 
-#NYI     my $self         = shift;
-#NYI     my $name         = shift || "";
-#NYI     my $chart        = shift || 0;
-#NYI     my $invalid_char = qr([\[\]:*?/\\]);
+    my $invalid_char = token <[\[\]:*?/\\]>;
 
-#NYI     # Increment the Sheet/Chart number used for default sheet names below.
-#NYI     if ( $chart ) {
-#NYI         $self->{_chartname_count}++;
-#NYI     }
-#NYI     else {
-#NYI         $self->{_sheetname_count}++;
-#NYI     }
+    # Increment the Sheet/Chart number used for default sheet names below.
+    if ( $chart ) {
+        $!chartname_count++;
+    }
+    else {
+        $!sheetname_count++;
+    }
 
-#NYI     # Supply default Sheet/Chart name if none has been defined.
-#NYI     if ( $name eq "" ) {
+    # Supply default Sheet/Chart name if none has been defined.
+    if $name eq "" {
 
-#NYI         if ( $chart ) {
-#NYI             $name = $self->{_chart_name} . $self->{_chartname_count};
-#NYI         }
-#NYI         else {
-#NYI             $name = $self->{_sheet_name} . $self->{_sheetname_count};
-#NYI         }
-#NYI     }
+        if ( $chart ) {
+            $name = $!chart_name} ~ $!chartname_count;
+        }
+        else {
+            $name = $!sheet_name ~ $!sheetname_count;
+        }
+    }
 
-#NYI     # Check that sheet name is <= 31. Excel limit.
-#NYI     croak "Sheetname $name must be <= 31 chars" if length $name > 31;
+    # Check that sheet name is <= 31. Excel limit.
+    croak "Sheetname $name must be <= 31 chars" if $name.chars > 31;
 
-#NYI     # Check that sheetname doesn't contain any invalid characters
-#NYI     if ( $name =~ $invalid_char ) {
-#NYI         croak 'Invalid character []:*?/\\ in worksheet name: ' . $name;
-#NYI     }
+    # Check that sheetname doesn't contain any invalid characters
+    if $name =~ $invalid_char {
+        croak 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
+    }
 
-#NYI     # Check that the worksheet name doesn't already exist since this is a fatal
-#NYI     # error in Excel 97. The check must also exclude case insensitive matches.
-#NYI     foreach my $worksheet ( @{ $self->{_worksheets} } ) {
-#NYI         my $name_a = $name;
-#NYI         my $name_b = $worksheet->{_name};
+    # Check that the worksheet name doesn't already exist since this is a fatal
+    # error in Excel 97. The check must also exclude case insensitive matches.
+    for @!_worksheets -> $worksheet {
+        my $name_a = $name;
+        my $name_b = $worksheet.name;
 
-#NYI         if ( lc( $name_a ) eq lc( $name_b ) ) {
-#NYI             croak "Worksheet name '$name', with case ignored, is already used.";
-#NYI         }
-#NYI     }
+        if ( fc( $name_a ) eq fc( $name_b ) ) {
+            croak "Worksheet name '$name', with case ignored, is already used.";
+        }
+    }
 
-#NYI     return $name;
-#NYI }
+    return $name;
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_format(%properties)
-#NYI #
-#NYI # Add a new format to the Excel workbook.
-#NYI #
-#NYI sub add_format {
+###############################################################################
+#
+# add_format(%properties)
+#
+# Add a new format to the Excel workbook.
+#
+method add_format(*@options) {
 
-#NYI     my $self = shift;
+    my @init_data =
+      ( $!xf_format_indices, $!dxf_format_indices );
 
-#NYI     my @init_data =
-#NYI       ( \$self->{_xf_format_indices}, \$self->{_dxf_format_indices} );
+    # Change default format style for Excel2003/XLS format.
+    if $!excel2003_style ) {
+        push @init_data, ( font => 'Arial', size => 10, theme => -1 );
+    }
 
-#NYI     # Change default format style for Excel2003/XLS format.
-#NYI     if ( $self->{_excel2003_style} ) {
-#NYI         push @init_data, ( font => 'Arial', size => 10, theme => -1 );
-#NYI     }
+    # Add the default format properties.
+    push @init_data, %{ $!default_format_properties} };
 
-#NYI     # Add the default format properties.
-#NYI     push @init_data, %{ $self->{_default_format_properties} };
+    # Add the user defined properties.
+    push @init_data, *@options;
 
-#NYI     # Add the user defined properties.
-#NYI     push @init_data, @_;
+    my $format = Excel::Writer::XLSX::Format->new( @init_data );
 
-#NYI     my $format = Excel::Writer::XLSX::Format->new( @init_data );
+    push @!formats, $format;    # Store format reference
 
-#NYI     push @{ $self->{_formats} }, $format;    # Store format reference
-
-#NYI     return $format;
-#NYI }
+    return $format;
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_shape(%properties)
-#NYI #
-#NYI # Add a new shape to the Excel workbook.
-#NYI #
-#NYI sub add_shape {
+###############################################################################
+#
+# add_shape(%properties)
+#
+# Add a new shape to the Excel workbook.
+#
+method add_shape(^@options) {
 
-#NYI     my $self  = shift;
-#NYI     my $fh    = undef;
-#NYI     my $shape = Excel::Writer::XLSX::Shape->new( $fh, @_ );
+    my $fh    = undef;
+    my $shape = Excel::Writer::XLSX::Shape->new( $fh, @*options );
 
-#NYI     $shape->{_palette} = $self->{_palette};
-
-
-#NYI     push @{ $self->{_shapes} }, $shape;    # Store shape reference.
-
-#NYI     return $shape;
-#NYI }
-
-#NYI ###############################################################################
-#NYI #
-#NYI # set_1904()
-#NYI #
-#NYI # Set the date system: 0 = 1900 (the default), 1 = 1904
-#NYI #
-#NYI sub set_1904 {
-
-#NYI     my $self = shift;
-
-#NYI     if ( defined( $_[0] ) ) {
-#NYI         $self->{_date_1904} = $_[0];
-#NYI     }
-#NYI     else {
-#NYI         $self->{_date_1904} = 1;
-#NYI     }
-#NYI }
+    $shape.palette = self.palette;
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # get_1904()
-#NYI #
-#NYI # Return the date system: 0 = 1900, 1 = 1904
-#NYI #
-#NYI sub get_1904 {
+    push @{ self.shapes }, $shape;    # Store shape reference.
 
-#NYI     my $self = shift;
+    return $shape;
+}
 
-#NYI     return $self->{_date_1904};
-#NYI }
+###############################################################################
+#
+# set_1904()
+#
+# Set the date system: 0 = 1900 (the default), 1 = 1904
+#
+method set_1904($value = 1) {
 
-
-#NYI ###############################################################################
-#NYI #
-#NYI # set_custom_color()
-#NYI #
-#NYI # Change the RGB components of the elements in the colour palette.
-#NYI #
-#NYI sub set_custom_color {
-
-#NYI     my $self = shift;
+    $!date_1904 = $value;
+}
 
 
-#NYI     # Match a HTML #xxyyzz style parameter
-#NYI     if ( defined $_[1] and $_[1] =~ /^#(\w\w)(\w\w)(\w\w)/ ) {
-#NYI         @_ = ( $_[0], hex $1, hex $2, hex $3 );
-#NYI     }
+###############################################################################
+#
+# get_1904()
+#
+# Return the date system: 0 = 1900, 1 = 1904
+#
+method get_1904 {
+  $!date_1904;
+}
 
 
-#NYI     my $index = $_[0] || 0;
-#NYI     my $red   = $_[1] || 0;
-#NYI     my $green = $_[2] || 0;
-#NYI     my $blue  = $_[3] || 0;
+###############################################################################
+#
+# set_custom_color()
+#
+# Change the RGB components of the elements in the colour palette.
+#
+method set_custom_color($index, $red, $green?, $blue?) {
 
-#NYI     my $aref = $self->{_palette};
+    # Match a HTML #xxyyzz style parameter
+    if $red.defined and $red ~~ /^ '#' (\w\w) (\w\w) (\w\w) {
+      ($red, $green, $blue) = ($0, $1, $2);
+    }
 
-#NYI     # Check that the colour index is the right range
-#NYI     if ( $index < 8 or $index > 64 ) {
-#NYI         carp "Color index $index outside range: 8 <= index <= 64";
-#NYI         return 0;
-#NYI     }
+    my $aref = $!palette};
 
-#NYI     # Check that the colour components are in the right range
-#NYI     if (   ( $red < 0 or $red > 255 )
-#NYI         || ( $green < 0 or $green > 255 )
-#NYI         || ( $blue < 0  or $blue > 255 ) )
-#NYI     {
-#NYI         carp "Color component outside range: 0 <= color <= 255";
-#NYI         return 0;
-#NYI     }
+    # Check that the colour index is the right range
+    if ( $index < 8 or $index > 64 ) {
+        carp "Color index $index outside range: 8 <= index <= 64";
+        return 0;
+    }
 
-#NYI     $index -= 8;    # Adjust colour index (wingless dragonfly)
+    # Check that the colour components are in the right range
+    unless 0 <= $red   < 0 <= 255
+       and 0 <= $green < 0 <= 255
+       and 0 <= $blue  < 0 <= 25 
+    {
+        carp "Color component outside range: 0 <= color <= 255";
+        return 0;
+    }
 
-#NYI     # Set the RGB value.
-#NYI     my @rgb = ( $red, $green, $blue );
-#NYI     $aref->[$index] = [@rgb];
+    $index -= 8;    # Adjust colour index (wingless dragonfly)
 
-#NYI     # Store the custom colors for the style.xml file.
-#NYI     push @{ $self->{_custom_colors} }, sprintf "FF%02X%02X%02X", @rgb;
+    # Set the RGB value.
+    my @rgb = ( $red, $green, $blue );
+    @aref[$index] = @rgb;
 
-#NYI     return $index + 8;
-#NYI }
+    # Store the custom colors for the style.xml file.
+    push @!custom_colors, sprintf "FF%02X%02X%02X", @rgb;
+
+    return $index + 8;
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_color_palette()
-#NYI #
-#NYI # Sets the colour palette to the Excel defaults.
-#NYI #
-#NYI sub set_color_palette {
+###############################################################################
+#
+# set_color_palette()
+#
+# Sets the colour palette to the Excel defaults.
+#
+method set_color_palette {
 
-#NYI     my $self = shift;
+    @!palette = [
+        [ 0x00, 0x00, 0x00, 0x00 ],    # 8
+        [ 0xff, 0xff, 0xff, 0x00 ],    # 9
+        [ 0xff, 0x00, 0x00, 0x00 ],    # 10
+        [ 0x00, 0xff, 0x00, 0x00 ],    # 11
+        [ 0x00, 0x00, 0xff, 0x00 ],    # 12
+        [ 0xff, 0xff, 0x00, 0x00 ],    # 13
+        [ 0xff, 0x00, 0xff, 0x00 ],    # 14
+        [ 0x00, 0xff, 0xff, 0x00 ],    # 15
+        [ 0x80, 0x00, 0x00, 0x00 ],    # 16
+        [ 0x00, 0x80, 0x00, 0x00 ],    # 17
+        [ 0x00, 0x00, 0x80, 0x00 ],    # 18
+        [ 0x80, 0x80, 0x00, 0x00 ],    # 19
+        [ 0x80, 0x00, 0x80, 0x00 ],    # 20
+        [ 0x00, 0x80, 0x80, 0x00 ],    # 21
+        [ 0xc0, 0xc0, 0xc0, 0x00 ],    # 22
+        [ 0x80, 0x80, 0x80, 0x00 ],    # 23
+        [ 0x99, 0x99, 0xff, 0x00 ],    # 24
+        [ 0x99, 0x33, 0x66, 0x00 ],    # 25
+        [ 0xff, 0xff, 0xcc, 0x00 ],    # 26
+        [ 0xcc, 0xff, 0xff, 0x00 ],    # 27
+        [ 0x66, 0x00, 0x66, 0x00 ],    # 28
+        [ 0xff, 0x80, 0x80, 0x00 ],    # 29
+        [ 0x00, 0x66, 0xcc, 0x00 ],    # 30
+        [ 0xcc, 0xcc, 0xff, 0x00 ],    # 31
+        [ 0x00, 0x00, 0x80, 0x00 ],    # 32
+        [ 0xff, 0x00, 0xff, 0x00 ],    # 33
+        [ 0xff, 0xff, 0x00, 0x00 ],    # 34
+        [ 0x00, 0xff, 0xff, 0x00 ],    # 35
+        [ 0x80, 0x00, 0x80, 0x00 ],    # 36
+        [ 0x80, 0x00, 0x00, 0x00 ],    # 37
+        [ 0x00, 0x80, 0x80, 0x00 ],    # 38
+        [ 0x00, 0x00, 0xff, 0x00 ],    # 39
+        [ 0x00, 0xcc, 0xff, 0x00 ],    # 40
+        [ 0xcc, 0xff, 0xff, 0x00 ],    # 41
+        [ 0xcc, 0xff, 0xcc, 0x00 ],    # 42
+        [ 0xff, 0xff, 0x99, 0x00 ],    # 43
+        [ 0x99, 0xcc, 0xff, 0x00 ],    # 44
+        [ 0xff, 0x99, 0xcc, 0x00 ],    # 45
+        [ 0xcc, 0x99, 0xff, 0x00 ],    # 46
+        [ 0xff, 0xcc, 0x99, 0x00 ],    # 47
+        [ 0x33, 0x66, 0xff, 0x00 ],    # 48
+        [ 0x33, 0xcc, 0xcc, 0x00 ],    # 49
+        [ 0x99, 0xcc, 0x00, 0x00 ],    # 50
+        [ 0xff, 0xcc, 0x00, 0x00 ],    # 51
+        [ 0xff, 0x99, 0x00, 0x00 ],    # 52
+        [ 0xff, 0x66, 0x00, 0x00 ],    # 53
+        [ 0x66, 0x66, 0x99, 0x00 ],    # 54
+        [ 0x96, 0x96, 0x96, 0x00 ],    # 55
+        [ 0x00, 0x33, 0x66, 0x00 ],    # 56
+        [ 0x33, 0x99, 0x66, 0x00 ],    # 57
+        [ 0x00, 0x33, 0x00, 0x00 ],    # 58
+        [ 0x33, 0x33, 0x00, 0x00 ],    # 59
+        [ 0x99, 0x33, 0x00, 0x00 ],    # 60
+        [ 0x99, 0x33, 0x66, 0x00 ],    # 61
+        [ 0x33, 0x33, 0x99, 0x00 ],    # 62
+        [ 0x33, 0x33, 0x33, 0x00 ],    # 63
+    ];
 
-#NYI     $self->{_palette} = [
-#NYI         [ 0x00, 0x00, 0x00, 0x00 ],    # 8
-#NYI         [ 0xff, 0xff, 0xff, 0x00 ],    # 9
-#NYI         [ 0xff, 0x00, 0x00, 0x00 ],    # 10
-#NYI         [ 0x00, 0xff, 0x00, 0x00 ],    # 11
-#NYI         [ 0x00, 0x00, 0xff, 0x00 ],    # 12
-#NYI         [ 0xff, 0xff, 0x00, 0x00 ],    # 13
-#NYI         [ 0xff, 0x00, 0xff, 0x00 ],    # 14
-#NYI         [ 0x00, 0xff, 0xff, 0x00 ],    # 15
-#NYI         [ 0x80, 0x00, 0x00, 0x00 ],    # 16
-#NYI         [ 0x00, 0x80, 0x00, 0x00 ],    # 17
-#NYI         [ 0x00, 0x00, 0x80, 0x00 ],    # 18
-#NYI         [ 0x80, 0x80, 0x00, 0x00 ],    # 19
-#NYI         [ 0x80, 0x00, 0x80, 0x00 ],    # 20
-#NYI         [ 0x00, 0x80, 0x80, 0x00 ],    # 21
-#NYI         [ 0xc0, 0xc0, 0xc0, 0x00 ],    # 22
-#NYI         [ 0x80, 0x80, 0x80, 0x00 ],    # 23
-#NYI         [ 0x99, 0x99, 0xff, 0x00 ],    # 24
-#NYI         [ 0x99, 0x33, 0x66, 0x00 ],    # 25
-#NYI         [ 0xff, 0xff, 0xcc, 0x00 ],    # 26
-#NYI         [ 0xcc, 0xff, 0xff, 0x00 ],    # 27
-#NYI         [ 0x66, 0x00, 0x66, 0x00 ],    # 28
-#NYI         [ 0xff, 0x80, 0x80, 0x00 ],    # 29
-#NYI         [ 0x00, 0x66, 0xcc, 0x00 ],    # 30
-#NYI         [ 0xcc, 0xcc, 0xff, 0x00 ],    # 31
-#NYI         [ 0x00, 0x00, 0x80, 0x00 ],    # 32
-#NYI         [ 0xff, 0x00, 0xff, 0x00 ],    # 33
-#NYI         [ 0xff, 0xff, 0x00, 0x00 ],    # 34
-#NYI         [ 0x00, 0xff, 0xff, 0x00 ],    # 35
-#NYI         [ 0x80, 0x00, 0x80, 0x00 ],    # 36
-#NYI         [ 0x80, 0x00, 0x00, 0x00 ],    # 37
-#NYI         [ 0x00, 0x80, 0x80, 0x00 ],    # 38
-#NYI         [ 0x00, 0x00, 0xff, 0x00 ],    # 39
-#NYI         [ 0x00, 0xcc, 0xff, 0x00 ],    # 40
-#NYI         [ 0xcc, 0xff, 0xff, 0x00 ],    # 41
-#NYI         [ 0xcc, 0xff, 0xcc, 0x00 ],    # 42
-#NYI         [ 0xff, 0xff, 0x99, 0x00 ],    # 43
-#NYI         [ 0x99, 0xcc, 0xff, 0x00 ],    # 44
-#NYI         [ 0xff, 0x99, 0xcc, 0x00 ],    # 45
-#NYI         [ 0xcc, 0x99, 0xff, 0x00 ],    # 46
-#NYI         [ 0xff, 0xcc, 0x99, 0x00 ],    # 47
-#NYI         [ 0x33, 0x66, 0xff, 0x00 ],    # 48
-#NYI         [ 0x33, 0xcc, 0xcc, 0x00 ],    # 49
-#NYI         [ 0x99, 0xcc, 0x00, 0x00 ],    # 50
-#NYI         [ 0xff, 0xcc, 0x00, 0x00 ],    # 51
-#NYI         [ 0xff, 0x99, 0x00, 0x00 ],    # 52
-#NYI         [ 0xff, 0x66, 0x00, 0x00 ],    # 53
-#NYI         [ 0x66, 0x66, 0x99, 0x00 ],    # 54
-#NYI         [ 0x96, 0x96, 0x96, 0x00 ],    # 55
-#NYI         [ 0x00, 0x33, 0x66, 0x00 ],    # 56
-#NYI         [ 0x33, 0x99, 0x66, 0x00 ],    # 57
-#NYI         [ 0x00, 0x33, 0x00, 0x00 ],    # 58
-#NYI         [ 0x33, 0x33, 0x00, 0x00 ],    # 59
-#NYI         [ 0x99, 0x33, 0x00, 0x00 ],    # 60
-#NYI         [ 0x99, 0x33, 0x66, 0x00 ],    # 61
-#NYI         [ 0x33, 0x33, 0x99, 0x00 ],    # 62
-#NYI         [ 0x33, 0x33, 0x33, 0x00 ],    # 63
-#NYI     ];
-
-#NYI     return 0;
-#NYI }
+    return 0;
+}
 
 
 #NYI ###############################################################################
@@ -802,150 +767,137 @@ method close {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_size()
-#NYI #
-#NYI # Set the workbook size.
-#NYI #
-#NYI sub set_size {
+###############################################################################
+#
+# set_size()
+#
+# Set the workbook size.
+#
+method set_size($width, $height) {
 
-#NYI     my $self   = shift;
-#NYI     my $width  = shift;
-#NYI     my $height = shift;
+    if !$width {
+        $!window_width = 16095;
+    }
+    else {
+        # Convert to twips at 96 dpi.
+        $!window_width = int( $width * 1440 / 96 );
+    }
 
-#NYI     if ( !$width ) {
-#NYI         $self->{_window_width} = 16095;
-#NYI     }
-#NYI     else {
-#NYI         # Convert to twips at 96 dpi.
-#NYI         $self->{_window_width} = int( $width * 1440 / 96 );
-#NYI     }
-
-#NYI     if ( !$height ) {
-#NYI         $self->{_window_height} = 9660;
-#NYI     }
-#NYI     else {
-#NYI         # Convert to twips at 96 dpi.
-#NYI         $self->{_window_height} = int( $height * 1440 / 96 );
-#NYI     }
-#NYI }
+    if !$height {
+        $!window_height = 9660;
+    }
+    else {
+        # Convert to twips at 96 dpi.
+        $!window_height = int( $height * 1440 / 96 );
+    }
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_properties()
-#NYI #
-#NYI # Set the document properties such as Title, Author etc. These are written to
-#NYI # property sets in the OLE container.
-#NYI #
-#NYI sub set_properties {
+###############################################################################
+#
+# set_properties()
+#
+# Set the document properties such as Title, Author etc. These are written to
+# property sets in the OLE container.
+#
+method set_properties(*%param) {
 
-#NYI     my $self  = shift;
-#NYI     my %param = @_;
+    # Ignore if no args were passed.
+    return -1 unless *%param;
 
-#NYI     # Ignore if no args were passed.
-#NYI     return -1 unless @_;
+    # List of valid input parameters.
+    my %valid = (
+        title          => 1,
+        subject        => 1,
+        author         => 1,
+        keywords       => 1,
+        comments       => 1,
+        last_author    => 1,
+        created        => 1,
+        category       => 1,
+        manager        => 1,
+        company        => 1,
+        status         => 1,
+        hyperlink_base => 1,
+    );
 
-#NYI     # List of valid input parameters.
-#NYI     my %valid = (
-#NYI         title          => 1,
-#NYI         subject        => 1,
-#NYI         author         => 1,
-#NYI         keywords       => 1,
-#NYI         comments       => 1,
-#NYI         last_author    => 1,
-#NYI         created        => 1,
-#NYI         category       => 1,
-#NYI         manager        => 1,
-#NYI         company        => 1,
-#NYI         status         => 1,
-#NYI         hyperlink_base => 1,
-#NYI     );
+    # Check for valid input parameters.
+    for %param.keys -> $parameter{
+        if ( not %valid{$parameter}.defined ) {
+            carp "Unknown parameter '$parameter' in set_properties()";
+            return -1;
+        }
+    }
 
-#NYI     # Check for valid input parameters.
-#NYI     for my $parameter ( keys %param ) {
-#NYI         if ( not exists $valid{$parameter} ) {
-#NYI             carp "Unknown parameter '$parameter' in set_properties()";
-#NYI             return -1;
-#NYI         }
-#NYI     }
-
-#NYI     # Set the creation time unless specified by the user.
-#NYI     if ( !exists $param{created} ) {
-#NYI         $param{created} = $self->{_createtime};
-#NYI     }
+    # Set the creation time unless specified by the user.
+    if ( ! *%param<created>.exists ) {
+        *%param<{created> = $!createtime;
+    }
 
 
-#NYI     $self->{_doc_properties} = \%param;
-#NYI }
+    $self->{_doc_properties} = \%param;
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_custom_property()
-#NYI #
-#NYI # Set a user defined custom document property.
-#NYI #
-#NYI sub set_custom_property {
+###############################################################################
+#
+# set_custom_property()
+#
+# Set a user defined custom document property.
+#
+method set_custom_property($name, $value, $type?) {
 
-#NYI     my $self  = shift;
-#NYI     my $name  = shift;
-#NYI     my $value = shift;
-#NYI     my $type  = shift;
+    # Valid types.
+    my %valid_type = (
+        'text'       => 1,
+        'date'       => 1,
+        'number'     => 1,
+        'number_int' => 1,
+        'bool'       => 1,
+    );
 
+    if ! $name.defined || ! $value.defined {
+        carp "The name and value parameters must be defined "
+          ~ "in set_custom_property()";
 
-#NYI     # Valid types.
-#NYI     my %valid_type = (
-#NYI         'text'       => 1,
-#NYI         'date'       => 1,
-#NYI         'number'     => 1,
-#NYI         'number_int' => 1,
-#NYI         'bool'       => 1,
-#NYI     );
+        return -1;
+    }
 
-#NYI     if ( !defined $name || !defined $value ) {
-#NYI         carp "The name and value parameters must be defined "
-#NYI           . "in set_custom_property()";
+    # Determine the type for strings and numbers if it hasn't been specified.
+    if !$type {
+        if $value =~ /^\d+$/ {
+            $type = 'number_int';
+        }
+        elsif $value =~
+            /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ # TODO
+        {
+            $type = 'number';
+        }
+        else {
+            $type = 'text';
+        }
+    }
 
-#NYI         return -1;
-#NYI     }
+    # Check for valid validation types.
+    if ! %valid_type{$type}.exists {
+        carp "Unknown custom type '$type' in set_custom_property()";
+        return -1;
+    }
 
-#NYI     # Determine the type for strings and numbers if it hasn't been specified.
-#NYI     if ( !$type ) {
-#NYI         if ( $value =~ /^\d+$/ ) {
-#NYI             $type = 'number_int';
-#NYI         }
-#NYI         elsif ( $value =~
-#NYI             /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ )
-#NYI         {
-#NYI             $type = 'number';
-#NYI         }
-#NYI         else {
-#NYI             $type = 'text';
-#NYI         }
-#NYI     }
+    #  Check for strings longer than Excel's limit of 255 chars.
+    if $type eq 'text' and $value.chars > 255 {
+        carp "Length of text custom value '$value' exceeds "
+          ~ "Excel's limit of 255 in set_custom_property()";
+        return -1;
+    }
+    if $name.chars > 255 {
+        carp "Length of custom name '$name' exceeds "
+          ~ "Excel's limit of 255 in set_custom_property()";
+        return -1;
+    }
 
-#NYI     # Check for valid validation types.
-#NYI     if ( !exists $valid_type{$type} ) {
-#NYI         carp "Unknown custom type '$type' in set_custom_property()";
-#NYI         return -1;
-#NYI     }
-
-#NYI     #  Check for strings longer than Excel's limit of 255 chars.
-#NYI     if ( $type eq 'text' and length $value > 255 ) {
-#NYI         carp "Length of text custom value '$value' exceeds "
-#NYI           . "Excel's limit of 255 in set_custom_property()";
-#NYI         return -1;
-#NYI     }
-#NYI     if ( length $value > 255 ) {
-#NYI         carp "Length of custom name '$name' exceeds "
-#NYI           . "Excel's limit of 255 in set_custom_property()";
-#NYI         return -1;
-#NYI     }
-
-#NYI     push @{ $self->{_custom_properties} }, [ $name, $value, $type ];
-#NYI }
+    push @!custom_properties, [ $name, $value, $type ];
+}
 
 
 
@@ -990,30 +942,26 @@ method close {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_calc_mode()
-#NYI #
-#NYI # Set the Excel caclcuation mode for the workbook.
-#NYI #
-#NYI sub set_calc_mode {
+###############################################################################
+#
+# set_calc_mode()
+#
+# Set the Excel calcuation mode for the workbook.
+#
+method set_calc_mode($mode = 'auto', $calc-id?) {
 
-#NYI     my $self    = shift;
-#NYI     my $mode    = shift || 'auto';
-#NYI     my $calc_id = shift;
+    $!calc_mode = $mode;
 
-#NYI     $self->{_calc_mode} = $mode;
+    if $mode eq 'manual' {
+        $!calc_mode    = 'manual';
+        $!calc_on_load = 0;
+    }
+    elsif $mode eq 'auto_except_tables' {
+        $!calc_mode = 'autoNoTable';
+    }
 
-#NYI     if ( $mode eq 'manual' ) {
-#NYI         $self->{_calc_mode}    = 'manual';
-#NYI         $self->{_calc_on_load} = 0;
-#NYI     }
-#NYI     elsif ( $mode eq 'auto_except_tables' ) {
-#NYI         $self->{_calc_mode} = 'autoNoTable';
-#NYI     }
-
-#NYI     $self->{_calc_id} = $calc_id if defined $calc_id;
-#NYI }
+    $!calc_id = $calc-id if $calc-id.defined;
+}
 
 
 #NYI ###############################################################################
@@ -2678,12 +2626,7 @@ method close {
 #NYI     $self->xml_data_element( 'definedName', $range, @attributes );
 #NYI }
 
-
-#NYI 1;
-
-
-#NYI __END__
-
+=begin pod
 
 =head1 NAME
 
