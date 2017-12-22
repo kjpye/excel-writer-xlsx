@@ -17,9 +17,9 @@ use 6.c;
 #NYI use Carp;
 #NYI use IO::File;
 #NYI use File::Find;
-#NYI use File::Temp qw(tempfile);
+use File::Temp <tempfile>;
 #NYI use File::Basename 'fileparse';
-#NYI use Archive::Zip;
+use Archive::Zip;
 #NYI use Excel::Writer::XLSX::Worksheet;
 #NYI use Excel::Writer::XLSX::Chartsheet;
 #NYI use Excel::Writer::XLSX::Format;
@@ -964,120 +964,120 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _store_workbook()
-#NYI #
-#NYI # Assemble worksheets into a workbook.
-#NYI #
-#NYI sub _store_workbook {
+###############################################################################
+#
+# _store_workbook()
+#
+# Assemble worksheets into a workbook.
+#
+method store_workbook {
 
-#NYI     my $self     = shift;
-#NYI     my $tempdir  = File::Temp->newdir( DIR => $self->{_tempdir} );
-#NYI     my $packager = Excel::Writer::XLSX::Package::Packager->new();
-#NYI     my $zip      = Archive::Zip->new();
-
-
-#NYI     # Add a default worksheet if non have been added.
-#NYI     $self->add_worksheet() if not @{ $self->{_worksheets} };
-
-#NYI     # Ensure that at least one worksheet has been selected.
-#NYI     if ( $self->{_activesheet} == 0 ) {
-#NYI         $self->{_worksheets}->[0]->{_selected} = 1;
-#NYI         $self->{_worksheets}->[0]->{_hidden}   = 0;
-#NYI     }
-
-#NYI     # Set the active sheet.
-#NYI     for my $sheet ( @{ $self->{_worksheets} } ) {
-#NYI         $sheet->{_active} = 1 if $sheet->{_index} == $self->{_activesheet};
-#NYI     }
-
-#NYI     # Convert the SST strings data structure.
-#NYI     $self->_prepare_sst_string_data();
-
-#NYI     # Prepare the worksheet VML elements such as comments and buttons.
-#NYI     $self->_prepare_vml_objects();
-
-#NYI     # Set the defined names for the worksheets such as Print Titles.
-#NYI     $self->_prepare_defined_names();
-
-#NYI     # Prepare the drawings, charts and images.
-#NYI     $self->_prepare_drawings();
-
-#NYI     # Add cached data to charts.
-#NYI     $self->_add_chart_data();
-
-#NYI     # Prepare the worksheet tables.
-#NYI     $self->_prepare_tables();
-
-#NYI     # Package the workbook.
-#NYI     $packager->_add_workbook( $self );
-#NYI     $packager->_set_package_dir( $tempdir );
-#NYI     $packager->_create_package();
-
-#NYI     # Free up the Packager object.
-#NYI     $packager = undef;
-
-#NYI     # Add the files to the zip archive. Due to issues with Archive::Zip in
-#NYI     # taint mode we can't use addTree() so we have to build the file list
-#NYI     # with File::Find and pass each one to addFile().
-#NYI     my @xlsx_files;
-
-#NYI     my $wanted = sub { push @xlsx_files, $File::Find::name if -f };
-
-#NYI     File::Find::find(
-#NYI         {
-#NYI             wanted          => $wanted,
-#NYI             untaint         => 1,
-#NYI             untaint_pattern => qr|^(.+)$|
-#NYI         },
-#NYI         $tempdir
-#NYI     );
-
-#NYI     # Store the xlsx component files with the temp dir name removed.
-#NYI     for my $filename ( @xlsx_files ) {
-#NYI         my $short_name = $filename;
-#NYI         $short_name =~ s{^\Q$tempdir\E/?}{};
-#NYI         $zip->addFile( $filename, $short_name );
-#NYI     }
+    my $tempdir  = File::Temp->newdir( DIR => $self->{_tempdir} );
+    my $packager = Excel::Writer::XLSX::Package::Packager->new();
+    my $zip      = Archive::Zip->new();
 
 
-#NYI     if ( $self->{_internal_fh} ) {
+    # Add a default worksheet if non have been added.
+    self.add_worksheet() if not @!worksheets;
 
-#NYI         if ( $zip->writeToFileHandle( $self->{_filehandle} ) != 0 ) {
-#NYI             carp 'Error writing zip container for xlsx file.';
-#NYI         }
-#NYI     }
-#NYI     else {
+    # Ensure that at least one worksheet has been selected.
+    if ( $!activesheet == 0 ) {
+        @!worksheets[0]{selected} = 1;
+        @!worksheets[0]{hidden}   = 0;
+    }
 
-#NYI         # Archive::Zip needs to rewind a filehandle to write the zip headers.
-#NYI         # This won't work for arbitrary user defined filehandles so we use
-#NYI         # a temp file based filehandle to create the zip archive and then
-#NYI         # stream that to the filehandle.
-#NYI         my $tmp_fh = tempfile( DIR => $self->{_tempdir} );
-#NYI         my $is_seekable = 1;
+    # Set the active sheet.
+    for @!worksheets -> $sheet {
+        $sheet{active} = 1 if $sheet{index} == $!activesheet;
+    }
 
-#NYI         if ( $zip->writeToFileHandle( $tmp_fh, $is_seekable ) != 0 ) {
-#NYI             carp 'Error writing zip container for xlsx file.';
-#NYI         }
+    # Convert the SST strings data structure.
+    self.prepare_sst_string_data();
 
-#NYI         my $buffer;
-#NYI         seek $tmp_fh, 0, 0;
+    # Prepare the worksheet VML elements such as comments and buttons.
+    self.prepare_vml_objects();
 
-#NYI         while ( read( $tmp_fh, $buffer, 4_096 ) ) {
-#NYI             local $\ = undef;    # Protect print from -l on commandline.
-#NYI             print { $self->{_filehandle} } $buffer;
-#NYI         }
-#NYI     }
-#NYI }
+    # Set the defined names for the worksheets such as Print Titles.
+    self.prepare_defined_names();
+
+    # Prepare the drawings, charts and images.
+    self.prepare_drawings();
+
+    # Add cached data to charts.
+    self.add_chart_data();
+
+    # Prepare the worksheet tables.
+    self.prepare_tables();
+
+    # Package the workbook.
+    $packager.add_workbook();
+    $packager.set_package_dir( $tempdir );
+    $packager.create_package();
+
+    # Free up the Packager object.
+    $packager = Nil;
+
+    # Add the files to the zip archive. Due to issues with Archive::Zip in
+    # taint mode we can't use addTree() so we have to build the file list
+    # with File::Find and pass each one to addFile().
+    my @xlsx_files;
+
+    my $wanted = sub { push @xlsx_files, $File::Find::name if -f };
+
+    File::Find::find(
+        {
+            wanted          => $wanted,
+            untaint         => 1,
+            untaint_pattern => qr|^(.+)$|
+        },
+        $tempdir
+    );
+
+    # Store the xlsx component files with the temp dir name removed.
+    for @xlsx_files -> $filename {
+        my $short_name = $filename;
+        $short_name =~ s{^\Q$tempdir\E/?}{}; # TODO
+        $zip.addFile( $filename, $short_name );
+    }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_sst_string_data()
-#NYI #
-#NYI # Convert the SST string data from a hash to an array.
-#NYI #
+    if $!internal_fh {
+
+        if $zip.writeToFileHandle( $!filehandle ) != 0 {
+            carp 'Error writing zip container for xlsx file.';
+        }
+    }
+    else {
+
+#TODO:
+        # Archive::Zip needs to rewind a filehandle to write the zip headers.
+        # This won't work for arbitrary user defined filehandles so we use
+        # a temp file based filehandle to create the zip archive and then
+        # stream that to the filehandle.
+        my $tmp_fh = tempfile( DIR => $self->{_tempdir} );
+        my $is_seekable = 1;
+
+        if ( $zip->writeToFileHandle( $tmp_fh, $is_seekable ) != 0 ) {
+            carp 'Error writing zip container for xlsx file.';
+        }
+
+        my $buffer;
+        seek $tmp_fh, 0, 0;
+
+        while ( read( $tmp_fh, $buffer, 4_096 ) ) {
+            local $\ = undef;    # Protect print from -l on commandline.
+            print { $self->{_filehandle} } $buffer;
+        }
+    }
+}
+
+
+###############################################################################
+#
+# _prepare_sst_string_data()
+#
+# Convert the SST string data from a hash to an array.
+#
 #NYI sub _prepare_sst_string_data {
 
 #NYI     my $self = shift;
@@ -1096,12 +1096,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_format_properties()
-#NYI #
-#NYI # Prepare all of the format properties prior to passing them to Styles.pm.
-#NYI #
+###############################################################################
+#
+# _prepare_format_properties()
+#
+# Prepare all of the format properties prior to passing them to Styles.pm.
+#
 #NYI sub _prepare_format_properties {
 
 #NYI     my $self = shift;
@@ -1125,13 +1125,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_formats()
-#NYI #
-#NYI # Iterate through the XF Format objects and separate them into XF and DXF
-#NYI # formats.
-#NYI #
+###############################################################################
+#
+# _prepare_formats()
+#
+# Iterate through the XF Format objects and separate them into XF and DXF
+# formats.
+#
 #NYI sub _prepare_formats {
 
 #NYI     my $self = shift;
@@ -1151,12 +1151,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _set_default_xf_indices()
-#NYI #
-#NYI # Set the default index for each format. This is mainly used for testing.
-#NYI #
+###############################################################################
+#
+# _set_default_xf_indices()
+#
+# Set the default index for each format. This is mainly used for testing.
+#
 #NYI sub _set_default_xf_indices {
 
 #NYI     my $self = shift;
@@ -1167,13 +1167,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_fonts()
-#NYI #
-#NYI # Iterate through the XF Format objects and give them an index to non-default
-#NYI # font elements.
-#NYI #
+###############################################################################
+#
+# _prepare_fonts()
+#
+# Iterate through the XF Format objects and give them an index to non-default
+# font elements.
+#
 #NYI sub _prepare_fonts {
 
 #NYI     my $self = shift;
@@ -1219,15 +1219,15 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_num_formats()
-#NYI #
-#NYI # Iterate through the XF Format objects and give them an index to non-default
-#NYI # number format elements.
-#NYI #
-#NYI # User defined records start from index 0xA4.
-#NYI #
+###############################################################################
+#
+# _prepare_num_formats()
+#
+# Iterate through the XF Format objects and give them an index to non-default
+# number format elements.
+#
+# User defined records start from index 0xA4.
+#
 #NYI sub _prepare_num_formats {
 
 #NYI     my $self = shift;
@@ -1274,13 +1274,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_borders()
-#NYI #
-#NYI # Iterate through the XF Format objects and give them an index to non-default
-#NYI # border elements.
-#NYI #
+###############################################################################
+#
+# _prepare_borders()
+#
+# Iterate through the XF Format objects and give them an index to non-default
+# border elements.
+#
 #NYI sub _prepare_borders {
 
 #NYI     my $self = shift;
@@ -1321,16 +1321,16 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_fills()
-#NYI #
-#NYI # Iterate through the XF Format objects and give them an index to non-default
-#NYI # fill elements.
-#NYI #
-#NYI # The user defined fill properties start from 2 since there are 2 default
-#NYI # fills: patternType="none" and patternType="gray125".
-#NYI #
+###############################################################################
+#
+# _prepare_fills()
+#
+# Iterate through the XF Format objects and give them an index to non-default
+# fill elements.
+#
+# The user defined fill properties start from 2 since there are 2 default
+# fills: patternType="none" and patternType="gray125".
+#
 #NYI sub _prepare_fills {
 
 #NYI     my $self = shift;
@@ -1417,14 +1417,14 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_defined_names()
-#NYI #
-#NYI # Iterate through the worksheets and store any defined names in addition to
-#NYI # any user defined names. Stores the defined names for the Workbook.xml and
-#NYI # the named ranges for App.xml.
-#NYI #
+###############################################################################
+#
+# _prepare_defined_names()
+#
+# Iterate through the worksheets and store any defined names in addition to
+# any user defined names. Stores the defined names for the Workbook.xml and
+# the named ranges for App.xml.
+#
 #NYI sub _prepare_defined_names {
 
 #NYI     my $self = shift;
@@ -1479,15 +1479,15 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _sort_defined_names()
-#NYI #
-#NYI # Sort internal and user defined names in the same order as used by Excel.
-#NYI # This may not be strictly necessary but unsorted elements caused a lot of
-#NYI # issues in the Spreadsheet::WriteExcel binary version. Also makes
-#NYI # comparison testing easier.
-#NYI #
+###############################################################################
+#
+# _sort_defined_names()
+#
+# Sort internal and user defined names in the same order as used by Excel.
+# This may not be strictly necessary but unsorted elements caused a lot of
+# issues in the Spreadsheet::WriteExcel binary version. Also makes
+# comparison testing easier.
+#
 #NYI sub _sort_defined_names {
 
 #NYI     my @names = @_;
@@ -1512,8 +1512,8 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI     return @names;
 #NYI }
 
-#NYI # Used in the above sort routine to normalise the defined names. Removes any
-#NYI # leading '_xmln.' from internal names and lowercases the strings.
+# Used in the above sort routine to normalise the defined names. Removes any
+# leading '_xmln.' from internal names and lowercases the strings.
 #NYI sub _normalise_defined_name {
 #NYI     my $name = shift;
 
@@ -1523,8 +1523,8 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI     return $name;
 #NYI }
 
-#NYI # Used in the above sort routine to normalise the worksheet names for the
-#NYI # secondary sort. Removes leading quote and lowercases the strings.
+# Used in the above sort routine to normalise the worksheet names for the
+# secondary sort. Removes leading quote and lowercases the strings.
 #NYI sub _normalise_sheet_name {
 #NYI     my $name = shift;
 
@@ -1535,13 +1535,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _extract_named_ranges()
-#NYI #
-#NYI # Extract the named ranges from the sorted list of defined names. These are
-#NYI # used in the App.xml file.
-#NYI #
+###############################################################################
+#
+# _extract_named_ranges()
+#
+# Extract the named ranges from the sorted list of defined names. These are
+# used in the App.xml file.
+#
 #NYI sub _extract_named_ranges {
 
 #NYI     my @defined_names = @_;
@@ -1578,12 +1578,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_drawings()
-#NYI #
-#NYI # Iterate through the worksheets and set up any chart or image drawings.
-#NYI #
+###############################################################################
+#
+# _prepare_drawings()
+#
+# Iterate through the worksheets and set up any chart or image drawings.
+#
 #NYI sub _prepare_drawings {
 
 #NYI     my $self         = shift;
@@ -1702,12 +1702,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_vml_objects()
-#NYI #
-#NYI # Iterate through the worksheets and set up the VML objects.
-#NYI #
+###############################################################################
+#
+# _prepare_vml_objects()
+#
+# Iterate through the worksheets and set up the VML objects.
+#
 #NYI sub _prepare_vml_objects {
 
 #NYI     my $self           = shift;
@@ -1788,12 +1788,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_tables()
-#NYI #
-#NYI # Set the table ids for the worksheet tables.
-#NYI #
+###############################################################################
+#
+# _prepare_tables()
+#
+# Set the table ids for the worksheet tables.
+#
 #NYI sub _prepare_tables {
 
 #NYI     my $self     = shift;
@@ -1813,13 +1813,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _add_chart_data()
-#NYI #
-#NYI # Add "cached" data to charts to provide the numCache and strCache data for
-#NYI # series and title/axis ranges.
-#NYI #
+###############################################################################
+#
+# _add_chart_data()
+#
+# Add "cached" data to charts to provide the numCache and strCache data for
+# series and title/axis ranges.
+#
 #NYI sub _add_chart_data {
 
 #NYI     my $self = shift;
@@ -1914,13 +1914,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _get_chart_range()
-#NYI #
-#NYI # Convert a range formula such as Sheet1!$B$1:$B$5 into a sheet name and cell
-#NYI # range such as ( 'Sheet1', 0, 1, 4, 1 ).
-#NYI #
+###############################################################################
+#
+# _get_chart_range()
+#
+# Convert a range formula such as Sheet1!$B$1:$B$5 into a sheet name and cell
+# range such as ( 'Sheet1', 0, 1, 4, 1 ).
+#
 #NYI sub _get_chart_range {
 
 #NYI     my $self  = shift;
@@ -1965,13 +1965,13 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _store_externs()
-#NYI #
-#NYI # Write the EXTERNCOUNT and EXTERNSHEET records. These are used as indexes for
-#NYI # the NAME records.
-#NYI #
+###############################################################################
+#
+# _store_externs()
+#
+# Write the EXTERNCOUNT and EXTERNSHEET records. These are used as indexes for
+# the NAME records.
+#
 #NYI sub _store_externs {
 
 #NYI     my $self = shift;
@@ -1979,12 +1979,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _store_names()
-#NYI #
-#NYI # Write the NAME record to define the print area and the repeat rows and cols.
-#NYI #
+###############################################################################
+#
+# _store_names()
+#
+# Write the NAME record to define the print area and the repeat rows and cols.
+#
 #NYI sub _store_names {
 
 #NYI     my $self = shift;
@@ -1992,14 +1992,14 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _quote_sheetname()
-#NYI #
-#NYI # Sheetnames used in references should be quoted if they contain any spaces,
-#NYI # special characters or if the look like something that isn't a sheet name.
-#NYI # TODO. We need to handle more special cases.
-#NYI #
+###############################################################################
+#
+# _quote_sheetname()
+#
+# Sheetnames used in references should be quoted if they contain any spaces,
+# special characters or if the look like something that isn't a sheet name.
+# TODO. We need to handle more special cases.
+#
 #NYI sub _quote_sheetname {
 
 #NYI     my $self      = shift;
@@ -2014,14 +2014,14 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _get_image_properties()
-#NYI #
-#NYI # Extract information from the image file such as dimension, type, filename,
-#NYI # and extension. Also keep track of previously seen images to optimise out
-#NYI # any duplicates.
-#NYI #
+###############################################################################
+#
+# _get_image_properties()
+#
+# Extract information from the image file such as dimension, type, filename,
+# and extension. Also keep track of previously seen images to optimise out
+# any duplicates.
+#
 #NYI sub _get_image_properties {
 
 #NYI     my $self     = shift;
@@ -2086,12 +2086,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _process_png()
-#NYI #
-#NYI # Extract width and height information from a PNG file.
-#NYI #
+###############################################################################
+#
+# _process_png()
+#
+# Extract width and height information from a PNG file.
+#
 #NYI sub _process_png {
 
 #NYI     my $self     = shift;
@@ -2143,14 +2143,14 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _process_bmp()
-#NYI #
-#NYI # Extract width and height information from a BMP file.
-#NYI #
-#NYI # Most of the checks came from old Spredsheet::WriteExcel code.
-#NYI #
+###############################################################################
+#
+# _process_bmp()
+#
+# Extract width and height information from a BMP file.
+#
+# Most of the checks came from old Spredsheet::WriteExcel code.
+#
 #NYI sub _process_bmp {
 
 #NYI     my $self     = shift;
@@ -2199,12 +2199,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _process_jpg()
-#NYI #
-#NYI # Extract width and height information from a JPEG file.
-#NYI #
+###############################################################################
+#
+# _process_jpg()
+#
+# Extract width and height information from a JPEG file.
+#
 #NYI sub _process_jpg {
 
 #NYI     my $self     = shift;
@@ -2283,22 +2283,19 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_optimization()
-#NYI #
-#NYI # Set the speed/memory optimisation level.
-#NYI #
-#NYI sub set_optimization {
+###############################################################################
+#
+# set_optimization()
+#
+# Set the speed/memory optimisation level.
+#
+method set_optimization($level = 1) {
 
-#NYI     my $self = shift;
-#NYI     my $level = defined $_[0] ? $_[0] : 1;
+    croak "set_optimization() must be called before add_worksheet()"
+      if $!sheets();
 
-#NYI     croak "set_optimization() must be called before add_worksheet()"
-#NYI       if $self->sheets();
-
-#NYI     $self->{_optimization} = $level;
-#NYI }
+    $!optimization = $level;
+}
 
 
 #NYI ###############################################################################
@@ -2312,70 +2309,68 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI sub set_codepage       { }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # XML writing methods.
-#NYI #
-#NYI ###############################################################################
+###############################################################################
+#
+# XML writing methods.
+#
+###############################################################################
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_workbook()
-#NYI #
-#NYI # Write <workbook> element.
-#NYI #
-#NYI sub _write_workbook {
+###############################################################################
+#
+# _write_workbook()
+#
+# Write <workbook> element.
+#
+method write_workbook {
 
-#NYI     my $self    = shift;
-#NYI     my $schema  = 'http://schemas.openxmlformats.org';
-#NYI     my $xmlns   = $schema . '/spreadsheetml/2006/main';
-#NYI     my $xmlns_r = $schema . '/officeDocument/2006/relationships';
+    my $schema  = 'http://schemas.openxmlformats.org';
+    my $xmlns   = $schema ~ '/spreadsheetml/2006/main';
+    my $xmlns_r = $schema ~ '/officeDocument/2006/relationships';
 
-#NYI     my @attributes = (
-#NYI         'xmlns'   => $xmlns,
-#NYI         'xmlns:r' => $xmlns_r,
-#NYI     );
+    my @attributes = (
+        'xmlns'   => $xmlns,
+        'xmlns:r' => $xmlns_r,
+    );
 
-#NYI     $self->xml_start_tag( 'workbook', @attributes );
-#NYI }
-
-
-#NYI ###############################################################################
-#NYI #
-#NYI # write_file_version()
-#NYI #
-#NYI # Write the <fileVersion> element.
-#NYI #
-#NYI sub _write_file_version {
-
-#NYI     my $self          = shift;
-#NYI     my $app_name      = 'xl';
-#NYI     my $last_edited   = 4;
-#NYI     my $lowest_edited = 4;
-#NYI     my $rup_build     = 4505;
-
-#NYI     my @attributes = (
-#NYI         'appName'      => $app_name,
-#NYI         'lastEdited'   => $last_edited,
-#NYI         'lowestEdited' => $lowest_edited,
-#NYI         'rupBuild'     => $rup_build,
-#NYI     );
-
-#NYI     if ( $self->{_vba_project} ) {
-#NYI         push @attributes, codeName => '{37E998C4-C9E5-D4B9-71C8-EB1FF731991C}';
-#NYI     }
-
-#NYI     $self->xml_empty_tag( 'fileVersion', @attributes );
-#NYI }
+    self.xml_start_tag( 'workbook', @attributes );
+}
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_workbook_pr()
-#NYI #
-#NYI # Write <workbookPr> element.
-#NYI #
+###############################################################################
+#
+# write_file_version()
+#
+# Write the <fileVersion> element.
+#
+method write_file_version {
+
+    my $app_name      = 'xl';
+    my $last_edited   = 4;
+    my $lowest_edited = 4;
+    my $rup_build     = 4505;
+
+    my @attributes = (
+        'appName'      => $app_name,
+        'lastEdited'   => $last_edited,
+        'lowestEdited' => $lowest_edited,
+        'rupBuild'     => $rup_build,
+    );
+
+    if $!vba_project {
+        push @attributes, codeName => '{37E998C4-C9E5-D4B9-71C8-EB1FF731991C}';
+    }
+
+    self.xml_empty_tag( 'fileVersion', @attributes );
+}
+
+
+###############################################################################
+#
+# _write_workbook_pr()
+#
+# Write <workbookPr> element.
+#
 #NYI sub _write_workbook_pr {
 
 #NYI     my $self                   = shift;
@@ -2394,12 +2389,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_book_views()
-#NYI #
-#NYI # Write <bookViews> element.
-#NYI #
+###############################################################################
+#
+# _write_book_views()
+#
+# Write <bookViews> element.
+#
 #NYI sub _write_book_views {
 
 #NYI     my $self = shift;
@@ -2409,12 +2404,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI     $self->xml_end_tag( 'bookViews' );
 #NYI }
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_workbook_view()
-#NYI #
-#NYI # Write <workbookView> element.
-#NYI #
+###############################################################################
+#
+# _write_workbook_view()
+#
+# Write <workbookView> element.
+#
 #NYI sub _write_workbook_view {
 
 #NYI     my $self          = shift;
@@ -2445,12 +2440,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI     $self->xml_empty_tag( 'workbookView', @attributes );
 #NYI }
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheets()
-#NYI #
-#NYI # Write <sheets> element.
-#NYI #
+###############################################################################
+#
+# _write_sheets()
+#
+# Write <sheets> element.
+#
 #NYI sub _write_sheets {
 
 #NYI     my $self   = shift;
@@ -2467,12 +2462,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet()
-#NYI #
-#NYI # Write <sheet> element.
-#NYI #
+###############################################################################
+#
+# _write_sheet()
+#
+# Write <sheet> element.
+#
 #NYI sub _write_sheet {
 
 #NYI     my $self     = shift;
@@ -2494,12 +2489,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_calc_pr()
-#NYI #
-#NYI # Write <calcPr> element.
-#NYI #
+###############################################################################
+#
+# _write_calc_pr()
+#
+# Write <calcPr> element.
+#
 #NYI sub _write_calc_pr {
 
 #NYI     my $self            = shift;
@@ -2525,12 +2520,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_ext_lst()
-#NYI #
-#NYI # Write <extLst> element.
-#NYI #
+###############################################################################
+#
+# _write_ext_lst()
+#
+# Write <extLst> element.
+#
 #NYI sub _write_ext_lst {
 
 #NYI     my $self = shift;
@@ -2541,12 +2536,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_ext()
-#NYI #
-#NYI # Write <ext> element.
-#NYI #
+###############################################################################
+#
+# _write_ext()
+#
+# Write <ext> element.
+#
 #NYI sub _write_ext {
 
 #NYI     my $self     = shift;
@@ -2563,12 +2558,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI     $self->xml_end_tag( 'ext' );
 #NYI }
 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_mx_arch_id()
-#NYI #
-#NYI # Write <mx:ArchID> element.
-#NYI #
+###############################################################################
+#
+# _write_mx_arch_id()
+#
+# Write <mx:ArchID> element.
+#
 #NYI sub _write_mx_arch_id {
 
 #NYI     my $self  = shift;
@@ -2580,12 +2575,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_defined_names()
-#NYI #
-#NYI # Write the <definedNames> element.
-#NYI #
+##############################################################################
+#
+# _write_defined_names()
+#
+# Write the <definedNames> element.
+#
 #NYI sub _write_defined_names {
 
 #NYI     my $self = shift;
@@ -2602,12 +2597,12 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #NYI }
 
 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_defined_name()
-#NYI #
-#NYI # Write the <definedName> element.
-#NYI #
+##############################################################################
+#
+# _write_defined_name()
+#
+# Write the <definedName> element.
+#
 #NYI sub _write_defined_name {
 
 #NYI     my $self = shift;

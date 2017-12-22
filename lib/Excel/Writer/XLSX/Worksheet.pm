@@ -1,22 +1,20 @@
-#NYI package Excel::Writer::XLSX::Worksheet;
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Worksheet - A class for writing Excel Worksheets.
-#NYI #
-#NYI #
-#NYI # Used in conjunction with Excel::Writer::XLSX
-#NYI #
-#NYI # Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
-#NYI #
-#NYI # Documentation after __END__
-#NYI #
-#NYI 
-#NYI # perltidy with the following options: -mbl=2 -pt=0 -nola
-#NYI 
-#NYI use 5.008002;
-#NYI use strict;
-#NYI use warnings;
+unit class Excel::Writer::XLSX::Worksheet;
+
+###############################################################################
+#
+# Worksheet - A class for writing Excel Worksheets.
+#
+#
+# Used in conjunction with Excel::Writer::XLSX
+#
+# Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
+#
+# Documentation after __END__
+#
+
+# perltidy with the following options: -mbl=2 -pt=0 -nola
+
+use v6.c;
 #NYI use Carp;
 #NYI use File::Temp 'tempfile';
 #NYI use List::Util qw(max min);
@@ -31,29 +29,190 @@
 #NYI 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Public and private API methods.
-#NYI #
-#NYI ###############################################################################
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # new()
-#NYI #
-#NYI # Constructor.
-#NYI #
+
+    my $rowmax = 1_048_576;
+    my $colmax = 16_384;
+    my $strmax = 32767;
+
+    has $!name;
+    has $!index;
+    has $!activesheet;
+    has $!firstsheet;
+    has $!str_total;
+    has $!str_unique;
+    has $!str_table;
+    has $!date_1904;
+    has $!palette;
+    has $!optimization    = 0;
+    has $!tempdir;
+    has $!excel2003_style;
+
+    has @!ext_sheets    = [];
+    has $!fileclosed    = 0;
+    has $!excel_version = 2007;
+
+    has $!xls_rowmax = $rowmax;
+    has $!xls_colmax = $colmax;
+    has $!xls_strmax = $strmax;
+    has $!dim_rowmin = Nil;
+    has $!dim_rowmax = Nil;
+    has $!dim_colmin = Nil;
+    has $!dim_colmax = Nil;
+
+    has %!colinfo    = {};
+    has @!selections = [];
+    has $!hidden     = 0;
+    has $!active     = 0;
+    has $!tab_color  = 0;
+
+    has @!panes       = [];
+    has $!active_pane = 3;
+    has $!selected    = 0;
+
+    has $!page_setup_changed = 0;
+    has $!paper_size         = 0;
+    has $!orientation        = 1;
+
+    has $!print_options_changed = 0;
+    has $!hcenter               = 0;
+    has $!vcenter               = 0;
+    has $!print_gridlines       = 0;
+    has $!screen_gridlines      = 1;
+    has $!print_headers         = 0;
+
+    has $!header_footer_changed = 0;
+    has $!header                = '';
+    has $!footer                = '';
+    has $!header_footer_aligns  = 1;
+    has $!header_footer_scales  = 1;
+    has @!header_images         = [];
+    has @!footer_images         = [];
+
+    has $!margin_left   = 0.7;
+    has $!margin_right  = 0.7;
+    has $!margin_top    = 0.75;
+    has $!margin_bottom = 0.75;
+    has $!margin_header = 0.3;
+    has $!margin_footer = 0.3;
+
+    has $!repeat_rows = '';
+    has $!repeat_cols = '';
+    has $!print_area  = '';
+
+    has $!page_order     = 0;
+    has $!black_white    = 0;
+    has $!draft_quality  = 0;
+    has $!print_comments = 0;
+    has $!page_start     = 0;
+
+    has $!fit_page   = 0;
+    has $!fit_width  = 0;
+    has $!fit_height = 0;
+
+    has @!hbreaks = [];
+    has @!vbreaks = [];
+
+    has $!protect  = 0;
+    has $!password = Nil;
+
+    has %!set_cols = {};
+    has %!set_rows = {};
+
+    has $!zoom              = 100;
+    has $!zoom_scale_normal = 1;
+    has $!print_scale       = 100;
+    has $!right_to_left     = 0;
+    has $!show_zeros        = 1;
+    has $!leading_zeros     = 0;
+
+    has $!outline_row_level = 0;
+    has $!outline_col_level = 0;
+    has $!outline_style     = 0;
+    has $!outline_below     = 1;
+    has $!outline_right     = 1;
+    has $!outline_on        = 1;
+    has $!outline_changed   = 0;
+
+    has $!original_row_height = 15;
+    has $!default_row_height  = 15;
+    has $!default_row_pixels  = 20;
+    has $!default_col_pixels  = 64;
+    has $!default_row_zeroed  = 0;
+
+    has %!names = {};
+
+    has @!write_match = [];
+
+
+    has %!table = {};
+    has @!merge = [];
+
+    has $!has_vml             = 0;
+    has $!has_header_vml      = 0;
+    has $!has_comments        = 0;
+    has %!comments            = {};
+    has @!comments_array      = [];
+    has $!comments_author     = '';
+    has $!comments_visible    = 0;
+    has $!vml_shape_id        = 1024;
+    has @!buttons_array       = [];
+    has @!header_images_array = [];
+
+    has $!autofilter   = '';
+    has $!filter_on    = 0;
+    has @!filter_range = [];
+    has %!filter_cols  = {};
+
+    has %!col_sizes        = {};
+    has %!row_sizes        = {};
+    has %!col_formats      = {};
+    has $!col_size_changed = 0;
+    has $!row_size_changed = 0;
+
+    has $!last_shape_id          = 1;
+    has $!rel_count              = 0;
+    has $!hlink_count            = 0;
+    has @!hlink_refs             = [];
+    has @!external_hyper_links   = [];
+    has @!external_drawing_links = [];
+    has @!external_comment_links = [];
+    has @!external_vml_links     = [];
+    has @!external_table_links   = [];
+    has @!drawing_links          = [];
+    has @!vml_drawing_links      = [];
+    has @!charts                 = [];
+    has @!images                 = [];
+    has @!tables                 = [];
+    has @!sparklines             = [];
+    has @!shapes                 = [];
+    has %!shape_hash             = {};
+    has $!has_shapes             = 0;
+    has $!drawing                = 0;
+
+    has $!horizontal_dpi = 0;
+    has $!vertical_dpi   = 0;
+
+    has $!rstring      = '';
+    has $!previous_row = 0;
+
+###############################################################################
+#
+# Public and private API methods.
+#
+###############################################################################
+
+
+###############################################################################
+#
+# new()
+#
+# Constructor.
+#
 #NYI sub new {
 #NYI 
 #NYI     my $class  = shift;
 #NYI     my $fh     = shift;
 #NYI     my $self   = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
-#NYI     my $rowmax = 1_048_576;
-#NYI     my $colmax = 16_384;
-#NYI     my $strmax = 32767;
 #NYI 
 #NYI     $self->{_name}            = $_[0];
 #NYI     $self->{_index}           = $_[1];
@@ -67,155 +226,7 @@
 #NYI     $self->{_optimization}    = $_[9] || 0;
 #NYI     $self->{_tempdir}         = $_[10];
 #NYI     $self->{_excel2003_style} = $_[11];
-#NYI 
-#NYI     $self->{_ext_sheets}    = [];
-#NYI     $self->{_fileclosed}    = 0;
-#NYI     $self->{_excel_version} = 2007;
-#NYI 
-#NYI     $self->{_xls_rowmax} = $rowmax;
-#NYI     $self->{_xls_colmax} = $colmax;
-#NYI     $self->{_xls_strmax} = $strmax;
-#NYI     $self->{_dim_rowmin} = undef;
-#NYI     $self->{_dim_rowmax} = undef;
-#NYI     $self->{_dim_colmin} = undef;
-#NYI     $self->{_dim_colmax} = undef;
-#NYI 
-#NYI     $self->{_colinfo}    = {};
-#NYI     $self->{_selections} = [];
-#NYI     $self->{_hidden}     = 0;
-#NYI     $self->{_active}     = 0;
-#NYI     $self->{_tab_color}  = 0;
-#NYI 
-#NYI     $self->{_panes}       = [];
-#NYI     $self->{_active_pane} = 3;
-#NYI     $self->{_selected}    = 0;
-#NYI 
-#NYI     $self->{_page_setup_changed} = 0;
-#NYI     $self->{_paper_size}         = 0;
-#NYI     $self->{_orientation}        = 1;
-#NYI 
-#NYI     $self->{_print_options_changed} = 0;
-#NYI     $self->{_hcenter}               = 0;
-#NYI     $self->{_vcenter}               = 0;
-#NYI     $self->{_print_gridlines}       = 0;
-#NYI     $self->{_screen_gridlines}      = 1;
-#NYI     $self->{_print_headers}         = 0;
-#NYI 
-#NYI     $self->{_header_footer_changed} = 0;
-#NYI     $self->{_header}                = '';
-#NYI     $self->{_footer}                = '';
-#NYI     $self->{_header_footer_aligns}  = 1;
-#NYI     $self->{_header_footer_scales}  = 1;
-#NYI     $self->{_header_images}         = [];
-#NYI     $self->{_footer_images}         = [];
-#NYI 
-#NYI     $self->{_margin_left}   = 0.7;
-#NYI     $self->{_margin_right}  = 0.7;
-#NYI     $self->{_margin_top}    = 0.75;
-#NYI     $self->{_margin_bottom} = 0.75;
-#NYI     $self->{_margin_header} = 0.3;
-#NYI     $self->{_margin_footer} = 0.3;
-#NYI 
-#NYI     $self->{_repeat_rows} = '';
-#NYI     $self->{_repeat_cols} = '';
-#NYI     $self->{_print_area}  = '';
-#NYI 
-#NYI     $self->{_page_order}     = 0;
-#NYI     $self->{_black_white}    = 0;
-#NYI     $self->{_draft_quality}  = 0;
-#NYI     $self->{_print_comments} = 0;
-#NYI     $self->{_page_start}     = 0;
-#NYI 
-#NYI     $self->{_fit_page}   = 0;
-#NYI     $self->{_fit_width}  = 0;
-#NYI     $self->{_fit_height} = 0;
-#NYI 
-#NYI     $self->{_hbreaks} = [];
-#NYI     $self->{_vbreaks} = [];
-#NYI 
-#NYI     $self->{_protect}  = 0;
-#NYI     $self->{_password} = undef;
-#NYI 
-#NYI     $self->{_set_cols} = {};
-#NYI     $self->{_set_rows} = {};
-#NYI 
-#NYI     $self->{_zoom}              = 100;
-#NYI     $self->{_zoom_scale_normal} = 1;
-#NYI     $self->{_print_scale}       = 100;
-#NYI     $self->{_right_to_left}     = 0;
-#NYI     $self->{_show_zeros}        = 1;
-#NYI     $self->{_leading_zeros}     = 0;
-#NYI 
-#NYI     $self->{_outline_row_level} = 0;
-#NYI     $self->{_outline_col_level} = 0;
-#NYI     $self->{_outline_style}     = 0;
-#NYI     $self->{_outline_below}     = 1;
-#NYI     $self->{_outline_right}     = 1;
-#NYI     $self->{_outline_on}        = 1;
-#NYI     $self->{_outline_changed}   = 0;
-#NYI 
-#NYI     $self->{_original_row_height} = 15;
-#NYI     $self->{_default_row_height}  = 15;
-#NYI     $self->{_default_row_pixels}  = 20;
-#NYI     $self->{_default_col_pixels}  = 64;
-#NYI     $self->{_default_row_zeroed}  = 0;
-#NYI 
-#NYI     $self->{_names} = {};
-#NYI 
-#NYI     $self->{_write_match} = [];
-#NYI 
-#NYI 
-#NYI     $self->{_table} = {};
-#NYI     $self->{_merge} = [];
-#NYI 
-#NYI     $self->{_has_vml}             = 0;
-#NYI     $self->{_has_header_vml}      = 0;
-#NYI     $self->{_has_comments}        = 0;
-#NYI     $self->{_comments}            = {};
-#NYI     $self->{_comments_array}      = [];
-#NYI     $self->{_comments_author}     = '';
-#NYI     $self->{_comments_visible}    = 0;
-#NYI     $self->{_vml_shape_id}        = 1024;
-#NYI     $self->{_buttons_array}       = [];
-#NYI     $self->{_header_images_array} = [];
-#NYI 
-#NYI     $self->{_autofilter}   = '';
-#NYI     $self->{_filter_on}    = 0;
-#NYI     $self->{_filter_range} = [];
-#NYI     $self->{_filter_cols}  = {};
-#NYI 
-#NYI     $self->{_col_sizes}        = {};
-#NYI     $self->{_row_sizes}        = {};
-#NYI     $self->{_col_formats}      = {};
-#NYI     $self->{_col_size_changed} = 0;
-#NYI     $self->{_row_size_changed} = 0;
-#NYI 
-#NYI     $self->{_last_shape_id}          = 1;
-#NYI     $self->{_rel_count}              = 0;
-#NYI     $self->{_hlink_count}            = 0;
-#NYI     $self->{_hlink_refs}             = [];
-#NYI     $self->{_external_hyper_links}   = [];
-#NYI     $self->{_external_drawing_links} = [];
-#NYI     $self->{_external_comment_links} = [];
-#NYI     $self->{_external_vml_links}     = [];
-#NYI     $self->{_external_table_links}   = [];
-#NYI     $self->{_drawing_links}          = [];
-#NYI     $self->{_vml_drawing_links}      = [];
-#NYI     $self->{_charts}                 = [];
-#NYI     $self->{_images}                 = [];
-#NYI     $self->{_tables}                 = [];
-#NYI     $self->{_sparklines}             = [];
-#NYI     $self->{_shapes}                 = [];
-#NYI     $self->{_shape_hash}             = {};
-#NYI     $self->{_has_shapes}             = 0;
-#NYI     $self->{_drawing}                = 0;
-#NYI 
-#NYI     $self->{_horizontal_dpi} = 0;
-#NYI     $self->{_vertical_dpi}   = 0;
-#NYI 
-#NYI     $self->{_rstring}      = '';
-#NYI     $self->{_previous_row} = 0;
-#NYI 
+
 #NYI     if ( $self->{_optimization} == 1 ) {
 #NYI         my $fh = tempfile( DIR => $self->{_tempdir} );
 #NYI         binmode $fh, ':utf8';
@@ -245,137 +256,132 @@
 #NYI     return $self;
 #NYI }
 #NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _set_xml_writer()
-#NYI #
-#NYI # Over-ridden to ensure that write_single_row() is called for the final row
-#NYI # when optimisation mode is on.
-#NYI #
-#NYI sub _set_xml_writer {
-#NYI 
-#NYI     my $self     = shift;
-#NYI     my $filename = shift;
-#NYI 
-#NYI     if ( $self->{_optimization} == 1 ) {
-#NYI         $self->_write_single_row();
-#NYI     }
-#NYI 
-#NYI     $self->SUPER::_set_xml_writer( $filename );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _assemble_xml_file()
-#NYI #
-#NYI # Assemble and write the XML file.
-#NYI #
-#NYI sub _assemble_xml_file {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->xml_declaration();
-#NYI 
-#NYI     # Write the root worksheet element.
-#NYI     $self->_write_worksheet();
-#NYI 
-#NYI     # Write the worksheet properties.
-#NYI     $self->_write_sheet_pr();
-#NYI 
-#NYI     # Write the worksheet dimensions.
-#NYI     $self->_write_dimension();
-#NYI 
-#NYI     # Write the sheet view properties.
-#NYI     $self->_write_sheet_views();
-#NYI 
-#NYI     # Write the sheet format properties.
-#NYI     $self->_write_sheet_format_pr();
-#NYI 
-#NYI     # Write the sheet column info.
-#NYI     $self->_write_cols();
-#NYI 
-#NYI     # Write the worksheet data such as rows columns and cells.
-#NYI     if ( $self->{_optimization} == 0 ) {
-#NYI         $self->_write_sheet_data();
-#NYI     }
-#NYI     else {
-#NYI         $self->_write_optimized_sheet_data();
-#NYI     }
-#NYI 
-#NYI     # Write the sheetProtection element.
-#NYI     $self->_write_sheet_protection();
-#NYI 
-#NYI     # Write the worksheet calculation properties.
-#NYI     #$self->_write_sheet_calc_pr();
-#NYI 
-#NYI     # Write the worksheet phonetic properties.
-#NYI     if ($self->{_excel2003_style}) {
-#NYI         $self->_write_phonetic_pr();
-#NYI     }
-#NYI 
-#NYI     # Write the autoFilter element.
-#NYI     $self->_write_auto_filter();
-#NYI 
-#NYI     # Write the mergeCells element.
-#NYI     $self->_write_merge_cells();
-#NYI 
-#NYI     # Write the conditional formats.
-#NYI     $self->_write_conditional_formats();
-#NYI 
-#NYI     # Write the dataValidations element.
-#NYI     $self->_write_data_validations();
-#NYI 
-#NYI     # Write the hyperlink element.
-#NYI     $self->_write_hyperlinks();
-#NYI 
-#NYI     # Write the printOptions element.
-#NYI     $self->_write_print_options();
-#NYI 
-#NYI     # Write the worksheet page_margins.
-#NYI     $self->_write_page_margins();
-#NYI 
-#NYI     # Write the worksheet page setup.
-#NYI     $self->_write_page_setup();
-#NYI 
-#NYI     # Write the headerFooter element.
-#NYI     $self->_write_header_footer();
-#NYI 
-#NYI     # Write the rowBreaks element.
-#NYI     $self->_write_row_breaks();
-#NYI 
-#NYI     # Write the colBreaks element.
-#NYI     $self->_write_col_breaks();
-#NYI 
-#NYI     # Write the drawing element.
-#NYI     $self->_write_drawings();
-#NYI 
-#NYI     # Write the legacyDrawing element.
-#NYI     $self->_write_legacy_drawing();
-#NYI 
-#NYI     # Write the legacyDrawingHF element.
-#NYI     $self->_write_legacy_drawing_hf();
-#NYI 
-#NYI     # Write the tableParts element.
-#NYI     $self->_write_table_parts();
-#NYI 
-#NYI     # Write the extLst and sparklines.
-#NYI     $self->_write_ext_sparklines();
-#NYI 
-#NYI     # Close the worksheet tag.
-#NYI     $self->xml_end_tag( 'worksheet' );
-#NYI 
-#NYI     # Close the XML writer filehandle.
-#NYI     $self->xml_get_fh()->close();
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _close()
-#NYI #
-#NYI # Write the worksheet elements.
-#NYI #
+###############################################################################
+#
+# set_xml_writer()
+#
+# Over-ridden to ensure that write_single_row() is called for the final row
+# when optimisation mode is on.
+#
+method set_xml_writer($filename) {
+
+    if $!optimization == 1 {
+        self.write_single_row();
+    }
+
+    self.SUPER::set_xml_writer( $filename ); # TODO
+}
+
+
+###############################################################################
+#
+# assemble_xml_file()
+#
+# Assemble and write the XML file.
+#
+method assemble_xml_file {
+
+    self.xml_declaration();
+
+    # Write the root worksheet element.
+    self.write_worksheet();
+
+    # Write the worksheet properties.
+    self.write_sheet_pr();
+
+    # Write the worksheet dimensions.
+    self.write_dimension();
+
+    # Write the sheet view properties.
+    self.write_sheet_views();
+
+    # Write the sheet format properties.
+    self.write_sheet_format_pr();
+
+    # Write the sheet column info.
+    self.write_cols();
+
+    # Write the worksheet data such as rows columns and cells.
+    if $!optimization == 0 {
+        self.write_sheet_data();
+    }
+    else {
+        self.write_optimized_sheet_data();
+    }
+
+    # Write the sheetProtection element.
+    self.write_sheet_protection();
+
+    # Write the worksheet calculation properties.
+    #$self->_write_sheet_calc_pr();
+
+    # Write the worksheet phonetic properties.
+    if $!excel2003_style {
+        self.write_phonetic_pr();
+    }
+
+    # Write the autoFilter element.
+    self.write_auto_filter();
+
+    # Write the mergeCells element.
+    self.write_merge_cells();
+
+    # Write the conditional formats.
+    self.write_conditional_formats();
+
+    # Write the dataValidations element.
+    self.write_data_validations();
+
+    # Write the hyperlink element.
+    self.write_hyperlinks();
+
+    # Write the printOptions element.
+    self.write_print_options();
+
+    # Write the worksheet page_margins.
+    self.write_page_margins();
+
+    # Write the worksheet page setup.
+    self.write_page_setup();
+
+    # Write the headerFooter element.
+    self.write_header_footer();
+
+    # Write the rowBreaks element.
+    self.write_row_breaks();
+
+    # Write the colBreaks element.
+    self.write_col_breaks();
+
+    # Write the drawing element.
+    self.write_drawings();
+
+    # Write the legacyDrawing element.
+    self.write_legacy_drawing();
+
+    # Write the legacyDrawingHF element.
+    self.write_legacy_drawing_hf();
+
+    # Write the tableParts element.
+    self.write_table_parts();
+
+    # Write the extLst and sparklines.
+    self.write_ext_sparklines();
+
+    # Close the worksheet tag.
+    self.xml_end_tag( 'worksheet' );
+
+    # Close the XML writer filehandle.
+    self.xml_get_fh.close();
+}
+
+
+###############################################################################
+#
+# _close()
+#
+# Write the worksheet elements.
+#
 #NYI sub _close {
 #NYI 
 #NYI     # TODO. Unused. Remove after refactoring.
@@ -385,96 +391,82 @@
 #NYI }
 #NYI 
 #NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # get_name().
-#NYI #
-#NYI # Retrieve the worksheet name.
-#NYI #
-#NYI sub get_name {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     return $self->{_name};
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # select()
-#NYI #
-#NYI # Set this worksheet as a selected worksheet, i.e. the worksheet has its tab
-#NYI # highlighted.
-#NYI #
-#NYI sub select {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_hidden}   = 0;    # Selected worksheet can't be hidden.
-#NYI     $self->{_selected} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # activate()
-#NYI #
-#NYI # Set this worksheet as the active worksheet, i.e. the worksheet that is
-#NYI # displayed when the workbook is opened. Also set it as selected.
-#NYI #
-#NYI sub activate {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_hidden}   = 0;    # Active worksheet can't be hidden.
-#NYI     $self->{_selected} = 1;
-#NYI     ${ $self->{_activesheet} } = $self->{_index};
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # hide()
-#NYI #
-#NYI # Hide this worksheet.
-#NYI #
-#NYI sub hide {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_hidden} = 1;
-#NYI 
-#NYI     # A hidden worksheet shouldn't be active or selected.
-#NYI     $self->{_selected} = 0;
-#NYI     ${ $self->{_activesheet} } = 0;
-#NYI     ${ $self->{_firstsheet} }  = 0;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_first_sheet()
-#NYI #
-#NYI # Set this worksheet as the first visible sheet. This is necessary
-#NYI # when there are a large number of worksheets and the activated
-#NYI # worksheet is not visible on the screen.
-#NYI #
-#NYI sub set_first_sheet {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_hidden} = 0;    # Active worksheet can't be hidden.
-#NYI     ${ $self->{_firstsheet} } = $self->{_index};
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # protect( $password )
-#NYI #
-#NYI # Set the worksheet protection flags to prevent modification of worksheet
-#NYI # objects.
-#NYI #
+###############################################################################
+#
+# get_name().
+#
+# Retrieve the worksheet name.
+#
+method get_name {
+    return $!name;
+}
+
+
+###############################################################################
+#
+# select()
+#
+# Set this worksheet as a selected worksheet, i.e. the worksheet has its tab
+# highlighted.
+#
+method select {
+
+    $!hidden   = 0;    # Selected worksheet can't be hidden.
+    $!selected = 1;
+}
+
+
+###############################################################################
+#
+# activate()
+#
+# Set this worksheet as the active worksheet, i.e. the worksheet that is
+# displayed when the workbook is opened. Also set it as selected.
+#
+method activate {
+    $!hidden   = 0;    # Active worksheet can't be hidden.
+    $!selected = 1;
+    $!activesheet = $!index;
+}
+
+
+###############################################################################
+#
+# hide()
+#
+# Hide this worksheet.
+#
+method hide {
+    $!hidden = 1;
+
+    # A hidden worksheet shouldn't be active or selected.
+    $!selected    = 0;
+    $!activesheet = 0;
+    $!firstsheet  = 0;
+}
+
+
+###############################################################################
+#
+# set_first_sheet()
+#
+# Set this worksheet as the first visible sheet. This is necessary
+# when there are a large number of worksheets and the activated
+# worksheet is not visible on the screen.
+#
+sub set_first_sheet {
+    $!hidden = 0;    # Active worksheet can't be hidden.
+    $!firstsheet = $!index;
+}
+
+
+###############################################################################
+#
+# protect( $password )
+#
+# Set the worksheet protection flags to prevent modification of worksheet
+# objects.
+#
 #NYI sub protect {
 #NYI 
 #NYI     my $self     = shift;
@@ -561,83 +553,84 @@
 #NYI 
 #NYI     return sprintf "%X", $password;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_column($firstcol, $lastcol, $width, $format, $hidden, $level)
-#NYI #
-#NYI # Set the width of a single column or a range of columns.
-#NYI # See also: _write_col_info
-#NYI #
-#NYI sub set_column {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my @data = @_;
-#NYI     my $cell = $data[0];
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $cell =~ /^\D/ ) {
-#NYI         @data = $self->_substitute_cellref( @_ );
-#NYI 
-#NYI         # Returned values $row1 and $row2 aren't required here. Remove them.
-#NYI         shift @data;    # $row1
-#NYI         splice @data, 1, 1;    # $row2
-#NYI     }
-#NYI 
-#NYI     return if @data < 3;       # Ensure at least $firstcol, $lastcol and $width
-#NYI     return if not defined $data[0];    # Columns must be defined.
-#NYI     return if not defined $data[1];
-#NYI 
-#NYI     # Assume second column is the same as first if 0. Avoids KB918419 bug.
-#NYI     $data[1] = $data[0] if $data[1] == 0;
-#NYI 
-#NYI     # Ensure 2nd col is larger than first. Also for KB918419 bug.
-#NYI     ( $data[0], $data[1] ) = ( $data[1], $data[0] ) if $data[0] > $data[1];
-#NYI 
-#NYI 
-#NYI     # Check that cols are valid and store max and min values with default row.
-#NYI     # NOTE: The check shouldn't modify the row dimensions and should only modify
-#NYI     #       the column dimensions in certain cases.
-#NYI     my $ignore_row = 1;
-#NYI     my $ignore_col = 1;
-#NYI     $ignore_col = 0 if ref $data[3];          # Column has a format.
-#NYI     $ignore_col = 0 if $data[2] && $data[4];  # Column has a width but is hidden
-#NYI 
-#NYI     return -2
-#NYI       if $self->_check_dimensions( 0, $data[0], $ignore_row, $ignore_col );
-#NYI     return -2
-#NYI       if $self->_check_dimensions( 0, $data[1], $ignore_row, $ignore_col );
-#NYI 
-#NYI     # Set the limits for the outline levels (0 <= x <= 7).
-#NYI     $data[5] = 0 unless defined $data[5];
-#NYI     $data[5] = 0 if $data[5] < 0;
-#NYI     $data[5] = 7 if $data[5] > 7;
-#NYI 
-#NYI     if ( $data[5] > $self->{_outline_col_level} ) {
-#NYI         $self->{_outline_col_level} = $data[5];
-#NYI     }
-#NYI 
-#NYI     # Store the column data based on the first column. Padded for sorting.
-#NYI     $self->{_colinfo}->{ sprintf "%05d", $data[0] } = [@data];
-#NYI 
-#NYI     # Store the column change to allow optimisations.
-#NYI     $self->{_col_size_changed} = 1;
-#NYI 
-#NYI     # Store the col sizes for use when calculating image vertices taking
-#NYI     # hidden columns into account. Also store the column formats.
-#NYI     my $width = $data[4] ? 0 : $data[2];    # Set width to zero if hidden.
-#NYI     my $format = $data[3];
-#NYI 
-#NYI     my ( $firstcol, $lastcol ) = @data;
-#NYI 
-#NYI     foreach my $col ( $firstcol .. $lastcol ) {
-#NYI         $self->{_col_sizes}->{$col} = $width;
-#NYI         $self->{_col_formats}->{$col} = $format if $format;
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
+
+
+# TODO: Check argument usage
+
+###############################################################################
+#
+# set_column($firstcol, $lastcol, $width, $format, $hidden, $level)
+#
+# Set the width of a single column or a range of columns.
+# See also: _write_col_info
+#
+method set_column(@data) {
+
+    my $cell = @data[0];
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if $cell ~~ /^\D/ {
+        @data = self.substitute_cellref( @data );
+
+        # Returned values $row1 and $row2 aren't required here. Remove them.
+        shift @data;    # $row1
+        splice @data, 1, 1;    # $row2 # TODO
+    }
+
+    return if @data.elems < 3;       # Ensure at least $firstcol, $lastcol and $width
+    return if not @data[0].defined;    # Columns must be defined.
+    return if not @data[1].defined;
+
+    # Assume second column is the same as first if 0. Avoids KB918419 bug.
+    @data[1] = @data[0] if @data[1] == 0;
+
+    # Ensure 2nd col is larger than first. Also for KB918419 bug.
+    ( @data[0], @data[1] ) = ( @data[1], @data[0] ) if @data[0] > @data[1];
+
+
+    # Check that cols are valid and store max and min values with default row.
+    # NOTE: The check shouldn't modify the row dimensions and should only modify
+    #       the column dimensions in certain cases.
+    my $ignore_row = 1;
+    my $ignore_col = 1;
+#TODO: Fix next two lines
+    $ignore_col = 0 if ref @data[3];          # Column has a format.
+    $ignore_col = 0 if @data[2] && @data[4];  # Column has a width but is hidden
+
+    return -2
+      if self.check_dimensions( 0, @data[0], $ignore_row, $ignore_col );
+    return -2
+      if self.check_dimensions( 0, @data[1], $ignore_row, $ignore_col );
+
+    # Set the limits for the outline levels (0 <= x <= 7).
+    @data[5] = 0 unless @data[5].defined;
+    @data[5] = 0 if @data[5] < 0;
+    @data[5] = 7 if @data[5] > 7;
+
+    if @data[5] > self.outline_col_level {
+        $outline_col_level = @data[5];
+    }
+
+    # Store the column data based on the first column. Padded for sorting.
+    %!colinfo{ sprintf "%05d", @data[0] } = [@data]; # TODO
+
+    # Store the column change to allow optimisations.
+    $!col_size_changed = 1;
+
+    # Store the col sizes for use when calculating image vertices taking
+    # hidden columns into account. Also store the column formats.
+    my $width = @data[4] ?? 0 !! @data[2];    # Set width to zero if hidden.
+    my $format = @data[3];
+
+    my ( $firstcol, $lastcol ) = @data;
+
+    for $firstcol .. $lastcol -> $col {
+        $%col_sizes{$col} = $width;
+        $%col_formats{$col} = $format if $format;
+    }
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # set_selection()
@@ -757,83 +750,66 @@
 #NYI *thaw_panes = *split_panes;
 #NYI 
 #NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_portrait()
-#NYI #
-#NYI # Set the page orientation as portrait.
-#NYI #
-#NYI sub set_portrait {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_orientation}        = 1;
-#NYI     $self->{_page_setup_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_landscape()
-#NYI #
-#NYI # Set the page orientation as landscape.
-#NYI #
-#NYI sub set_landscape {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_orientation}        = 0;
-#NYI     $self->{_page_setup_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_page_view()
-#NYI #
-#NYI # Set the page view mode for Mac Excel.
-#NYI #
-#NYI sub set_page_view {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_page_view} = defined $_[0] ? $_[0] : 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_tab_color()
-#NYI #
-#NYI # Set the colour of the worksheet tab.
-#NYI #
-#NYI sub set_tab_color {
-#NYI 
-#NYI     my $self  = shift;
-#NYI     my $color = &Excel::Writer::XLSX::Format::_get_color( $_[0] );
-#NYI 
-#NYI     $self->{_tab_color} = $color;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_paper()
-#NYI #
-#NYI # Set the paper type. Ex. 1 = US Letter, 9 = A4
-#NYI #
-#NYI sub set_paper {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $paper_size = shift;
-#NYI 
-#NYI     if ( $paper_size ) {
-#NYI         $self->{_paper_size}         = $paper_size;
-#NYI         $self->{_page_setup_changed} = 1;
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
+###############################################################################
+#
+# set_portrait()
+#
+# Set the page orientation as portrait.
+#
+method set_portrait {
+    $!orientation        = 1;
+    $!page_setup_changed = 1;
+}
+
+
+###############################################################################
+#
+# set_landscape()
+#
+# Set the page orientation as landscape.
+#
+method set_landscape {
+    $!orientation        = 0;
+    $!page_setup_changed = 1;
+}
+
+
+###############################################################################
+#
+# set_page_view()
+#
+# Set the page view mode for Mac Excel.
+#
+method set_page_view($view = 1) {
+    $!page_view = $view;
+}
+
+
+###############################################################################
+#
+# set_tab_color()
+#
+# Set the colour of the worksheet tab.
+#
+method set_tab_color($colour) {
+    $!tab_color = Excel::Writer::XLSX::Format::get_color( $colour );
+}
+
+
+###############################################################################
+#
+# set_paper()
+#
+# Set the paper type. Ex. 1 = US Letter, 9 = A4
+#
+method set_paper($paper-size) {
+    if $paper-size {
+        $!paper_size         = $paper_size;
+        $!page_setup_changed = 1;
+    }
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # set_header()
@@ -962,38 +938,32 @@
 #NYI     $self->{_margin_footer}         = $margin;
 #NYI     $self->{_header_footer_changed} = 1;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # center_horizontally()
-#NYI #
-#NYI # Center the page horizontally.
-#NYI #
-#NYI sub center_horizontally {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_print_options_changed} = 1;
-#NYI     $self->{_hcenter}               = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # center_vertically()
-#NYI #
-#NYI # Center the page horizontally.
-#NYI #
-#NYI sub center_vertically {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_print_options_changed} = 1;
-#NYI     $self->{_vcenter}               = 1;
-#NYI }
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# center_horizontally()
+#
+# Center the page horizontally.
+#
+method center_horizontally {
+    $!hcenter               = 1;
+    $!print_options_changed = 1;
+}
+
+
+###############################################################################
+#
+# center_vertically()
+#
+# Center the page horizontally.
+#
+method center_vertically {
+    $!vcenter               = 1;
+    $!print_options_changed = 1;
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # set_margins()
@@ -1656,30 +1626,26 @@
 #NYI         $self->{_screen_gridlines} = 0;
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # print_row_col_headers()
-#NYI #
-#NYI # Set the option to print the row and column headers on the printed page.
-#NYI # See also the _store_print_headers() method below.
-#NYI #
-#NYI sub print_row_col_headers {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $headers = defined $_[0] ? $_[0] : 1;
-#NYI 
-#NYI     if ( $headers ) {
-#NYI         $self->{_print_headers}         = 1;
-#NYI         $self->{_print_options_changed} = 1;
-#NYI     }
-#NYI     else {
-#NYI         $self->{_print_headers} = 0;
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# print_row_col_headers()
+#
+# Set the option to print the row and column headers on the printed page.
+# See also the _store_print_headers() method below.
+#
+method print_row_col_headers($headers = 1) {
+    if $headers {
+        $!print_headers         = 1;
+        $!print_options_changed = 1;
+    }
+    else {
+        $!print_headers = 0;
+    }
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # fit_to_pages($width, $height)
@@ -1784,28 +1750,20 @@
 #NYI 
 #NYI     $self->{_black_white} = 1;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # keep_leading_zeros()
-#NYI #
-#NYI # Causes the write() method to treat integers with a leading zero as a string.
-#NYI # This ensures that any leading zeros such, as in zip codes, are maintained.
-#NYI #
-#NYI sub keep_leading_zeros {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     if ( defined $_[0] ) {
-#NYI         $self->{_leading_zeros} = $_[0];
-#NYI     }
-#NYI     else {
-#NYI         $self->{_leading_zeros} = 1;
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# keep_leading_zeros()
+#
+# Causes the write() method to treat integers with a leading zero as a string.
+# This ensures that any leading zeros such, as in zip codes, are maintained.
+#
+method keep_leading_zeros($leading-zeros = 1) {
+    $!leading_zeros = $leading-zeros;
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # show_comments()
@@ -1935,97 +1893,95 @@
 #NYI 
 #NYI     push @{ $self->{_write_match} }, [@_];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write($row, $col, $token, $format)
-#NYI #
-#NYI # Parse $token and call appropriate write method. $row and $column are zero
-#NYI # indexed. $format is optional.
-#NYI #
-#NYI # Returns: return value of called subroutine
-#NYI #
-#NYI sub write {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self->_substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     my $token = $_[2];
-#NYI 
-#NYI     # Handle undefs as blanks
-#NYI     $token = '' unless defined $token;
-#NYI 
-#NYI 
-#NYI     # First try user defined matches.
-#NYI     for my $aref ( @{ $self->{_write_match} } ) {
-#NYI         my $re  = $aref->[0];
-#NYI         my $sub = $aref->[1];
-#NYI 
-#NYI         if ( $token =~ /$re/ ) {
-#NYI             my $match = &$sub( $self, @_ );
-#NYI             return $match if defined $match;
-#NYI         }
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Match an array ref.
-#NYI     if ( ref $token eq "ARRAY" ) {
-#NYI         return $self->write_row( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match integer with leading zero(s)
-#NYI     elsif ( $self->{_leading_zeros} and $token =~ /^0\d+$/ ) {
-#NYI         return $self->write_string( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match number
-#NYI     elsif ( $token =~ /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ ) {
-#NYI         return $self->write_number( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match http, https or ftp URL
-#NYI     elsif ( $token =~ m|^[fh]tt?ps?://| ) {
-#NYI         return $self->write_url( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match mailto:
-#NYI     elsif ( $token =~ m/^mailto:/ ) {
-#NYI         return $self->write_url( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match internal or external sheet link
-#NYI     elsif ( $token =~ m[^(?:in|ex)ternal:] ) {
-#NYI         return $self->write_url( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match formula
-#NYI     elsif ( $token =~ /^=/ ) {
-#NYI         return $self->write_formula( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match array formula
-#NYI     elsif ( $token =~ /^{=.*}$/ ) {
-#NYI         return $self->write_formula( @_ );
-#NYI     }
-#NYI 
-#NYI     # Match blank
-#NYI     elsif ( $token eq '' ) {
-#NYI         splice @_, 2, 1;    # remove the empty string from the parameter list
-#NYI         return $self->write_blank( @_ );
-#NYI     }
-#NYI 
-#NYI     # Default: match string
-#NYI     else {
-#NYI         return $self->write_string( @_ );
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# write($row, $col, $token, $format)
+#
+# Parse $token and call appropriate write method. $row and $column are zero
+# indexed. $format is optional.
+#
+# Returns: return value of called subroutine
+#
+method write(*@args) {
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self.substitute_cellref( @args );
+    }
+
+    my $token = @args[2];
+
+    # Handle undefs as blanks
+    $token = '' unless $token.defined;
+====================
+
+
+    # First try user defined matches.
+    for my $aref ( @{ $self->{_write_match} } ) {
+        my $re  = $aref->[0];
+        my $sub = $aref->[1];
+
+        if ( $token =~ /$re/ ) {
+            my $match = &$sub( $self, @_ );
+            return $match if defined $match;
+        }
+    }
+
+
+    # Match an array ref.
+    if ( ref $token eq "ARRAY" ) {
+        return $self->write_row( @_ );
+    }
+
+    # Match integer with leading zero(s)
+    elsif ( $self->{_leading_zeros} and $token =~ /^0\d+$/ ) {
+        return $self->write_string( @_ );
+    }
+
+    # Match number
+    elsif ( $token =~ /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ ) {
+        return $self->write_number( @_ );
+    }
+
+    # Match http, https or ftp URL
+    elsif ( $token =~ m|^[fh]tt?ps?://| ) {
+        return $self->write_url( @_ );
+    }
+
+    # Match mailto:
+    elsif ( $token =~ m/^mailto:/ ) {
+        return $self->write_url( @_ );
+    }
+
+    # Match internal or external sheet link
+    elsif ( $token =~ m[^(?:in|ex)ternal:] ) {
+        return $self->write_url( @_ );
+    }
+
+    # Match formula
+    elsif ( $token =~ /^=/ ) {
+        return $self->write_formula( @_ );
+    }
+
+    # Match array formula
+    elsif ( $token =~ /^{=.*}$/ ) {
+        return $self->write_formula( @_ );
+    }
+
+    # Match blank
+    elsif ( $token eq '' ) {
+        splice @_, 2, 1;    # remove the empty string from the parameter list
+        return $self->write_blank( @_ );
+    }
+
+    # Default: match string
+    else {
+        return $self->write_string( @_ );
+    }
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # write_row($row, $col, $array_ref, $format)
@@ -9527,32 +9483,28 @@
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorLow', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI 1;
-#NYI 
-#NYI 
-#NYI __END__
-#NYI 
-#NYI 
-#NYI =head1 NAME
-#NYI 
-#NYI Worksheet - A class for writing Excel Worksheets.
-#NYI 
-#NYI =head1 SYNOPSIS
-#NYI 
-#NYI See the documentation for L<Excel::Writer::XLSX>
-#NYI 
-#NYI =head1 DESCRIPTION
-#NYI 
-#NYI This module is used in conjunction with L<Excel::Writer::XLSX>.
-#NYI 
-#NYI =head1 AUTHOR
-#NYI 
-#NYI John McNamara jmcnamara@cpan.org
-#NYI 
-#NYI =head1 COPYRIGHT
-#NYI 
-#NYI (c) MM-MMXVII, John McNamara.
-#NYI 
-#NYI All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
+
+=begin pod
+
+=head1 NAME
+
+Worksheet - A class for writing Excel Worksheets.
+
+=head1 SYNOPSIS
+
+See the documentation for L<Excel::Writer::XLSX>
+
+=head1 DESCRIPTION
+
+This module is used in conjunction with L<Excel::Writer::XLSX>.
+
+=head1 AUTHOR
+
+John McNamara jmcnamara@cpan.org
+
+=head1 COPYRIGHT
+
+(c) MM-MMXVII, John McNamara.
+
+All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
+=end pod
