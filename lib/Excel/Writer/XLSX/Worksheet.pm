@@ -21,12 +21,12 @@ use v6.c;
 #NYI use Excel::Writer::XLSX::Format;
 #NYI use Excel::Writer::XLSX::Drawing;
 #NYI use Excel::Writer::XLSX::Package::XMLwriter;
-#NYI use Excel::Writer::XLSX::Utility qw(xl_cell_to_rowcol
-#NYI                                     xl_rowcol_to_cell
-#NYI                                     xl_col_to_name
-#NYI                                     xl_range
-#NYI                                     quote_sheetname);
-#NYI 
+#use Excel::Writer::XLSX::Utility   <xl_cell_to_rowcol
+#                                    xl_rowcol_to_cell
+#                                    xl_col_to_name
+#                                    xl_range
+#                                    quote_sheetname>;
+
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
 
@@ -79,6 +79,7 @@ use v6.c;
     has $!print_gridlines       = 0;
     has $!screen_gridlines      = 1;
     has $!print_headers         = 0;
+    has $!page_view             = 0;
 
     has $!header_footer_changed = 0;
     has $!header                = '';
@@ -454,7 +455,7 @@ method hide {
 # when there are a large number of worksheets and the activated
 # worksheet is not visible on the screen.
 #
-sub set_first_sheet {
+method set_first_sheet {
     $!hidden = 0;    # Active worksheet can't be hidden.
     $!firstsheet = $!index;
 }
@@ -607,8 +608,8 @@ method set_column(@data) {
     @data[5] = 0 if @data[5] < 0;
     @data[5] = 7 if @data[5] > 7;
 
-    if @data[5] > self.outline_col_level {
-        $outline_col_level = @data[5];
+    if @data[5] > $!outline_col_level {
+        $!outline_col_level = @data[5];
     }
 
     # Store the column data based on the first column. Padded for sorting.
@@ -625,8 +626,8 @@ method set_column(@data) {
     my ( $firstcol, $lastcol ) = @data;
 
     for $firstcol .. $lastcol -> $col {
-        $%col_sizes{$col} = $width;
-        $%col_formats{$col} = $format if $format;
+        %!col_sizes{$col} = $width;
+        %!col_formats{$col} = $format if $format;
     }
 }
 
@@ -804,7 +805,7 @@ method set_tab_color($colour) {
 #
 method set_paper($paper-size) {
     if $paper-size {
-        $!paper_size         = $paper_size;
+        $!paper_size         = $paper-size;
         $!page_setup_changed = 1;
     }
 }
@@ -964,199 +965,140 @@ method center_vertically {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margins()
-#NYI #
-#NYI # Set all the page margins to the same value in inches.
-#NYI #
-#NYI sub set_margins {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->set_margin_left( $_[0] );
-#NYI     $self->set_margin_right( $_[0] );
-#NYI     $self->set_margin_top( $_[0] );
-#NYI     $self->set_margin_bottom( $_[0] );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margins_LR()
-#NYI #
-#NYI # Set the left and right margins to the same value in inches.
-#NYI #
-#NYI sub set_margins_LR {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->set_margin_left( $_[0] );
-#NYI     $self->set_margin_right( $_[0] );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margins_TB()
-#NYI #
-#NYI # Set the top and bottom margins to the same value in inches.
-#NYI #
-#NYI sub set_margins_TB {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->set_margin_top( $_[0] );
-#NYI     $self->set_margin_bottom( $_[0] );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margin_left()
-#NYI #
-#NYI # Set the left margin in inches.
-#NYI #
-#NYI sub set_margin_left {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $margin  = shift;
-#NYI     my $default = 0.7;
-#NYI 
-#NYI     # Add 0 to ensure the argument is numeric.
-#NYI     if   ( defined $margin ) { $margin = 0 + $margin }
-#NYI     else                     { $margin = $default }
-#NYI 
-#NYI     $self->{_margin_left} = $margin;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margin_right()
-#NYI #
-#NYI # Set the right margin in inches.
-#NYI #
-#NYI sub set_margin_right {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $margin  = shift;
-#NYI     my $default = 0.7;
-#NYI 
-#NYI     # Add 0 to ensure the argument is numeric.
-#NYI     if   ( defined $margin ) { $margin = 0 + $margin }
-#NYI     else                     { $margin = $default }
-#NYI 
-#NYI     $self->{_margin_right} = $margin;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margin_top()
-#NYI #
-#NYI # Set the top margin in inches.
-#NYI #
-#NYI sub set_margin_top {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $margin  = shift;
-#NYI     my $default = 0.75;
-#NYI 
-#NYI     # Add 0 to ensure the argument is numeric.
-#NYI     if   ( defined $margin ) { $margin = 0 + $margin }
-#NYI     else                     { $margin = $default }
-#NYI 
-#NYI     $self->{_margin_top} = $margin;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_margin_bottom()
-#NYI #
-#NYI # Set the bottom margin in inches.
-#NYI #
-#NYI sub set_margin_bottom {
-#NYI 
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $margin  = shift;
-#NYI     my $default = 0.75;
-#NYI 
-#NYI     # Add 0 to ensure the argument is numeric.
-#NYI     if   ( defined $margin ) { $margin = 0 + $margin }
-#NYI     else                     { $margin = $default }
-#NYI 
-#NYI     $self->{_margin_bottom} = $margin;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # repeat_rows($first_row, $last_row)
-#NYI #
-#NYI # Set the rows to repeat at the top of each printed page.
-#NYI #
-#NYI sub repeat_rows {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     my $row_min = $_[0];
-#NYI     my $row_max = $_[1] || $_[0];    # Second row is optional
-#NYI 
-#NYI 
-#NYI     # Convert to 1 based.
-#NYI     $row_min++;
-#NYI     $row_max++;
-#NYI 
-#NYI     my $area = '$' . $row_min . ':' . '$' . $row_max;
-#NYI 
-#NYI     # Build up the print titles "Sheet1!$1:$2"
-#NYI     my $sheetname = quote_sheetname( $self->{_name} );
-#NYI     $area = $sheetname . "!" . $area;
-#NYI 
-#NYI     $self->{_repeat_rows} = $area;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # repeat_columns($first_col, $last_col)
-#NYI #
-#NYI # Set the columns to repeat at the left hand side of each printed page. This is
-#NYI # stored as a <NamedRange> element.
-#NYI #
-#NYI sub repeat_columns {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self->_substitute_cellref( @_ );
-#NYI 
-#NYI         # Returned values $row1 and $row2 aren't required here. Remove them.
-#NYI         shift @_;    # $row1
-#NYI         splice @_, 1, 1;    # $row2
-#NYI     }
-#NYI 
-#NYI     my $col_min = $_[0];
-#NYI     my $col_max = $_[1] || $_[0];    # Second col is optional
-#NYI 
-#NYI     # Convert to A notation.
-#NYI     $col_min = xl_col_to_name( $_[0], 1 );
-#NYI     $col_max = xl_col_to_name( $_[1], 1 );
-#NYI 
-#NYI     my $area = $col_min . ':' . $col_max;
-#NYI 
-#NYI     # Build up the print area range "=Sheet2!C1:C2"
-#NYI     my $sheetname = quote_sheetname( $self->{_name} );
-#NYI     $area = $sheetname . "!" . $area;
-#NYI 
-#NYI     $self->{_repeat_cols} = $area;
-#NYI }
-#NYI 
-#NYI 
+###############################################################################
+#
+# set_margins()
+#
+# Set all the page margins to the same value in inches.
+#
+method set_margins($margin) {
+    self.set_margin_left( $margin );
+    self.set_margin_right( $margin );
+    self.set_margin_top( $margin );
+    self.set_margin_bottom( $margin );
+}
+
+
+###############################################################################
+#
+# set_margins_LR()
+#
+# Set the left and right margins to the same value in inches.
+#
+method set_margins_LR($margin) {
+    self.set_margin_left( $margin );
+    self.set_margin_right( $margin );
+}
+
+
+###############################################################################
+#
+# set_margins_TB()
+#
+# Set the top and bottom margins to the same value in inches.
+#
+method set_margins_TB($margin) {
+    self.set_margin_top( $margin );
+    self.set_margin_bottom( $margin );
+}
+
+
+###############################################################################
+#
+# set_margin_left()
+#
+# Set the left margin in inches.
+#
+method set_margin_left($margin = 0.7) {
+    $!margin_left = +$margin;
+}
+
+
+###############################################################################
+#
+# set_margin_right()
+#
+# Set the right margin in inches.
+#
+method set_margin_right($margin = 0.7) {
+    $!margin_right = +$margin;
+}
+
+
+###############################################################################
+#
+# set_margin_top()
+#
+# Set the top margin in inches.
+#
+method set_margin_top($margin = 0.75) {
+    $!margin_top = +$margin;
+}
+
+
+###############################################################################
+#
+# set_margin_bottom()
+#
+# Set the bottom margin in inches.
+#
+method set_margin_bottom($margin = 0.75) {
+    $!margin_bottom = +$margin;
+}
+
+
+###############################################################################
+#
+# repeat_rows($first_row, $last_row)
+#
+# Set the rows to repeat at the top of each printed page.
+#
+method repeat_rows($row-min, $row-max) {
+    $row-max //= $row-min; # row-max is optional
+
+    # Convert to 1 based.
+    $row-min++;
+    $row-max++;
+
+    my $area = '$' ~ $row-min ~ ':' ~ '$' ~ $row-max;
+
+    # Build up the print titles "Sheet1!$1:$2"
+    my $sheetname = quote_sheetname( $!name );
+    $area = $sheetname ~ "!" ~ $area;
+
+    $!repeat_rows = $area;
+}
+
+
+###############################################################################
+#
+# repeat_columns($first_col, $last_col)
+#
+# Set the columns to repeat at the left hand side of each printed page. This is
+# stored as a <NamedRange> element.
+#
+method repeat_columns($col-min, $col-max) {
+    # Check for a cell reference in A1 notation and substitute row and column
+    if $col-min ~~ /^\D/ {
+        (Nil, $col-min, Nil, $col-max) = self.substitute_cellref( $col-min, $col-max );
+    }
+
+    $col-max //= $col-min;    # Second col is optional
+
+    # Convert to A notation.
+    $col-min = xl_col_to_name( $col-min, 1 );
+    $col-max = xl_col_to_name( $col-max, 1 );
+
+    my $area = $col-min ~ ':' ~ $col-max;
+
+    # Build up the print area range "=Sheet2!C1:C2"
+    my $sheetname = quote_sheetname( $!name );
+    $area = $sheetname ~ "!" ~ $area;
+
+    $!repeat_cols = $area;
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # print_area($first_row, $first_col, $last_row, $last_col)
@@ -1646,110 +1588,90 @@ method print_row_col_headers($headers = 1) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # fit_to_pages($width, $height)
-#NYI #
-#NYI # Store the vertical and horizontal number of pages that will define the
-#NYI # maximum area printed.
-#NYI #
-#NYI sub fit_to_pages {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_fit_page}           = 1;
-#NYI     $self->{_fit_width}          = defined $_[0] ? $_[0] : 1;
-#NYI     $self->{_fit_height}         = defined $_[1] ? $_[1] : 1;
-#NYI     $self->{_page_setup_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_h_pagebreaks(@breaks)
-#NYI #
-#NYI # Store the horizontal page breaks on a worksheet.
-#NYI #
-#NYI sub set_h_pagebreaks {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     push @{ $self->{_hbreaks} }, @_;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_v_pagebreaks(@breaks)
-#NYI #
-#NYI # Store the vertical page breaks on a worksheet.
-#NYI #
-#NYI sub set_v_pagebreaks {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     push @{ $self->{_vbreaks} }, @_;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_zoom( $scale )
-#NYI #
-#NYI # Set the worksheet zoom factor.
-#NYI #
-#NYI sub set_zoom {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $scale = $_[0] || 100;
-#NYI 
-#NYI     # Confine the scale to Excel's range
-#NYI     if ( $scale < 10 or $scale > 400 ) {
-#NYI         carp "Zoom factor $scale outside range: 10 <= zoom <= 400";
-#NYI         $scale = 100;
-#NYI     }
-#NYI 
-#NYI     $self->{_zoom} = int $scale;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_print_scale($scale)
-#NYI #
-#NYI # Set the scale factor for the printed page.
-#NYI #
-#NYI sub set_print_scale {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $scale = $_[0] || 100;
-#NYI 
-#NYI     # Confine the scale to Excel's range
-#NYI     if ( $scale < 10 or $scale > 400 ) {
-#NYI         carp "Print scale $scale outside range: 10 <= zoom <= 400";
-#NYI         $scale = 100;
-#NYI     }
-#NYI 
-#NYI     # Turn off "fit to page" option.
-#NYI     $self->{_fit_page} = 0;
-#NYI 
-#NYI     $self->{_print_scale}        = int $scale;
-#NYI     $self->{_page_setup_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # print_black_and_white()
-#NYI #
-#NYI # Set the option to print the worksheet in black and white.
-#NYI #
-#NYI sub print_black_and_white {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_black_white} = 1;
-#NYI }
+###############################################################################
+#
+# fit_to_pages($width, $height)
+#
+# Store the vertical and horizontal number of pages that will define the
+# maximum area printed.
+#
+method fit_to_pages($width = 1, $height = 1) {
+    $!fit_page           = 1;
+    $!fit_width          = $width;
+    $!fit_height         = $height;
+    $!page_setup_changed = 1;
+}
+
+
+###############################################################################
+#
+# set_h_pagebreaks(@breaks)
+#
+# Store the horizontal page breaks on a worksheet.
+#
+method set_h_pagebreaks(*@breaks) {
+    @!hbreaks.append: @breaks;
+}
+
+
+###############################################################################
+#
+# set_v_pagebreaks(@breaks)
+#
+# Store the vertical page breaks on a worksheet.
+#
+method set_v_pagebreaks(*@breaks) {
+    @!vbreaks.append: @breaks;
+}
+
+
+###############################################################################
+#
+# set_zoom( $scale )
+#
+# Set the worksheet zoom factor.
+#
+method set_zoom($scale = 100) {
+    # Confine the scale to Excel's range
+    if not 10 <= $scale <= 400 {
+        carp "Zoom factor $scale outside range: 10 <= zoom <= 400";
+        $scale = 100;
+    }
+
+    $!zoom = $scale.int;
+}
+
+
+###############################################################################
+#
+# set_print_scale($scale)
+#
+# Set the scale factor for the printed page.
+#
+method set_print_scale($scale = 100) {
+    # Confine the scale to Excel's range
+    if not 10 <= $scale <= 400 {
+        carp "Print scale $scale outside range: 10 <= zoom <= 400";
+        $scale = 100;
+    }
+
+    # Turn off "fit to page" option.
+    $!fit_page = 0;
+
+    $!print_scale        = $scale.int;
+    $!page_setup_changed = 1;
+}
+
+
+###############################################################################
+#
+# print_black_and_white()
+#
+# Set the option to print the worksheet in black and white.
+#
+method print_black_and_white {
+    $!black_white = 1;
+}
 
 
 ###############################################################################
@@ -1764,34 +1686,28 @@ method keep_leading_zeros($leading-zeros = 1) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # show_comments()
-#NYI #
-#NYI # Make any comments in the worksheet visible.
-#NYI #
-#NYI sub show_comments {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_comments_visible} = defined $_[0] ? $_[0] : 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_comments_author()
-#NYI #
-#NYI # Set the default author of the cell comments.
-#NYI #
-#NYI sub set_comments_author {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_comments_author} = $_[0] if defined $_[0];
-#NYI }
-#NYI 
-#NYI 
+###############################################################################
+#
+# show_comments()
+#
+# Make any comments in the worksheet visible.
+#
+method show_comments($visible = 1) {
+    $!comments_visible = $visible;
+}
+
+
+###############################################################################
+#
+# set_comments_author()
+#
+# Set the default author of the cell comments.
+#
+method set_comments_author($author) {
+    $!comments_author = $author if $author.defined;
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # right_to_left()
@@ -1904,6 +1820,7 @@ method keep_leading_zeros($leading-zeros = 1) {
 #
 # Returns: return value of called subroutine
 #
+# TODO:
 method write(*@args) {
     # Check for a cell reference in A1 notation and substitute row and column
     if @args[0] ~~ /^\D/ {
@@ -1914,71 +1831,70 @@ method write(*@args) {
 
     # Handle undefs as blanks
     $token = '' unless $token.defined;
-====================
 
 
     # First try user defined matches.
-    for my $aref ( @{ $self->{_write_match} } ) {
-        my $re  = $aref->[0];
-        my $sub = $aref->[1];
+    for @!write_match -> @aref {
+        my $re  = @aref[0];
+        my $sub = @aref[1];
 
-        if ( $token =~ /$re/ ) {
-            my $match = &$sub( $self, @_ );
-            return $match if defined $match;
+        if $token ~~ /<$re>/ {
+            my $match = &$sub( self, @args );
+            return $match if $match.defined;
         }
     }
 
 
-    # Match an array ref.
-    if ( ref $token eq "ARRAY" ) {
-        return $self->write_row( @_ );
-    }
+#NYI     # Match an array ref.
+#NYI     if ( ref $token eq "ARRAY" ) {
+#NYI         return $self->write_row( @_ );
+#NYI     }
 
-    # Match integer with leading zero(s)
-    elsif ( $self->{_leading_zeros} and $token =~ /^0\d+$/ ) {
-        return $self->write_string( @_ );
-    }
+#NYI     # Match integer with leading zero(s)
+#NYI     elsif ( $self->{_leading_zeros} and $token =~ /^0\d+$/ ) {
+#NYI         return $self->write_string( @_ );
+#NYI     }
 
-    # Match number
-    elsif ( $token =~ /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ ) {
-        return $self->write_number( @_ );
-    }
+#NYI     # Match number
+#NYI     elsif ( $token =~ /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ ) {
+#NYI         return $self->write_number( @_ );
+#NYI     }
 
-    # Match http, https or ftp URL
-    elsif ( $token =~ m|^[fh]tt?ps?://| ) {
-        return $self->write_url( @_ );
-    }
+#NYI     # Match http, https or ftp URL
+#NYI     elsif ( $token =~ m|^[fh]tt?ps?://| ) {
+#NYI         return $self->write_url( @_ );
+#NYI     }
 
-    # Match mailto:
-    elsif ( $token =~ m/^mailto:/ ) {
-        return $self->write_url( @_ );
-    }
+#NYI     # Match mailto:
+#NYI     elsif ( $token =~ m/^mailto:/ ) {
+#NYI         return $self->write_url( @_ );
+#NYI     }
 
-    # Match internal or external sheet link
-    elsif ( $token =~ m[^(?:in|ex)ternal:] ) {
-        return $self->write_url( @_ );
-    }
+#NYI     # Match internal or external sheet link
+#NYI     elsif ( $token =~ m[^(?:in|ex)ternal:] ) {
+#NYI         return $self->write_url( @_ );
+#NYI     }
 
-    # Match formula
-    elsif ( $token =~ /^=/ ) {
-        return $self->write_formula( @_ );
-    }
+#NYI     # Match formula
+#NYI     elsif ( $token =~ /^=/ ) {
+#NYI         return $self->write_formula( @_ );
+#NYI     }
 
-    # Match array formula
-    elsif ( $token =~ /^{=.*}$/ ) {
-        return $self->write_formula( @_ );
-    }
+#NYI     # Match array formula
+#NYI     elsif ( $token =~ /^{=.*}$/ ) {
+#NYI         return $self->write_formula( @_ );
+#NYI     }
 
-    # Match blank
-    elsif ( $token eq '' ) {
-        splice @_, 2, 1;    # remove the empty string from the parameter list
-        return $self->write_blank( @_ );
-    }
+#NYI     # Match blank
+#NYI     elsif ( $token eq '' ) {
+#NYI         splice @_, 2, 1;    # remove the empty string from the parameter list
+#NYI         return $self->write_blank( @_ );
+#NYI     }
 
-    # Default: match string
-    else {
-        return $self->write_string( @_ );
-    }
+#NYI     # Default: match string
+#NYI     else {
+#NYI         return $self->write_string( @_ );
+#NYI     }
 }
 
 
@@ -2077,90 +1993,85 @@ method write(*@args) {
 #NYI 
 #NYI     return $error;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_comment($row, $col, $comment)
-#NYI #
-#NYI # Write a comment to the specified row and column (zero indexed).
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_comment {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self->_substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row = $_[0];
-#NYI     my $col = $_[1];
-#NYI 
-#NYI     # Check for pairs of optional arguments, i.e. an odd number of args.
-#NYI     croak "Uneven number of additional arguments" unless @_ % 2;
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self->_check_dimensions( $row, $col );
-#NYI 
-#NYI     $self->{_has_vml}      = 1;
-#NYI     $self->{_has_comments} = 1;
-#NYI 
-#NYI     # Process the properties of the cell comment.
-#NYI     $self->{_comments}->{$row}->{$col} = [ $self->_comment_params( @_ ) ];
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_number($row, $col, $num, $format)
-#NYI #
-#NYI # Write a double to the specified row and column (zero indexed).
-#NYI # An integer can be written as a double. Excel will display an
-#NYI # integer. $format is optional.
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_number {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self->_substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI 
-#NYI     my $row  = $_[0];              # Zero indexed row
-#NYI     my $col  = $_[1];              # Zero indexed column
-#NYI     my $num  = $_[2] + 0;
-#NYI     my $xf   = $_[3];              # The cell format
-#NYI     my $type = 'n';                # The data type
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self->_check_dimensions( $row, $col );
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self->{_optimization} == 1 && $row > $self->{_previous_row} ) {
-#NYI         $self->_write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self->{_table}->{$row}->{$col} = [ $type, $num, $xf ];
-#NYI 
-#NYI     return 0;
-#NYI }
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# write_comment($row, $col, $comment)
+#
+# Write a comment to the specified row and column (zero indexed).
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#
+method write_comment(*@options) {
+    # Check for a cell reference in A1 notation and substitute row and column
+    if ( @options[0] ~~ /^\D/ ) {
+        (@options) = self.substitute_cellref( @options );
+    }
+
+    if @options.elems < 3 { return -1 }    # Check the number of args
+
+    # Check for pairs of optional arguments, i.e. an odd number of args.
+    croak "Uneven number of additional arguments" unless @options.elems %% 2;
+
+    my $row = @options[0];
+    my $col = @options[1];
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self.check_dimensions( $row, $col );
+
+    $!has_vml      = 1;
+    $!has_comments = 1;
+
+    # Process the properties of the cell comment.
+    %!comments{$row}{$col} = [ self.comment_params( @options ) ];
+}
+
+
+###############################################################################
+#
+# write_number($row, $col, $num, $format)
+#
+# Write a double to the specified row and column (zero indexed).
+# An integer can be written as a double. Excel will display an
+# integer. $format is optional.
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#
+method write_number(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if ( @args[0] ~~ /^\D/ ) {
+        @args = self.substitute_cellref( @args );
+    }
+
+    if ( @args.elems < 3 ) { return -1 }    # Check the number of args
+
+
+    my $row  =  @args[0];              # Zero indexed row
+    my $col  =  @args[1];              # Zero indexed column
+    my $num  = +@args[2];
+    my $xf   =  @args[3];              # The cell format
+    my $type =  'n';                   # The data type
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self.check_dimensions( $row, $col );
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous_row {
+        self.write_single_row( $row );
+    }
+
+    %!table{$row}{$col} = [ $type, $num, $xf ];
+
+    return 0;
+}
+
+
 #NYI ###############################################################################
 #NYI #
 #NYI # write_string ($row, $col, $string, $format)
@@ -2555,7 +2466,7 @@ method write(*@args) {
 #NYI 
 #NYI ###############################################################################
 #NYI #
-#NYI # write_blank($row, $col, $format)
+#NYI # write_boolean($row, $col, $value, $format)
 #NYI #
 #NYI # Write a boolean value to the specified row and column (zero indexed).
 #NYI #
@@ -2589,72 +2500,67 @@ method write(*@args) {
 #NYI 
 #NYI     return 0;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # outline_settings($visible, $symbols_below, $symbols_right, $auto_style)
-#NYI #
-#NYI # This method sets the properties for outlining and grouping. The defaults
-#NYI # correspond to Excel's defaults.
-#NYI #
-#NYI sub outline_settings {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self->{_outline_on}    = defined $_[0] ? $_[0] : 1;
-#NYI     $self->{_outline_below} = defined $_[1] ? $_[1] : 1;
-#NYI     $self->{_outline_right} = defined $_[2] ? $_[2] : 1;
-#NYI     $self->{_outline_style} = $_[3] || 0;
-#NYI 
-#NYI     $self->{_outline_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Escape urls like Excel.
-#NYI #
-#NYI sub _escape_url {
-#NYI 
-#NYI     my $url = shift;
-#NYI 
-#NYI     # Don't escape URL if it looks already escaped.
-#NYI     return $url if $url =~ /%[0-9a-fA-F]{2}/;
-#NYI 
-#NYI     # Escape the URL escape symbol.
-#NYI     $url =~ s/%/%25/g;
-#NYI 
-#NYI     # Escape whitespace in URL.
-#NYI     $url =~ s/[\s\x00]/%20/g;
-#NYI 
-#NYI     # Escape other special characters in URL.
-#NYI     $url =~ s/(["<>[\]`^{}])/sprintf '%%%x', ord $1/eg;
-#NYI 
-#NYI     return $url;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_url($row, $col, $url, $string, $format)
-#NYI #
-#NYI # Write a hyperlink. This is comprised of two elements: the visible label and
-#NYI # the invisible link. The visible label is the same as the link unless an
-#NYI # alternative string is specified. The label is written using the
-#NYI # write_string() method. Therefore the max characters string limit applies.
-#NYI # $string and $format are optional and their order is interchangeable.
-#NYI #
-#NYI # The hyperlink can be to a http, ftp, mail, internal sheet, or external
-#NYI # directory url.
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #         -3 : long string truncated to 32767 chars
-#NYI #         -4 : URL longer than 255 characters
-#NYI #         -5 : Exceeds limit of 65_530 urls per worksheet
-#NYI #
+
+
+###############################################################################
+#
+# outline_settings($visible, $symbols_below, $symbols_right, $auto_style)
+#
+# This method sets the properties for outlining and grouping. The defaults
+# correspond to Excel's defaults.
+#
+method outline_settings($visible = 1, $symbols-below = 1, $symbols-right = 1, $auto-style = 0) {
+    $!outline_on    = $visible;
+    $!outline_below = $symbols-below;
+    $!outline_right = $symbols-right;
+    $!outline_style = $auto-style;
+
+    $!outline_changed = 1;
+}
+
+
+###############################################################################
+#
+# Escape urls like Excel.
+#
+method escape_url($url) {
+
+    # Don't escape URL if it looks already escaped.
+    return $url if $url ~~ / '%' <[0..9 a..f A..F]> ** 2/;
+
+    # Escape the URL escape symbol.
+    $url ~~ s:g/\%/%25/;
+
+    # Escape whitespace in URL.
+    $url ~~ s:g/<[\s \x00]>/%20/;
+
+    # Escape other special characters in URL.
+    $url ~~ s:g/(<["<>[\]`^{}]>)/{sprintf '%%%x', $0.ord}/;
+
+    return $url;
+}
+
+
+###############################################################################
+#
+# write_url($row, $col, $url, $string, $format)
+#
+# Write a hyperlink. This is comprised of two elements: the visible label and
+# the invisible link. The visible label is the same as the link unless an
+# alternative string is specified. The label is written using the
+# write_string() method. Therefore the max characters string limit applies.
+# $string and $format are optional and their order is interchangeable.
+#
+# The hyperlink can be to a http, ftp, mail, internal sheet, or external
+# directory url.
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#         -3 : long string truncated to 32767 chars
+#         -4 : URL longer than 255 characters
+#         -5 : Exceeds limit of 65_530 urls per worksheet
+#
 #NYI sub write_url {
 #NYI 
 #NYI     my $self = shift;
@@ -2781,20 +2687,20 @@ method write(*@args) {
 #NYI 
 #NYI     return $str_error;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_date_time ($row, $col, $string, $format)
-#NYI #
-#NYI # Write a datetime string in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format as a
-#NYI # number representing an Excel date. $format is optional.
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #         -3 : Invalid date_time, written as string
-#NYI #
+
+
+###############################################################################
+#
+# write_date_time ($row, $col, $string, $format)
+#
+# Write a datetime string in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format as a
+# number representing an Excel date. $format is optional.
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#         -3 : Invalid date_time, written as string
+#
 #NYI sub write_date_time {
 #NYI 
 #NYI     my $self = shift;
@@ -2833,29 +2739,29 @@ method write(*@args) {
 #NYI 
 #NYI     return $str_error;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # convert_date_time($date_time_string)
-#NYI #
-#NYI # The function takes a date and time in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format
-#NYI # and converts it to a decimal number representing a valid Excel date.
-#NYI #
-#NYI # Dates and times in Excel are represented by real numbers. The integer part of
-#NYI # the number stores the number of days since the epoch and the fractional part
-#NYI # stores the percentage of the day in seconds. The epoch can be either 1900 or
-#NYI # 1904.
-#NYI #
-#NYI # Parameter: Date and time string in one of the following formats:
-#NYI #               yyyy-mm-ddThh:mm:ss.ss  # Standard
-#NYI #               yyyy-mm-ddT             # Date only
-#NYI #                         Thh:mm:ss.ss  # Time only
-#NYI #
-#NYI # Returns:
-#NYI #            A decimal number representing a valid Excel date, or
-#NYI #            undef if the date is invalid.
-#NYI #
+
+
+###############################################################################
+#
+# convert_date_time($date_time_string)
+#
+# The function takes a date and time in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format
+# and converts it to a decimal number representing a valid Excel date.
+#
+# Dates and times in Excel are represented by real numbers. The integer part of
+# the number stores the number of days since the epoch and the fractional part
+# stores the percentage of the day in seconds. The epoch can be either 1900 or
+# 1904.
+#
+# Parameter: Date and time string in one of the following formats:
+#               yyyy-mm-ddThh:mm:ss.ss  # Standard
+#               yyyy-mm-ddT             # Date only
+#                         Thh:mm:ss.ss  # Time only
+#
+# Returns:
+#            A decimal number representing a valid Excel date, or
+#            undef if the date is invalid.
+#
 #NYI sub convert_date_time {
 #NYI 
 #NYI     my $self      = shift;
@@ -2973,14 +2879,14 @@ method write(*@args) {
 #NYI 
 #NYI     return $days + $seconds;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_row($row, $height, $XF, $hidden, $level, $collapsed)
-#NYI #
-#NYI # This method is used to set the height and XF format for a row.
-#NYI #
+
+
+###############################################################################
+#
+# set_row($row, $height, $XF, $hidden, $level, $collapsed)
+#
+# This method is used to set the height and XF format for a row.
+#
 #NYI sub set_row {
 #NYI 
 #NYI     my $self      = shift;
@@ -3034,14 +2940,14 @@ method write(*@args) {
 #NYI     # Store the row sizes for use when calculating image vertices.
 #NYI     $self->{_row_sizes}->{$row} = $height;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_default_row()
-#NYI #
-#NYI # Set the default row properties
-#NYI #
+
+
+###############################################################################
+#
+# set_default_row()
+#
+# Set the default row properties
+#
 #NYI sub set_default_row {
 #NYI 
 #NYI     my $self        = shift;
@@ -3059,15 +2965,15 @@ method write(*@args) {
 #NYI         $self->{_default_row_zeroed} = 1;
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # merge_range($first_row, $first_col, $last_row, $last_col, $string, $format)
-#NYI #
-#NYI # Merge a range of cells. The first cell should contain the data and the others
-#NYI # should be blank. All cells should contain the same format.
-#NYI #
+
+
+###############################################################################
+#
+# merge_range($first_row, $first_col, $last_row, $last_col, $string, $format)
+#
+# Merge a range of cells. The first cell should contain the data and the others
+# should be blank. All cells should contain the same format.
+#
 #NYI sub merge_range {
 #NYI 
 #NYI     my $self = shift;
@@ -3115,14 +3021,14 @@ method write(*@args) {
 #NYI         }
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # merge_range_type()
-#NYI #
-#NYI # Same as merge_range() above except the type of write() is specified.
-#NYI #
+
+
+###############################################################################
+#
+# merge_range_type()
+#
+# Same as merge_range() above except the type of write() is specified.
+#
 #NYI sub merge_range_type {
 #NYI 
 #NYI     my $self = shift;
@@ -3212,26 +3118,26 @@ method write(*@args) {
 #NYI         }
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # data_validation($row, $col, {...})
-#NYI #
-#NYI # This method handles the interface to Excel data validation.
-#NYI # Somewhat ironically this requires a lot of validation code since the
-#NYI # interface is flexible and covers a several types of data validation.
-#NYI #
-#NYI # We allow data validation to be called on one cell or a range of cells. The
-#NYI # hashref contains the validation parameters and must be the last param:
-#NYI #    data_validation($row, $col, {...})
-#NYI #    data_validation($first_row, $first_col, $last_row, $last_col, {...})
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #         -3 : incorrect parameter.
-#NYI #
+
+
+###############################################################################
+#
+# data_validation($row, $col, {...})
+#
+# This method handles the interface to Excel data validation.
+# Somewhat ironically this requires a lot of validation code since the
+# interface is flexible and covers a several types of data validation.
+#
+# We allow data validation to be called on one cell or a range of cells. The
+# hashref contains the validation parameters and must be the last param:
+#    data_validation($row, $col, {...})
+#    data_validation($first_row, $first_col, $last_row, $last_col, {...})
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#         -3 : incorrect parameter.
+#
 #NYI sub data_validation {
 #NYI 
 #NYI     my $self = shift;
@@ -3512,24 +3418,24 @@ method write(*@args) {
 #NYI     # Store the validation information until we close the worksheet.
 #NYI     push @{ $self->{_validations} }, $param;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # conditional_formatting($row, $col, {...})
-#NYI #
-#NYI # This method handles the interface to Excel conditional formatting.
-#NYI #
-#NYI # We allow the format to be called on one cell or a range of cells. The
-#NYI # hashref contains the formatting parameters and must be the last param:
-#NYI #    conditional_formatting($row, $col, {...})
-#NYI #    conditional_formatting($first_row, $first_col, $last_row, $last_col, {...})
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #         -3 : incorrect parameter.
-#NYI #
+
+
+###############################################################################
+#
+# conditional_formatting($row, $col, {...})
+#
+# This method handles the interface to Excel conditional formatting.
+#
+# We allow the format to be called on one cell or a range of cells. The
+# hashref contains the formatting parameters and must be the last param:
+#    conditional_formatting($row, $col, {...})
+#    conditional_formatting($first_row, $first_col, $last_row, $last_col, {...})
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#         -3 : incorrect parameter.
+#
 #NYI sub conditional_formatting {
 #NYI 
 #NYI     my $self       = shift;
@@ -3998,12 +3904,12 @@ method write(*@args) {
 #NYI     # Store the validation information until we close the worksheet.
 #NYI     push @{ $self->{_cond_formats}->{$range} }, $param;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Set the sub-properites for icons.
-#NYI #
+
+
+###############################################################################
+#
+# Set the sub-properites for icons.
+#
 #NYI sub _set_icon_properties {
 #NYI 
 #NYI     my $self        = shift;
@@ -4092,14 +3998,14 @@ method write(*@args) {
 #NYI 
 #NYI     return $props;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_table()
-#NYI #
-#NYI # Add an Excel table to a worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# add_table()
+#
+# Add an Excel table to a worksheet.
+#
 #NYI sub add_table {
 #NYI 
 #NYI     my $self       = shift;
@@ -4396,14 +4302,14 @@ method write(*@args) {
 #NYI 
 #NYI     return \%table;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_sparkline()
-#NYI #
-#NYI # Add sparklines to the worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# add_sparkline()
+#
+# Add sparklines to the worksheet.
+#
 #NYI sub add_sparkline {
 #NYI 
 #NYI     my $self      = shift;
@@ -4587,14 +4493,14 @@ method write(*@args) {
 #NYI 
 #NYI     push @{ $self->{_sparklines} }, $sparkline;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # insert_button()
-#NYI #
-#NYI # Insert a button form object into the worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# insert_button()
+#
+# Insert a button form object into the worksheet.
+#
 #NYI sub insert_button {
 #NYI 
 #NYI     my $self = shift;
@@ -4613,14 +4519,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->{_has_vml} = 1;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_vba_name()
-#NYI #
-#NYI # Set the VBA name for the worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# set_vba_name()
+#
+# Set the VBA name for the worksheet.
+#
 #NYI sub set_vba_name {
 #NYI 
 #NYI     my $self         = shift;
@@ -4633,21 +4539,21 @@ method write(*@args) {
 #NYI         $self->{_vba_codename} = $self->{_name};
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Internal methods.
-#NYI #
-#NYI ###############################################################################
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _table_function_to_formula
-#NYI #
-#NYI # Convert a table total function to a worksheet formula.
-#NYI #
+
+
+###############################################################################
+#
+# Internal methods.
+#
+###############################################################################
+
+
+###############################################################################
+#
+# _table_function_to_formula
+#
+# Convert a table total function to a worksheet formula.
+#
 #NYI sub _table_function_to_formula {
 #NYI 
 #NYI     my $function = shift;
@@ -4675,14 +4581,14 @@ method write(*@args) {
 #NYI 
 #NYI     return $formula;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _set_spark_color()
-#NYI #
-#NYI # Set the sparkline colour.
-#NYI #
+
+
+###############################################################################
+#
+# _set_spark_color()
+#
+# Set the sparkline colour.
+#
 #NYI sub _set_spark_color {
 #NYI 
 #NYI     my $self        = shift;
@@ -4696,15 +4602,15 @@ method write(*@args) {
 #NYI     $sparkline->{$spark_color} =
 #NYI       { _rgb => $self->_get_palette_color( $param->{$user_color} ) };
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _get_palette_color()
-#NYI #
-#NYI # Convert from an Excel internal colour index to a XML style #RRGGBB index
-#NYI # based on the default or user defined values in the Workbook palette.
-#NYI #
+
+
+###############################################################################
+#
+# _get_palette_color()
+#
+# Convert from an Excel internal colour index to a XML style #RRGGBB index
+# based on the default or user defined values in the Workbook palette.
+#
 #NYI sub _get_palette_color {
 #NYI 
 #NYI     my $self    = shift;
@@ -4724,119 +4630,132 @@ method write(*@args) {
 #NYI 
 #NYI     return sprintf "FF%02X%02X%02X", @rgb[0, 1, 2];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _substitute_cellref()
-#NYI #
-#NYI # Substitute an Excel cell reference in A1 notation for  zero based row and
-#NYI # column values in an argument list.
-#NYI #
-#NYI # Ex: ("A4", "Hello") is converted to (3, 0, "Hello").
-#NYI #
-#NYI sub _substitute_cellref {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $cell = uc( shift );
-#NYI 
-#NYI     # Convert a column range: 'A:A' or 'B:G'.
-#NYI     # A range such as A:A is equivalent to A1:Rowmax, so add rows as required
-#NYI     if ( $cell =~ /\$?([A-Z]{1,3}):\$?([A-Z]{1,3})/ ) {
-#NYI         my ( $row1, $col1 ) = $self->_cell_to_rowcol( $1 . '1' );
-#NYI         my ( $row2, $col2 ) =
-#NYI           $self->_cell_to_rowcol( $2 . $self->{_xls_rowmax} );
-#NYI         return $row1, $col1, $row2, $col2, @_;
-#NYI     }
-#NYI 
-#NYI     # Convert a cell range: 'A1:B7'
-#NYI     if ( $cell =~ /\$?([A-Z]{1,3}\$?\d+):\$?([A-Z]{1,3}\$?\d+)/ ) {
-#NYI         my ( $row1, $col1 ) = $self->_cell_to_rowcol( $1 );
-#NYI         my ( $row2, $col2 ) = $self->_cell_to_rowcol( $2 );
-#NYI         return $row1, $col1, $row2, $col2, @_;
-#NYI     }
-#NYI 
-#NYI     # Convert a cell reference: 'A1' or 'AD2000'
-#NYI     if ( $cell =~ /\$?([A-Z]{1,3}\$?\d+)/ ) {
-#NYI         my ( $row1, $col1 ) = $self->_cell_to_rowcol( $1 );
-#NYI         return $row1, $col1, @_;
-#NYI 
-#NYI     }
-#NYI 
-#NYI     croak( "Unknown cell reference $cell" );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _cell_to_rowcol($cell_ref)
-#NYI #
-#NYI # Convert an Excel cell reference in A1 notation to a zero based row and column
-#NYI # reference; converts C1 to (0, 2).
-#NYI #
-#NYI # See also: http://www.perlmonks.org/index.pl?node_id=270352
-#NYI #
-#NYI # Returns: ($row, $col, $row_absolute, $col_absolute)
-#NYI #
-#NYI #
-#NYI sub _cell_to_rowcol {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     my $cell = $_[0];
-#NYI     $cell =~ /(\$?)([A-Z]{1,3})(\$?)(\d+)/;
-#NYI 
-#NYI     my $col_abs = $1 eq "" ? 0 : 1;
-#NYI     my $col     = $2;
-#NYI     my $row_abs = $3 eq "" ? 0 : 1;
-#NYI     my $row     = $4;
-#NYI 
-#NYI     # Convert base26 column string to number
-#NYI     # All your Base are belong to us.
-#NYI     my @chars = split //, $col;
-#NYI     my $expn = 0;
-#NYI     $col = 0;
-#NYI 
-#NYI     while ( @chars ) {
-#NYI         my $char = pop( @chars );    # LS char first
-#NYI         $col += ( ord( $char ) - ord( 'A' ) + 1 ) * ( 26**$expn );
-#NYI         $expn++;
-#NYI     }
-#NYI 
-#NYI     # Convert 1-index to zero-index
-#NYI     $row--;
-#NYI     $col--;
-#NYI 
-#NYI     # TODO Check row and column range
-#NYI     return $row, $col, $row_abs, $col_abs;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _xl_rowcol_to_cell($row, $col)
-#NYI #
-#NYI # Optimised version of xl_rowcol_to_cell from Utility.pm for the inner loop
-#NYI # of _write_cell().
-#NYI #
-#NYI 
-#NYI our @col_names = ( 'A' .. 'XFD' );
-#NYI 
-#NYI sub _xl_rowcol_to_cell {
-#NYI     return $col_names[ $_[1] ] . ( $_[0] + 1 );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _sort_pagebreaks()
-#NYI #
-#NYI # This is an internal method that is used to filter elements of the array of
-#NYI # pagebreaks used in the _store_hbreak() and _store_vbreak() methods. It:
-#NYI #   1. Removes duplicate entries from the list.
-#NYI #   2. Sorts the list.
-#NYI #   3. Removes 0 from the list if present.
-#NYI #
+
+
+###############################################################################
+#
+# _substitute_cellref()
+#
+# Substitute an Excel cell reference in A1 notation for  zero based row and
+# column values in an argument list.
+#
+# Ex: ("A4", "Hello") is converted to (3, 0, "Hello").
+#
+method substitute_cellref($cell, *@args) {
+    $cell .=  uc;
+
+    # Convert a column range: 'A:A' or 'B:G'.
+    # A range such as A:A is equivalent to A1:Rowmax, so add rows as required
+    if $cell ~~ /
+                 \$?
+                 (<[A..Z]> ** 1..3)
+                 ':'
+                 \$?
+                 (<[A..Z]> ** 1..3)
+                / {
+        my ( $row1, $col1 ) = self.cell_to_rowcol( $0 ~ '1' );
+        my ( $row2, $col2 ) = self.cell_to_rowcol( $1 ~ $!xls_rowmax );
+        return $row1, $col1, $row2, $col2, |@args;
+    }
+
+    # Convert a cell range: 'A1:B7'
+    if $cell ~~ /
+                 \$?
+                 (<[A..Z]> ** 1..3 \$? \d+)
+                 ':'
+                 \$?
+                 (<[A..Z]> ** 1..3 \$? \d+)
+                / {
+        my ( $row1, $col1 ) = self.cell_to_rowcol( $0 );
+        my ( $row2, $col2 ) = self.cell_to_rowcol( $1 );
+        return $row1, $col1, $row2, $col2, |@args;
+    }
+
+    # Convert a cell reference: 'A1' or 'AD2000'
+    if $cell ~~ /
+                 \$?
+                 (<[A..Z]> ** 1..3 \$? \d+)
+                / {
+        my ( $row1, $col1 ) = self.cell_to_rowcol( $0 );
+        return $row1, $col1, |@args;
+
+    }
+
+    croak( "Unknown cell reference $cell" );
+}
+
+
+###############################################################################
+#
+# _cell_to_rowcol($cell_ref)
+#
+# Convert an Excel cell reference in A1 notation to a zero based row and column
+# reference; converts C1 to (0, 2).
+#
+# See also: http://www.perlmonks.org/index.pl?node_id=270352
+#
+# Returns: ($row, $col, $row_absolute, $col_absolute)
+#
+#
+method cell_to_rowcol($cell) {
+    $cell ~~ /
+              (\$?)
+              (<[A..Z]> ** 1..3 )
+              (\$?)
+              (\d+)
+             /;
+
+    my $col-abs = $0 eq "" ?? 0 !! 1;
+    my $col     = $1;
+    my $row-abs = $2 eq "" ?? 0 !! 1;
+    my $row     = $3;
+
+    # Convert base26 column string to number
+    # All your Base are belong to us.
+    my @chars = $col.comb;
+    my $expn = 0;
+    $col = 0;
+
+    while @chars.elems {
+        my $char = @chars.pop;    # LS char first
+        $col += ( $char.ord - 'A'.ord + 1 ) * ( 26 ** $expn );
+        $expn++;
+    }
+
+    # Convert 1-index to zero-index
+    $row--;
+    $col--;
+
+    # TODO Check row and column range
+    return $row, $col, $row-abs, $col-abs;
+}
+
+
+###############################################################################
+#
+# _xl_rowcol_to_cell($row, $col)
+#
+# Optimised version of xl_rowcol_to_cell from Utility.pm for the inner loop
+# of _write_cell().
+#
+
+our @col_names = ( 'A' .. 'XFD' ); # CHECK
+
+method xl_rowcol_to_cell($row, $col) {
+    return @col_names[ $col ] ~ ( $row + 1 );
+}
+
+
+###############################################################################
+#
+# _sort_pagebreaks()
+#
+# This is an internal method that is used to filter elements of the array of
+# pagebreaks used in the _store_hbreak() and _store_vbreak() methods. It:
+#   1. Removes duplicate entries from the list.
+#   2. Sorts the list.
+#   3. Removes 0 from the list if present.
+#
 #NYI sub _sort_pagebreaks {
 #NYI 
 #NYI     my $self = shift;
@@ -4857,20 +4776,20 @@ method write(*@args) {
 #NYI 
 #NYI     return @array;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _check_dimensions($row, $col, $ignore_row, $ignore_col)
-#NYI #
-#NYI # Check that $row and $col are valid and store max and min values for use in
-#NYI # other methods/elements.
-#NYI #
-#NYI # The $ignore_row/$ignore_col flags is used to indicate that we wish to
-#NYI # perform the dimension check without storing the value.
-#NYI #
-#NYI # The ignore flags are use by set_row() and data_validate.
-#NYI #
+
+
+###############################################################################
+#
+# _check_dimensions($row, $col, $ignore_row, $ignore_col)
+#
+# Check that $row and $col are valid and store max and min values for use in
+# other methods/elements.
+#
+# The $ignore_row/$ignore_col flags is used to indicate that we wish to
+# perform the dimension check without storing the value.
+#
+# The ignore flags are use by set_row() and data_validate.
+#
 #NYI sub _check_dimensions {
 #NYI 
 #NYI     my $self       = shift;
@@ -4916,48 +4835,48 @@ method write(*@args) {
 #NYI 
 #NYI     return 0;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI #  _position_object_pixels()
-#NYI #
-#NYI # Calculate the vertices that define the position of a graphical object within
-#NYI # the worksheet in pixels.
-#NYI #
-#NYI #         +------------+------------+
-#NYI #         |     A      |      B     |
-#NYI #   +-----+------------+------------+
-#NYI #   |     |(x1,y1)     |            |
-#NYI #   |  1  |(A1)._______|______      |
-#NYI #   |     |    |              |     |
-#NYI #   |     |    |              |     |
-#NYI #   +-----+----|    Object    |-----+
-#NYI #   |     |    |              |     |
-#NYI #   |  2  |    |______________.     |
-#NYI #   |     |            |        (B2)|
-#NYI #   |     |            |     (x2,y2)|
-#NYI #   +---- +------------+------------+
-#NYI #
-#NYI # Example of an object that covers some of the area from cell A1 to cell B2.
-#NYI #
-#NYI # Based on the width and height of the object we need to calculate 8 vars:
-#NYI #
-#NYI #     $col_start, $row_start, $col_end, $row_end, $x1, $y1, $x2, $y2.
-#NYI #
-#NYI # We also calculate the absolute x and y position of the top left vertex of
-#NYI # the object. This is required for images.
-#NYI #
-#NYI #    $x_abs, $y_abs
-#NYI #
-#NYI # The width and height of the cells that the object occupies can be variable
-#NYI # and have to be taken into account.
-#NYI #
-#NYI # The values of $col_start and $row_start are passed in from the calling
-#NYI # function. The values of $col_end and $row_end are calculated by subtracting
-#NYI # the width and height of the object from the width and height of the
-#NYI # underlying cells.
-#NYI #
+
+
+###############################################################################
+#
+#  _position_object_pixels()
+#
+# Calculate the vertices that define the position of a graphical object within
+# the worksheet in pixels.
+#
+#         +------------+------------+
+#         |     A      |      B     |
+#   +-----+------------+------------+
+#   |     |(x1,y1)     |            |
+#   |  1  |(A1)._______|______      |
+#   |     |    |              |     |
+#   |     |    |              |     |
+#   +-----+----|    Object    |-----+
+#   |     |    |              |     |
+#   |  2  |    |______________.     |
+#   |     |            |        (B2)|
+#   |     |            |     (x2,y2)|
+#   +---- +------------+------------+
+#
+# Example of an object that covers some of the area from cell A1 to cell B2.
+#
+# Based on the width and height of the object we need to calculate 8 vars:
+#
+#     $col_start, $row_start, $col_end, $row_end, $x1, $y1, $x2, $y2.
+#
+# We also calculate the absolute x and y position of the top left vertex of
+# the object. This is required for images.
+#
+#    $x_abs, $y_abs
+#
+# The width and height of the cells that the object occupies can be variable
+# and have to be taken into account.
+#
+# The values of $col_start and $row_start are passed in from the calling
+# function. The values of $col_end and $row_end are calculated by subtracting
+# the width and height of the object from the width and height of the
+# underlying cells.
+#
 #NYI sub _position_object_pixels {
 #NYI 
 #NYI     my $self = shift;
@@ -5070,18 +4989,18 @@ method write(*@args) {
 #NYI 
 #NYI     );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI #  _position_object_emus()
-#NYI #
-#NYI # Calculate the vertices that define the position of a graphical object within
-#NYI # the worksheet in EMUs.
-#NYI #
-#NYI # The vertices are expressed as English Metric Units (EMUs). There are 12,700
-#NYI # EMUs per point. Therefore, 12,700 * 3 /4 = 9,525 EMUs per pixel.
-#NYI #
+
+
+###############################################################################
+#
+#  _position_object_emus()
+#
+# Calculate the vertices that define the position of a graphical object within
+# the worksheet in EMUs.
+#
+# The vertices are expressed as English Metric Units (EMUs). There are 12,700
+# EMUs per point. Therefore, 12,700 * 3 /4 = 9,525 EMUs per pixel.
+#
 #NYI sub _position_object_emus {
 #NYI 
 #NYI     my $self       = shift;
@@ -5108,18 +5027,18 @@ method write(*@args) {
 #NYI 
 #NYI     );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI #  _position_shape_emus()
-#NYI #
-#NYI # Calculate the vertices that define the position of a shape object within
-#NYI # the worksheet in EMUs.  Save the vertices with the object.
-#NYI #
-#NYI # The vertices are expressed as English Metric Units (EMUs). There are 12,700
-#NYI # EMUs per point. Therefore, 12,700 * 3 /4 = 9,525 EMUs per pixel.
-#NYI #
+
+
+###############################################################################
+#
+#  _position_shape_emus()
+#
+# Calculate the vertices that define the position of a shape object within
+# the worksheet in EMUs.  Save the vertices with the object.
+#
+# The vertices are expressed as English Metric Units (EMUs). There are 12,700
+# EMUs per point. Therefore, 12,700 * 3 /4 = 9,525 EMUs per pixel.
+#
 #NYI sub _position_shape_emus {
 #NYI 
 #NYI     my $self  = shift;
@@ -5157,15 +5076,15 @@ method write(*@args) {
 #NYI     $shape->{_x_abs} = int( $x_abs * 9_525 );
 #NYI     $shape->{_y_abs} = int( $y_abs * 9_525 );
 #NYI }
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _size_col($col)
-#NYI #
-#NYI # Convert the width of a cell from user's units to pixels. Excel rounds the
-#NYI # column width to the nearest pixel. If the width hasn't been set by the user
-#NYI # we use the default value. If the column is hidden it has a value of zero.
-#NYI #
+
+###############################################################################
+#
+# _size_col($col)
+#
+# Convert the width of a cell from user's units to pixels. Excel rounds the
+# column width to the nearest pixel. If the width hasn't been set by the user
+# we use the default value. If the column is hidden it has a value of zero.
+#
 #NYI sub _size_col {
 #NYI 
 #NYI     my $self = shift;
@@ -5198,16 +5117,16 @@ method write(*@args) {
 #NYI 
 #NYI     return $pixels;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _size_row($row)
-#NYI #
-#NYI # Convert the height of a cell from user's units to pixels. If the height
-#NYI # hasn't been set by the user we use the default value. If the row is hidden
-#NYI # it has a value of zero.
-#NYI #
+
+
+###############################################################################
+#
+# _size_row($row)
+#
+# Convert the height of a cell from user's units to pixels. If the height
+# hasn't been set by the user we use the default value. If the row is hidden
+# it has a value of zero.
+#
 #NYI sub _size_row {
 #NYI 
 #NYI     my $self = shift;
@@ -5231,15 +5150,15 @@ method write(*@args) {
 #NYI 
 #NYI     return $pixels;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _get_shared_string_index()
-#NYI #
-#NYI # Add a string to the shared string table, if it isn't already there, and
-#NYI # return the string index.
-#NYI #
+
+
+###############################################################################
+#
+# _get_shared_string_index()
+#
+# Add a string to the shared string table, if it isn't already there, and
+# return the string index.
+#
 #NYI sub _get_shared_string_index {
 #NYI 
 #NYI     my $self = shift;
@@ -5255,16 +5174,16 @@ method write(*@args) {
 #NYI 
 #NYI     return $index;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # insert_chart( $row, $col, $chart, $x, $y, $x_scale, $y_scale )
-#NYI #
-#NYI # Insert a chart into a worksheet. The $chart argument should be a Chart
-#NYI # object or else it is assumed to be a filename of an external binary file.
-#NYI # The latter is for backwards compatibility.
-#NYI #
+
+
+###############################################################################
+#
+# insert_chart( $row, $col, $chart, $x, $y, $x_scale, $y_scale )
+#
+# Insert a chart into a worksheet. The $chart argument should be a Chart
+# object or else it is assumed to be a filename of an external binary file.
+# The latter is for backwards compatibility.
+#
 #NYI sub insert_chart {
 #NYI 
 #NYI     my $self = shift;
@@ -5320,14 +5239,14 @@ method write(*@args) {
 #NYI     push @{ $self->{_charts} },
 #NYI       [ $row, $col, $chart, $x_offset, $y_offset, $x_scale, $y_scale ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_chart()
-#NYI #
-#NYI # Set up chart/drawings.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_chart()
+#
+# Set up chart/drawings.
+#
 #NYI sub _prepare_chart {
 #NYI 
 #NYI     my $self         = shift;
@@ -5378,17 +5297,17 @@ method write(*@args) {
 #NYI     push @{ $self->{_drawing_links} },
 #NYI       [ '/chart', '../charts/chart' . $chart_id . '.xml' ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _get_range_data
-#NYI #
-#NYI # Returns a range of data from the worksheet _table to be used in chart
-#NYI # cached data. Strings are returned as SST ids and decoded in the workbook.
-#NYI # Return undefs for data that doesn't exist since Excel can chart series
-#NYI # with data missing.
-#NYI #
+
+
+###############################################################################
+#
+# _get_range_data
+#
+# Returns a range of data from the worksheet _table to be used in chart
+# cached data. Strings are returned as SST ids and decoded in the workbook.
+# Return undefs for data that doesn't exist since Excel can chart series
+# with data missing.
+#
 #NYI sub _get_range_data {
 #NYI 
 #NYI     my $self = shift;
@@ -5458,14 +5377,14 @@ method write(*@args) {
 #NYI 
 #NYI     return @data;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # insert_image( $row, $col, $filename, $x, $y, $x_scale, $y_scale )
-#NYI #
-#NYI # Insert an image into the worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# insert_image( $row, $col, $filename, $x, $y, $x_scale, $y_scale )
+#
+# Insert an image into the worksheet.
+#
 #NYI sub insert_image {
 #NYI 
 #NYI     my $self = shift;
@@ -5489,14 +5408,14 @@ method write(*@args) {
 #NYI     push @{ $self->{_images} },
 #NYI       [ $row, $col, $image, $x_offset, $y_offset, $x_scale, $y_scale ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_image()
-#NYI #
-#NYI # Set up image/drawings.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_image()
+#
+# Set up image/drawings.
+#
 #NYI sub _prepare_image {
 #NYI 
 #NYI     my $self         = shift;
@@ -5551,14 +5470,14 @@ method write(*@args) {
 #NYI     push @{ $self->{_drawing_links} },
 #NYI       [ '/image', '../media/image' . $image_id . '.' . $image_type ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_header_image()
-#NYI #
-#NYI # Set up an image without a drawing object for header/footer images.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_header_image()
+#
+# Set up an image without a drawing object for header/footer images.
+#
 #NYI sub _prepare_header_image {
 #NYI 
 #NYI     my $self       = shift;
@@ -5580,14 +5499,14 @@ method write(*@args) {
 #NYI     push @{ $self->{_vml_drawing_links} },
 #NYI       [ '/image', '../media/image' . $image_id . '.' . $image_type ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # insert_shape( $row, $col, $shape, $x, $y, $x_scale, $y_scale )
-#NYI #
-#NYI # Insert a shape into the worksheet.
-#NYI #
+
+
+###############################################################################
+#
+# insert_shape( $row, $col, $shape, $x, $y, $x_scale, $y_scale )
+#
+# Insert a shape into the worksheet.
+#
 #NYI sub insert_shape {
 #NYI 
 #NYI     my $self = shift;
@@ -5668,14 +5587,14 @@ method write(*@args) {
 #NYI         return $shape;
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_shape()
-#NYI #
-#NYI # Set up drawing shapes
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_shape()
+#
+# Set up drawing shapes
+#
 #NYI sub _prepare_shape {
 #NYI 
 #NYI     my $self       = shift;
@@ -5718,14 +5637,14 @@ method write(*@args) {
 #NYI     $drawing->_add_drawing_object( $drawing_type, @dimensions, $shape->{_name},
 #NYI         $shape );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _auto_locate_connectors()
-#NYI #
-#NYI # Re-size connector shapes if they are connected to other shapes.
-#NYI #
+
+
+###############################################################################
+#
+# _auto_locate_connectors()
+#
+# Re-size connector shapes if they are connected to other shapes.
+#
 #NYI sub _auto_locate_connectors {
 #NYI 
 #NYI     my $self  = shift;
@@ -5839,14 +5758,14 @@ method write(*@args) {
 #NYI         warn "Connection $connect_type not implemented yet\n";
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _validate_shape()
-#NYI #
-#NYI # Check shape attributes to ensure they are valid.
-#NYI #
+
+
+###############################################################################
+#
+# _validate_shape()
+#
+# Check shape attributes to ensure they are valid.
+#
 #NYI sub _validate_shape {
 #NYI 
 #NYI     my $self  = shift;
@@ -5863,15 +5782,15 @@ method write(*@args) {
 #NYI           . "($shape->{valign}), not ('t', 'ctr', 'b')\n";
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_vml_objects()
-#NYI #
-#NYI # Turn the HoH that stores the comments into an array for easier handling
-#NYI # and set the external links for comments and buttons.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_vml_objects()
+#
+# Turn the HoH that stores the comments into an array for easier handling
+# and set the external links for comments and buttons.
+#
 #NYI sub _prepare_vml_objects {
 #NYI 
 #NYI     my $self           = shift;
@@ -5932,14 +5851,14 @@ method write(*@args) {
 #NYI 
 #NYI     return $count;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_header_vml_objects()
-#NYI #
-#NYI # Set up external linkage for VML header/footer images.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_header_vml_objects()
+#
+# Set up external linkage for VML header/footer images.
+#
 #NYI sub _prepare_header_vml_objects {
 #NYI 
 #NYI     my $self           = shift;
@@ -5951,14 +5870,14 @@ method write(*@args) {
 #NYI     push @{ $self->{_external_vml_links} },
 #NYI       [ '/vmlDrawing', '../drawings/vmlDrawing' . $vml_drawing_id . '.vml' ];
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _prepare_tables()
-#NYI #
-#NYI # Set the table ids for the worksheet tables.
-#NYI #
+
+
+###############################################################################
+#
+# _prepare_tables()
+#
+# Set the table ids for the worksheet tables.
+#
 #NYI sub _prepare_tables {
 #NYI 
 #NYI     my $self     = shift;
@@ -5994,15 +5913,15 @@ method write(*@args) {
 #NYI         $table_id++;
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _comment_params()
-#NYI #
-#NYI # This method handles the additional optional parameters to write_comment() as
-#NYI # well as calculating the comment object position and vertices.
-#NYI #
+
+
+###############################################################################
+#
+# _comment_params()
+#
+# This method handles the additional optional parameters to write_comment() as
+# well as calculating the comment object position and vertices.
+#
 #NYI sub _comment_params {
 #NYI 
 #NYI     my $self = shift;
@@ -6157,15 +6076,15 @@ method write(*@args) {
 #NYI         [@vertices]
 #NYI     );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _button_params()
-#NYI #
-#NYI # This method handles the parameters passed to insert_button() as well as
-#NYI # calculating the comment object position and vertices.
-#NYI #
+
+
+###############################################################################
+#
+# _button_params()
+#
+# This method handles the parameters passed to insert_button() as well as
+# calculating the comment object position and vertices.
+#
 #NYI sub _button_params {
 #NYI 
 #NYI     my $self   = shift;
@@ -6235,15 +6154,15 @@ method write(*@args) {
 #NYI 
 #NYI     return $button;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # Deprecated methods for backwards compatibility.
-#NYI #
-#NYI ###############################################################################
-#NYI 
-#NYI 
+
+
+###############################################################################
+#
+# Deprecated methods for backwards compatibility.
+#
+###############################################################################
+
+
 #NYI # This method was mainly only required for Excel 5.
 #NYI sub write_url_range { }
 #NYI 
@@ -6341,55 +6260,52 @@ method write(*@args) {
 #NYI 
 #NYI     return $self->write_formula( $row, $col, $formula, $format, $value );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # XML writing methods.
-#NYI #
-#NYI ###############################################################################
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_worksheet()
-#NYI #
-#NYI # Write the <worksheet> element. This is the root element of Worksheet.
-#NYI #
-#NYI sub _write_worksheet {
-#NYI 
-#NYI     my $self                   = shift;
-#NYI     my $schema                 = 'http://schemas.openxmlformats.org/';
-#NYI     my $xmlns                  = $schema . 'spreadsheetml/2006/main';
-#NYI     my $xmlns_r                = $schema . 'officeDocument/2006/relationships';
-#NYI     my $xmlns_mc               = $schema . 'markup-compatibility/2006';
-#NYI 
-#NYI     my @attributes = (
-#NYI         'xmlns'   => $xmlns,
-#NYI         'xmlns:r' => $xmlns_r,
-#NYI     );
-#NYI 
-#NYI     if ( $self->{_excel_version} == 2010 ) {
-#NYI         push @attributes, ( 'xmlns:mc' => $xmlns_mc );
-#NYI 
-#NYI         push @attributes,
-#NYI           (     'xmlns:x14ac' => 'http://schemas.microsoft.com/'
-#NYI               . 'office/spreadsheetml/2009/9/ac' );
-#NYI 
-#NYI         push @attributes, ( 'mc:Ignorable' => 'x14ac' );
-#NYI 
-#NYI     }
-#NYI 
-#NYI     $self->xml_start_tag( 'worksheet', @attributes );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet_pr()
-#NYI #
-#NYI # Write the <sheetPr> element for Sheet level properties.
-#NYI #
+
+
+###############################################################################
+#
+# XML writing methods.
+#
+###############################################################################
+
+
+###############################################################################
+#
+# write_worksheet()
+#
+# Write the <worksheet> element. This is the root element of Worksheet.
+#
+method write_worksheet {
+    my $schema                 = 'http://schemas.openxmlformats.org/';
+    my $xmlns                  = $schema ~ 'spreadsheetml/2006/main';
+    my $xmlns_r                = $schema ~ 'officeDocument/2006/relationships';
+    my $xmlns_mc               = $schema ~ 'markup-compatibility/2006';
+
+    my @attributes = (
+        'xmlns'   => $xmlns,
+        'xmlns:r' => $xmlns_r,
+    );
+
+    if $!excel_version == 2010 {
+        @attributes.push: 'xmlns:mc' => $xmlns_mc;
+
+        @attributes.push:
+               'xmlns:x14ac' => 'http://schemas.microsoft.com/'
+             ~ 'office/spreadsheetml/2009/9/ac';
+
+        @attributes.push: 'mc:Ignorable' => 'x14ac';
+    }
+
+    self.xml_start_tag( 'worksheet', @attributes );
+}
+
+
+###############################################################################
+#
+# _write_sheet_pr()
+#
+# Write the <sheetPr> element for Sheet level properties.
+#
 #NYI sub _write_sheet_pr {
 #NYI 
 #NYI     my $self       = shift;
@@ -6423,14 +6339,14 @@ method write(*@args) {
 #NYI         $self->xml_empty_tag( 'sheetPr', @attributes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_page_set_up_pr()
-#NYI #
-#NYI # Write the <pageSetUpPr> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_page_set_up_pr()
+#
+# Write the <pageSetUpPr> element.
+#
 #NYI sub _write_page_set_up_pr {
 #NYI 
 #NYI     my $self = shift;
@@ -6441,15 +6357,15 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'pageSetUpPr', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_dimension()
-#NYI #
-#NYI # Write the <dimension> element. This specifies the range of cells in the
-#NYI # worksheet. As a special case, empty spreadsheets use 'A1' as a range.
-#NYI #
+
+
+###############################################################################
+#
+# _write_dimension()
+#
+# Write the <dimension> element. This specifies the range of cells in the
+# worksheet. As a special case, empty spreadsheets use 'A1' as a range.
+#
 #NYI sub _write_dimension {
 #NYI 
 #NYI     my $self = shift;
@@ -6504,14 +6420,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'dimension', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet_views()
-#NYI #
-#NYI # Write the <sheetViews> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_sheet_views()
+#
+# Write the <sheetViews> element.
+#
 #NYI sub _write_sheet_views {
 #NYI 
 #NYI     my $self = shift;
@@ -6522,29 +6438,29 @@ method write(*@args) {
 #NYI     $self->_write_sheet_view();
 #NYI     $self->xml_end_tag( 'sheetViews' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet_view()
-#NYI #
-#NYI # Write the <sheetView> element.
-#NYI #
-#NYI # Sample structure:
-#NYI #     <sheetView
-#NYI #         showGridLines="0"
-#NYI #         showRowColHeaders="0"
-#NYI #         showZeros="0"
-#NYI #         rightToLeft="1"
-#NYI #         tabSelected="1"
-#NYI #         showRuler="0"
-#NYI #         showOutlineSymbols="0"
-#NYI #         view="pageLayout"
-#NYI #         zoomScale="121"
-#NYI #         zoomScaleNormal="121"
-#NYI #         workbookViewId="0"
-#NYI #      />
-#NYI #
+
+
+###############################################################################
+#
+# _write_sheet_view()
+#
+# Write the <sheetView> element.
+#
+# Sample structure:
+#     <sheetView
+#         showGridLines="0"
+#         showRowColHeaders="0"
+#         showZeros="0"
+#         rightToLeft="1"
+#         tabSelected="1"
+#         showRuler="0"
+#         showOutlineSymbols="0"
+#         view="pageLayout"
+#         zoomScale="121"
+#         zoomScaleNormal="121"
+#         workbookViewId="0"
+#      />
+#
 #NYI sub _write_sheet_view {
 #NYI 
 #NYI     my $self             = shift;
@@ -6608,14 +6524,14 @@ method write(*@args) {
 #NYI         $self->xml_empty_tag( 'sheetView', @attributes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_selections()
-#NYI #
-#NYI # Write the <selection> elements.
-#NYI #
+
+
+###############################################################################
+#
+# _write_selections()
+#
+# Write the <selection> elements.
+#
 #NYI sub _write_selections {
 #NYI 
 #NYI     my $self = shift;
@@ -6624,14 +6540,14 @@ method write(*@args) {
 #NYI         $self->_write_selection( @$selection );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_selection()
-#NYI #
-#NYI # Write the <selection> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_selection()
+#
+# Write the <selection> element.
+#
 #NYI sub _write_selection {
 #NYI 
 #NYI     my $self        = shift;
@@ -6646,14 +6562,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'selection', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet_format_pr()
-#NYI #
-#NYI # Write the <sheetFormatPr> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_sheet_format_pr()
+#
+# Write the <sheetFormatPr> element.
+#
 #NYI sub _write_sheet_format_pr {
 #NYI 
 #NYI     my $self               = shift;
@@ -6682,14 +6598,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'sheetFormatPr', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_cols()
-#NYI #
-#NYI # Write the <cols> element and <col> sub elements.
-#NYI #
+
+
+##############################################################################
+#
+# _write_cols()
+#
+# Write the <cols> element and <col> sub elements.
+#
 #NYI sub _write_cols {
 #NYI 
 #NYI     my $self = shift;
@@ -6705,14 +6621,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'cols' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_col_info()
-#NYI #
-#NYI # Write the <col> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_col_info()
+#
+# Write the <col> element.
+#
 #NYI sub _write_col_info {
 #NYI 
 #NYI     my $self         = shift;
@@ -6784,14 +6700,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'col', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_sheet_data()
-#NYI #
-#NYI # Write the <sheetData> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_sheet_data()
+#
+# Write the <sheetData> element.
+#
 #NYI sub _write_sheet_data {
 #NYI 
 #NYI     my $self = shift;
@@ -6809,16 +6725,16 @@ method write(*@args) {
 #NYI     }
 #NYI 
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_optimized_sheet_data()
-#NYI #
-#NYI # Write the <sheetData> element when the memory optimisation is on. In which
-#NYI # case we read the data stored in the temp file and rewrite it to the XML
-#NYI # sheet file.
-#NYI #
+
+
+###############################################################################
+#
+# _write_optimized_sheet_data()
+#
+# Write the <sheetData> element when the memory optimisation is on. In which
+# case we read the data stored in the temp file and rewrite it to the XML
+# sheet file.
+#
 #NYI sub _write_optimized_sheet_data {
 #NYI 
 #NYI     my $self = shift;
@@ -6848,14 +6764,14 @@ method write(*@args) {
 #NYI         $self->xml_end_tag( 'sheetData' );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_rows()
-#NYI #
-#NYI # Write out the worksheet data as a series of rows and cells.
-#NYI #
+
+
+###############################################################################
+#
+# _write_rows()
+#
+# Write out the worksheet data as a series of rows and cells.
+#
 #NYI sub _write_rows {
 #NYI 
 #NYI     my $self = shift;
@@ -6908,17 +6824,17 @@ method write(*@args) {
 #NYI         }
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_single_row()
-#NYI #
-#NYI # Write out the worksheet data as a single row with cells. This method is
-#NYI # used when memory optimisation is on. A single row is written and the data
-#NYI # table is reset. That way only one row of data is kept in memory at any one
-#NYI # time. We don't write span data in the optimised case since it is optional.
-#NYI #
+
+
+###############################################################################
+#
+# _write_single_row()
+#
+# Write out the worksheet data as a single row with cells. This method is
+# used when memory optimisation is on. A single row is written and the data
+# table is reset. That way only one row of data is kept in memory at any one
+# time. We don't write span data in the optimised case since it is optional.
+#
 #NYI sub _write_single_row {
 #NYI 
 #NYI     my $self        = shift;
@@ -6966,18 +6882,18 @@ method write(*@args) {
 #NYI     $self->{_table} = {};
 #NYI 
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _calculate_spans()
-#NYI #
-#NYI # Calculate the "spans" attribute of the <row> tag. This is an XLSX
-#NYI # optimisation and isn't strictly required. However, it makes comparing
-#NYI # files easier.
-#NYI #
-#NYI # The span is the same for each block of 16 rows.
-#NYI #
+
+
+###############################################################################
+#
+# _calculate_spans()
+#
+# Calculate the "spans" attribute of the <row> tag. This is an XLSX
+# optimisation and isn't strictly required. However, it makes comparing
+# files easier.
+#
+# The span is the same for each block of 16 rows.
+#
 #NYI sub _calculate_spans {
 #NYI 
 #NYI     my $self = shift;
@@ -7040,14 +6956,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->{_row_spans} = \@spans;
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_row()
-#NYI #
-#NYI # Write the <row> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_row()
+#
+# Write the <row> element.
+#
 #NYI sub _write_row {
 #NYI 
 #NYI     my $self      = shift;
@@ -7098,14 +7014,14 @@ method write(*@args) {
 #NYI         $self->xml_start_tag_unencoded( 'row', @attributes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_empty_row()
-#NYI #
-#NYI # Write and empty <row> element, i.e., attributes only, no cell data.
-#NYI #
+
+
+###############################################################################
+#
+# _write_empty_row()
+#
+# Write and empty <row> element, i.e., attributes only, no cell data.
+#
 #NYI sub _write_empty_row {
 #NYI 
 #NYI     my $self = shift;
@@ -7115,27 +7031,27 @@ method write(*@args) {
 #NYI 
 #NYI     $self->_write_row( @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_cell()
-#NYI #
-#NYI # Write the <cell> element. This is the innermost loop so efficiency is
-#NYI # important where possible. The basic methodology is that the data of every
-#NYI # cell type is passed in as follows:
-#NYI #
-#NYI #      [ $row, $col, $aref]
-#NYI #
-#NYI # The aref, called $cell below, contains the following structure in all types:
-#NYI #
-#NYI #     [ $type, $token, $xf, @args ]
-#NYI #
-#NYI # Where $type:  represents the cell type, such as string, number, formula, etc.
-#NYI #       $token: is the actual data for the string, number, formula, etc.
-#NYI #       $xf:    is the XF format object.
-#NYI #       @args:  additional args relevant to the specific data type.
-#NYI #
+
+
+###############################################################################
+#
+# _write_cell()
+#
+# Write the <cell> element. This is the innermost loop so efficiency is
+# important where possible. The basic methodology is that the data of every
+# cell type is passed in as follows:
+#
+#      [ $row, $col, $aref]
+#
+# The aref, called $cell below, contains the following structure in all types:
+#
+#     [ $type, $token, $xf, @args ]
+#
+# Where $type:  represents the cell type, such as string, number, formula, etc.
+#       $token: is the actual data for the string, number, formula, etc.
+#       $xf:    is the XF format object.
+#       @args:  additional args relevant to the specific data type.
+#
 #NYI sub _write_cell {
 #NYI 
 #NYI     my $self     = shift;
@@ -7267,14 +7183,14 @@ method write(*@args) {
 #NYI         $self->xml_empty_tag( 'c', @attributes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_cell_value()
-#NYI #
-#NYI # Write the cell value <v> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_cell_value()
+#
+# Write the cell value <v> element.
+#
 #NYI sub _write_cell_value {
 #NYI 
 #NYI     my $self = shift;
@@ -7282,14 +7198,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'v', $value );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_cell_formula()
-#NYI #
-#NYI # Write the cell formula <f> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_cell_formula()
+#
+# Write the cell formula <f> element.
+#
 #NYI sub _write_cell_formula {
 #NYI 
 #NYI     my $self = shift;
@@ -7297,14 +7213,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'f', $formula );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_cell_array_formula()
-#NYI #
-#NYI # Write the cell array formula <f> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_cell_array_formula()
+#
+# Write the cell array formula <f> element.
+#
 #NYI sub _write_cell_array_formula {
 #NYI 
 #NYI     my $self    = shift;
@@ -7315,14 +7231,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'f', $formula, @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_sheet_calc_pr()
-#NYI #
-#NYI # Write the <sheetCalcPr> element for the worksheet calculation properties.
-#NYI #
+
+
+##############################################################################
+#
+# _write_sheet_calc_pr()
+#
+# Write the <sheetCalcPr> element for the worksheet calculation properties.
+#
 #NYI sub _write_sheet_calc_pr {
 #NYI 
 #NYI     my $self              = shift;
@@ -7332,14 +7248,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'sheetCalcPr', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_phonetic_pr()
-#NYI #
-#NYI # Write the <phoneticPr> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_phonetic_pr()
+#
+# Write the <phoneticPr> element.
+#
 #NYI sub _write_phonetic_pr {
 #NYI 
 #NYI     my $self    = shift;
@@ -7353,14 +7269,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'phoneticPr', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_page_margins()
-#NYI #
-#NYI # Write the <pageMargins> element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_page_margins()
+#
+# Write the <pageMargins> element.
+#
 #NYI sub _write_page_margins {
 #NYI 
 #NYI     my $self = shift;
@@ -7376,30 +7292,30 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'pageMargins', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_page_setup()
-#NYI #
-#NYI # Write the <pageSetup> element.
-#NYI #
-#NYI # The following is an example taken from Excel.
-#NYI #
-#NYI # <pageSetup
-#NYI #     paperSize="9"
-#NYI #     scale="110"
-#NYI #     fitToWidth="2"
-#NYI #     fitToHeight="2"
-#NYI #     pageOrder="overThenDown"
-#NYI #     orientation="portrait"
-#NYI #     blackAndWhite="1"
-#NYI #     draft="1"
-#NYI #     horizontalDpi="200"
-#NYI #     verticalDpi="200"
-#NYI #     r:id="rId1"
-#NYI # />
-#NYI #
+
+
+###############################################################################
+#
+# _write_page_setup()
+#
+# Write the <pageSetup> element.
+#
+# The following is an example taken from Excel.
+#
+# <pageSetup
+#     paperSize="9"
+#     scale="110"
+#     fitToWidth="2"
+#     fitToHeight="2"
+#     pageOrder="overThenDown"
+#     orientation="portrait"
+#     blackAndWhite="1"
+#     draft="1"
+#     horizontalDpi="200"
+#     verticalDpi="200"
+#     r:id="rId1"
+# />
+#
 #NYI sub _write_page_setup {
 #NYI 
 #NYI     my $self       = shift;
@@ -7466,14 +7382,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'pageSetup', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_merge_cells()
-#NYI #
-#NYI # Write the <mergeCells> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_merge_cells()
+#
+# Write the <mergeCells> element.
+#
 #NYI sub _write_merge_cells {
 #NYI 
 #NYI     my $self         = shift;
@@ -7494,14 +7410,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'mergeCells' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_merge_cell()
-#NYI #
-#NYI # Write the <mergeCell> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_merge_cell()
+#
+# Write the <mergeCell> element.
+#
 #NYI sub _write_merge_cell {
 #NYI 
 #NYI     my $self         = shift;
@@ -7518,14 +7434,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'mergeCell', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_print_options()
-#NYI #
-#NYI # Write the <printOptions> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_print_options()
+#
+# Write the <printOptions> element.
+#
 #NYI sub _write_print_options {
 #NYI 
 #NYI     my $self       = shift;
@@ -7556,14 +7472,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'printOptions', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_header_footer()
-#NYI #
-#NYI # Write the <headerFooter> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_header_footer()
+#
+# Write the <headerFooter> element.
+#
 #NYI sub _write_header_footer {
 #NYI 
 #NYI     my $self       = shift;
@@ -7587,44 +7503,37 @@ method write(*@args) {
 #NYI         $self->xml_empty_tag( 'headerFooter', @attributes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_odd_header()
-#NYI #
-#NYI # Write the <oddHeader> element.
-#NYI #
-#NYI sub _write_odd_header {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $data = $self->{_header};
-#NYI 
-#NYI     $self->xml_data_element( 'oddHeader', $data );
-#NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_odd_footer()
-#NYI #
-#NYI # Write the <oddFooter> element.
-#NYI #
-#NYI sub _write_odd_footer {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $data = $self->{_footer};
-#NYI 
-#NYI     $self->xml_data_element( 'oddFooter', $data );
-#NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_row_breaks()
-#NYI #
-#NYI # Write the <rowBreaks> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_odd_header()
+#
+# Write the <oddHeader> element.
+#
+method write_odd_header {
+    my $data = $!header;
+    self.xml_data_element( 'oddHeader', $data );
+}
+
+
+##############################################################################
+#
+# _write_odd_footer()
+#
+# Write the <oddFooter> element.
+#
+method write_odd_footer {
+    self.xml_data_element( 'oddFooter', $!footer );
+}
+
+
+##############################################################################
+#
+# _write_row_breaks()
+#
+# Write the <rowBreaks> element.
+#
 #NYI sub _write_row_breaks {
 #NYI 
 #NYI     my $self = shift;
@@ -7647,14 +7556,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'rowBreaks' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_col_breaks()
-#NYI #
-#NYI # Write the <colBreaks> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_col_breaks()
+#
+# Write the <colBreaks> element.
+#
 #NYI sub _write_col_breaks {
 #NYI 
 #NYI     my $self = shift;
@@ -7677,37 +7586,33 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'colBreaks' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_brk()
-#NYI #
-#NYI # Write the <brk> element.
-#NYI #
-#NYI sub _write_brk {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $id   = shift;
-#NYI     my $max  = shift;
-#NYI     my $man  = 1;
-#NYI 
-#NYI     my @attributes = (
-#NYI         'id'  => $id,
-#NYI         'max' => $max,
-#NYI         'man' => $man,
-#NYI     );
-#NYI 
-#NYI     $self->xml_empty_tag( 'brk', @attributes );
-#NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_auto_filter()
-#NYI #
-#NYI # Write the <autoFilter> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_brk()
+#
+# Write the <brk> element.
+#
+method write_brk($id, $max) {
+    my $man  = 1;
+
+    my @attributes = (
+        'id'  => $id,
+        'max' => $max,
+        'man' => $man,
+    );
+
+    self.xml_empty_tag( 'brk', @attributes );
+}
+
+
+##############################################################################
+#
+# _write_auto_filter()
+#
+# Write the <autoFilter> element.
+#
 #NYI sub _write_auto_filter {
 #NYI 
 #NYI     my $self = shift;
@@ -7734,15 +7639,15 @@ method write(*@args) {
 #NYI     }
 #NYI 
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_autofilters()
-#NYI #
-#NYI # Function to iterate through the columns that form part of an autofilter
-#NYI # range and write the appropriate filters.
-#NYI #
+
+
+###############################################################################
+#
+# _write_autofilters()
+#
+# Function to iterate through the columns that form part of an autofilter
+# range and write the appropriate filters.
+#
 #NYI sub _write_autofilters {
 #NYI 
 #NYI     my $self = shift;
@@ -7762,14 +7667,14 @@ method write(*@args) {
 #NYI         $self->_write_filter_column( $col - $col1, $type, \@tokens );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_filter_column()
-#NYI #
-#NYI # Write the <filterColumn> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_filter_column()
+#
+# Write the <filterColumn> element.
+#
 #NYI sub _write_filter_column {
 #NYI 
 #NYI     my $self    = shift;
@@ -7796,14 +7701,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'filterColumn' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_filters()
-#NYI #
-#NYI # Write the <filters> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_filters()
+#
+# Write the <filters> element.
+#
 #NYI sub _write_filters {
 #NYI 
 #NYI     my $self    = shift;
@@ -7826,14 +7731,14 @@ method write(*@args) {
 #NYI         $self->xml_end_tag( 'filters' );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_filter()
-#NYI #
-#NYI # Write the <filter> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_filter()
+#
+# Write the <filter> element.
+#
 #NYI sub _write_filter {
 #NYI 
 #NYI     my $self = shift;
@@ -7843,14 +7748,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'filter', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_custom_filters()
-#NYI #
-#NYI # Write the <customFilters> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_custom_filters()
+#
+# Write the <customFilters> element.
+#
 #NYI sub _write_custom_filters {
 #NYI 
 #NYI     my $self   = shift;
@@ -7885,14 +7790,14 @@ method write(*@args) {
 #NYI         $self->xml_end_tag( 'customFilters' );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_custom_filter()
-#NYI #
-#NYI # Write the <customFilter> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_custom_filter()
+#
+# Write the <customFilter> element.
+#
 #NYI sub _write_custom_filter {
 #NYI 
 #NYI     my $self       = shift;
@@ -7925,15 +7830,15 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'customFilter', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_hyperlinks()
-#NYI #
-#NYI # Process any stored hyperlinks in row/col order and write the <hyperlinks>
-#NYI # element. The attributes are different for internal and external links.
-#NYI #
+
+
+##############################################################################
+#
+# _write_hyperlinks()
+#
+# Process any stored hyperlinks in row/col order and write the <hyperlinks>
+# element. The attributes are different for internal and external links.
+#
 #NYI sub _write_hyperlinks {
 #NYI 
 #NYI     my $self = shift;
@@ -8015,14 +7920,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'hyperlinks' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_hyperlink_external()
-#NYI #
-#NYI # Write the <hyperlink> element for external links.
-#NYI #
+
+
+##############################################################################
+#
+# _write_hyperlink_external()
+#
+# Write the <hyperlink> element for external links.
+#
 #NYI sub _write_hyperlink_external {
 #NYI 
 #NYI     my $self     = shift;
@@ -8047,14 +7952,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'hyperlink', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_hyperlink_internal()
-#NYI #
-#NYI # Write the <hyperlink> element for internal links.
-#NYI #
+
+
+##############################################################################
+#
+# _write_hyperlink_internal()
+#
+# Write the <hyperlink> element for internal links.
+#
 #NYI sub _write_hyperlink_internal {
 #NYI 
 #NYI     my $self     = shift;
@@ -8073,14 +7978,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'hyperlink', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_panes()
-#NYI #
-#NYI # Write the frozen or split <pane> elements.
-#NYI #
+
+
+##############################################################################
+#
+# _write_panes()
+#
+# Write the frozen or split <pane> elements.
+#
 #NYI sub _write_panes {
 #NYI 
 #NYI     my $self  = shift;
@@ -8095,14 +8000,14 @@ method write(*@args) {
 #NYI         $self->_write_freeze_panes( @panes );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_freeze_panes()
-#NYI #
-#NYI # Write the <pane> element for freeze panes.
-#NYI #
+
+
+##############################################################################
+#
+# _write_freeze_panes()
+#
+# Write the <pane> element for freeze panes.
+#
 #NYI sub _write_freeze_panes {
 #NYI 
 #NYI     my $self = shift;
@@ -8169,16 +8074,16 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'pane', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_split_panes()
-#NYI #
-#NYI # Write the <pane> element for split panes.
-#NYI #
-#NYI # See also, implementers note for split_panes().
-#NYI #
+
+
+##############################################################################
+#
+# _write_split_panes()
+#
+# Write the <pane> element for split panes.
+#
+# See also, implementers note for split_panes().
+#
 #NYI sub _write_split_panes {
 #NYI 
 #NYI     my $self = shift;
@@ -8251,14 +8156,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'pane', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _calculate_x_split_width()
-#NYI #
-#NYI # Convert column width from user units to pane split width.
-#NYI #
+
+
+##############################################################################
+#
+# _calculate_x_split_width()
+#
+# Convert column width from user units to pane split width.
+#
 #NYI sub _calculate_x_split_width {
 #NYI 
 #NYI     my $self  = shift;
@@ -8287,14 +8192,14 @@ method write(*@args) {
 #NYI 
 #NYI     return $width;
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_tab_color()
-#NYI #
-#NYI # Write the <tabColor> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_tab_color()
+#
+# Write the <tabColor> element.
+#
 #NYI sub _write_tab_color {
 #NYI 
 #NYI     my $self        = shift;
@@ -8308,14 +8213,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'tabColor', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_outline_pr()
-#NYI #
-#NYI # Write the <outlinePr> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_outline_pr()
+#
+# Write the <outlinePr> element.
+#
 #NYI sub _write_outline_pr {
 #NYI 
 #NYI     my $self       = shift;
@@ -8330,14 +8235,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'outlinePr', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_sheet_protection()
-#NYI #
-#NYI # Write the <sheetProtection> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_sheet_protection()
+#
+# Write the <sheetProtection> element.
+#
 #NYI sub _write_sheet_protection {
 #NYI 
 #NYI     my $self = shift;
@@ -8374,14 +8279,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'sheetProtection', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_drawings()
-#NYI #
-#NYI # Write the <drawing> elements.
-#NYI #
+
+
+##############################################################################
+#
+# _write_drawings()
+#
+# Write the <drawing> elements.
+#
 #NYI sub _write_drawings {
 #NYI 
 #NYI     my $self = shift;
@@ -8390,14 +8295,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->_write_drawing( ++$self->{_rel_count} );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_drawing()
-#NYI #
-#NYI # Write the <drawing> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_drawing()
+#
+# Write the <drawing> element.
+#
 #NYI sub _write_drawing {
 #NYI 
 #NYI     my $self = shift;
@@ -8430,15 +8335,15 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'legacyDrawing', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_legacy_drawing_hf()
-#NYI #
-#NYI # Write the <legacyDrawingHF> element.
-#NYI #
+
+
+
+##############################################################################
+#
+# _write_legacy_drawing_hf()
+#
+# Write the <legacyDrawingHF> element.
+#
 #NYI sub _write_legacy_drawing_hf {
 #NYI 
 #NYI     my $self = shift;
@@ -8453,21 +8358,21 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'legacyDrawingHF', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI #
-#NYI # Note, the following font methods are, more or less, duplicated from the
-#NYI # Excel::Writer::XLSX::Package::Styles class. I will look at implementing
-#NYI # this is a cleaner encapsulated mode at a later stage.
-#NYI #
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_font()
-#NYI #
-#NYI # Write the <font> element.
-#NYI #
+
+
+#
+# Note, the following font methods are, more or less, duplicated from the
+# Excel::Writer::XLSX::Package::Styles class. I will look at implementing
+# this is a cleaner encapsulated mode at a later stage.
+#
+
+
+##############################################################################
+#
+# _write_font()
+#
+# Write the <font> element.
+#
 #NYI sub _write_font {
 #NYI 
 #NYI     my $self   = shift;
@@ -8512,14 +8417,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->{_rstring}->xml_end_tag( 'rPr' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _write_underline()
-#NYI #
-#NYI # Write the underline font element.
-#NYI #
+
+
+###############################################################################
+#
+# _write_underline()
+#
+# Write the underline font element.
+#
 #NYI sub _write_underline {
 #NYI 
 #NYI     my $self      = shift;
@@ -8543,14 +8448,14 @@ method write(*@args) {
 #NYI     $self->{_rstring}->xml_empty_tag( 'u', @attributes );
 #NYI 
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_vert_align()
-#NYI #
-#NYI # Write the <vertAlign> font sub-element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_vert_align()
+#
+# Write the <vertAlign> font sub-element.
+#
 #NYI sub _write_vert_align {
 #NYI 
 #NYI     my $self = shift;
@@ -8560,14 +8465,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->{_rstring}->xml_empty_tag( 'vertAlign', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_rstring_color()
-#NYI #
-#NYI # Write the <color> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_rstring_color()
+#
+# Write the <color> element.
+#
 #NYI sub _write_rstring_color {
 #NYI 
 #NYI     my $self  = shift;
@@ -8578,19 +8483,19 @@ method write(*@args) {
 #NYI 
 #NYI     $self->{_rstring}->xml_empty_tag( 'color', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI #
-#NYI # End font duplication code.
-#NYI #
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_data_validations()
-#NYI #
-#NYI # Write the <dataValidations> element.
-#NYI #
+
+
+#
+# End font duplication code.
+#
+
+
+##############################################################################
+#
+# _write_data_validations()
+#
+# Write the <dataValidations> element.
+#
 #NYI sub _write_data_validations {
 #NYI 
 #NYI     my $self        = shift;
@@ -8611,14 +8516,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'dataValidations' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_data_validation()
-#NYI #
-#NYI # Write the <dataValidation> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_data_validation()
+#
+# Write the <dataValidation> element.
+#
 #NYI sub _write_data_validation {
 #NYI 
 #NYI     my $self       = shift;
@@ -8652,8 +8557,8 @@ method write(*@args) {
 #NYI             $sqref .= xl_range( $row_first, $row_last, $col_first, $col_last );
 #NYI         }
 #NYI     }
-#NYI 
-#NYI 
+
+
 #NYI     if ( $param->{validate} ne 'none' ) {
 #NYI 
 #NYI         push @attributes, ( 'type' => $param->{validate} );
@@ -8706,14 +8611,14 @@ method write(*@args) {
 #NYI         $self->xml_end_tag( 'dataValidation' );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_formula_1()
-#NYI #
-#NYI # Write the <formula1> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_formula_1()
+#
+# Write the <formula1> element.
+#
 #NYI sub _write_formula_1 {
 #NYI 
 #NYI     my $self    = shift;
@@ -8729,14 +8634,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'formula1', $formula );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_formula_2()
-#NYI #
-#NYI # Write the <formula2> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_formula_2()
+#
+# Write the <formula2> element.
+#
 #NYI sub _write_formula_2 {
 #NYI 
 #NYI     my $self    = shift;
@@ -8746,14 +8651,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'formula2', $formula );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_conditional_formats()
-#NYI #
-#NYI # Write the Worksheet conditional formats.
-#NYI #
+
+
+##############################################################################
+#
+# _write_conditional_formats()
+#
+# Write the Worksheet conditional formats.
+#
 #NYI sub _write_conditional_formats {
 #NYI 
 #NYI     my $self   = shift;
@@ -8766,14 +8671,14 @@ method write(*@args) {
 #NYI             $self->{_cond_formats}->{$range} );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_conditional_formatting()
-#NYI #
-#NYI # Write the <conditionalFormatting> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_conditional_formatting()
+#
+# Write the <conditionalFormatting> element.
+#
 #NYI sub _write_conditional_formatting {
 #NYI 
 #NYI     my $self   = shift;
@@ -8792,13 +8697,13 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'conditionalFormatting' );
 #NYI }
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_cf_rule()
-#NYI #
-#NYI # Write the <cfRule> element.
-#NYI #
+
+##############################################################################
+#
+# _write_cf_rule()
+#
+# Write the <cfRule> element.
+#
 #NYI sub _write_cf_rule {
 #NYI 
 #NYI     my $self  = shift;
@@ -8917,14 +8822,14 @@ method write(*@args) {
 #NYI         $self->xml_end_tag( 'cfRule' );
 #NYI     }
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_icon_set()
-#NYI #
-#NYI # Write the <iconSet> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_icon_set()
+#
+# Write the <iconSet> element.
+#
 #NYI sub _write_icon_set {
 #NYI 
 #NYI     my $self        = shift;
@@ -8962,13 +8867,13 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'iconSet' );
 #NYI }
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_formula()
-#NYI #
-#NYI # Write the <formula> element.
-#NYI #
+
+##############################################################################
+#
+# _write_formula()
+#
+# Write the <formula> element.
+#
 #NYI sub _write_formula {
 #NYI 
 #NYI     my $self = shift;
@@ -8979,14 +8884,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_data_element( 'formula', $data );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_scale()
-#NYI #
-#NYI # Write the <colorScale> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_scale()
+#
+# Write the <colorScale> element.
+#
 #NYI sub _write_color_scale {
 #NYI 
 #NYI     my $self  = shift;
@@ -9012,14 +8917,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'colorScale' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_data_bar()
-#NYI #
-#NYI # Write the <dataBar> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_data_bar()
+#
+# Write the <dataBar> element.
+#
 #NYI sub _write_data_bar {
 #NYI 
 #NYI     my $self  = shift;
@@ -9034,14 +8939,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'dataBar' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_cfvo()
-#NYI #
-#NYI # Write the <cfvo> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_cfvo()
+#
+# Write the <cfvo> element.
+#
 #NYI sub _write_cfvo {
 #NYI 
 #NYI     my $self     = shift;
@@ -9060,14 +8965,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'cfvo', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color()
-#NYI #
-#NYI # Write the <color> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color()
+#
+# Write the <color> element.
+#
 #NYI sub _write_color {
 #NYI 
 #NYI     my $self  = shift;
@@ -9078,14 +8983,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'color', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_table_parts()
-#NYI #
-#NYI # Write the <tableParts> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_table_parts()
+#
+# Write the <tableParts> element.
+#
 #NYI sub _write_table_parts {
 #NYI 
 #NYI     my $self   = shift;
@@ -9108,14 +9013,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'tableParts' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_table_part()
-#NYI #
-#NYI # Write the <tablePart> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_table_part()
+#
+# Write the <tablePart> element.
+#
 #NYI sub _write_table_part {
 #NYI 
 #NYI     my $self = shift;
@@ -9126,14 +9031,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( 'tablePart', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_ext_sparklines()
-#NYI #
-#NYI # Write the <extLst> element and sparkline subelements.
-#NYI #
+
+
+##############################################################################
+#
+# _write_ext_sparklines()
+#
+# Write the <extLst> element and sparkline subelements.
+#
 #NYI sub _write_ext_sparklines {
 #NYI 
 #NYI     my $self       = shift;
@@ -9197,14 +9102,14 @@ method write(*@args) {
 #NYI     $self->xml_end_tag( 'ext' );
 #NYI     $self->xml_end_tag( 'extLst' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_sparklines()
-#NYI #
-#NYI # Write the <x14:sparklines> element and <x14:sparkline> subelements.
-#NYI #
+
+
+##############################################################################
+#
+# _write_sparklines()
+#
+# Write the <x14:sparklines> element and <x14:sparkline> subelements.
+#
 #NYI sub _write_sparklines {
 #NYI 
 #NYI     my $self      = shift;
@@ -9226,14 +9131,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_end_tag( 'x14:sparklines' );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_ext()
-#NYI #
-#NYI # Write the <ext> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_ext()
+#
+# Write the <ext> element.
+#
 #NYI sub _write_ext {
 #NYI 
 #NYI     my $self       = shift;
@@ -9248,14 +9153,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_start_tag( 'ext', @attributes );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_sparkline_groups()
-#NYI #
-#NYI # Write the <x14:sparklineGroups> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_sparkline_groups()
+#
+# Write the <x14:sparklineGroups> element.
+#
 #NYI sub _write_sparkline_groups {
 #NYI 
 #NYI     my $self     = shift;
@@ -9266,35 +9171,35 @@ method write(*@args) {
 #NYI     $self->xml_start_tag( 'x14:sparklineGroups', @attributes );
 #NYI 
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_sparkline_group()
-#NYI #
-#NYI # Write the <x14:sparklineGroup> element.
-#NYI #
-#NYI # Example for order.
-#NYI #
-#NYI # <x14:sparklineGroup
-#NYI #     manualMax="0"
-#NYI #     manualMin="0"
-#NYI #     lineWeight="2.25"
-#NYI #     type="column"
-#NYI #     dateAxis="1"
-#NYI #     displayEmptyCellsAs="span"
-#NYI #     markers="1"
-#NYI #     high="1"
-#NYI #     low="1"
-#NYI #     first="1"
-#NYI #     last="1"
-#NYI #     negative="1"
-#NYI #     displayXAxis="1"
-#NYI #     displayHidden="1"
-#NYI #     minAxisType="custom"
-#NYI #     maxAxisType="custom"
-#NYI #     rightToLeft="1">
-#NYI #
+
+
+##############################################################################
+#
+# _write_sparkline_group()
+#
+# Write the <x14:sparklineGroup> element.
+#
+# Example for order.
+#
+# <x14:sparklineGroup
+#     manualMax="0"
+#     manualMin="0"
+#     lineWeight="2.25"
+#     type="column"
+#     dateAxis="1"
+#     displayEmptyCellsAs="span"
+#     markers="1"
+#     high="1"
+#     low="1"
+#     first="1"
+#     last="1"
+#     negative="1"
+#     displayXAxis="1"
+#     displayHidden="1"
+#     minAxisType="custom"
+#     maxAxisType="custom"
+#     rightToLeft="1">
+#
 #NYI sub _write_sparkline_group {
 #NYI 
 #NYI     my $self     = shift;
@@ -9350,14 +9255,14 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_start_tag( 'x14:sparklineGroup', @a );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_spark_color()
-#NYI #
-#NYI # Helper function for the sparkline color functions below.
-#NYI #
+
+
+##############################################################################
+#
+# _write_spark_color()
+#
+# Helper function for the sparkline color functions below.
+#
 #NYI sub _write_spark_color {
 #NYI 
 #NYI     my $self    = shift;
@@ -9371,112 +9276,112 @@ method write(*@args) {
 #NYI 
 #NYI     $self->xml_empty_tag( $element, @attr );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_series()
-#NYI #
-#NYI # Write the <x14:colorSeries> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_series()
+#
+# Write the <x14:colorSeries> element.
+#
 #NYI sub _write_color_series {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorSeries', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_negative()
-#NYI #
-#NYI # Write the <x14:colorNegative> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_negative()
+#
+# Write the <x14:colorNegative> element.
+#
 #NYI sub _write_color_negative {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorNegative', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_axis()
-#NYI #
-#NYI # Write the <x14:colorAxis> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_axis()
+#
+# Write the <x14:colorAxis> element.
+#
 #NYI sub _write_color_axis {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorAxis', { _rgb => 'FF000000' } );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_markers()
-#NYI #
-#NYI # Write the <x14:colorMarkers> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_markers()
+#
+# Write the <x14:colorMarkers> element.
+#
 #NYI sub _write_color_markers {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorMarkers', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_first()
-#NYI #
-#NYI # Write the <x14:colorFirst> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_first()
+#
+# Write the <x14:colorFirst> element.
+#
 #NYI sub _write_color_first {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorFirst', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_last()
-#NYI #
-#NYI # Write the <x14:colorLast> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_last()
+#
+# Write the <x14:colorLast> element.
+#
 #NYI sub _write_color_last {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorLast', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_high()
-#NYI #
-#NYI # Write the <x14:colorHigh> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_high()
+#
+# Write the <x14:colorHigh> element.
+#
 #NYI sub _write_color_high {
 #NYI 
 #NYI     my $self = shift;
 #NYI 
 #NYI     $self->_write_spark_color( 'x14:colorHigh', @_ );
 #NYI }
-#NYI 
-#NYI 
-#NYI ##############################################################################
-#NYI #
-#NYI # _write_color_low()
-#NYI #
-#NYI # Write the <x14:colorLow> element.
-#NYI #
+
+
+##############################################################################
+#
+# _write_color_low()
+#
+# Write the <x14:colorLow> element.
+#
 #NYI sub _write_color_low {
 #NYI 
 #NYI     my $self = shift;

@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::Packager;
+unit class Excel::Writer::XLSX::Package::Packager;
 
 ###############################################################################
 #

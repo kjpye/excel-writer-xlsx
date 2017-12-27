@@ -1,3 +1,6 @@
+use lib '.';
+use Utility;
+
 unit class Excel::Writer::XLSX::Workbook;
 
 ###############################################################################
@@ -13,13 +16,13 @@ unit class Excel::Writer::XLSX::Workbook;
 # Documentation after __END__
 #
 
-use 6.c;
+use v6.c;
 #NYI use Carp;
 #NYI use IO::File;
 #NYI use File::Find;
-use File::Temp <tempfile>;
+use File::Temp; # <tempfile>;
 #NYI use File::Basename 'fileparse';
-use Archive::Zip;
+use Archive::SimpleZip;
 #NYI use Excel::Writer::XLSX::Worksheet;
 #NYI use Excel::Writer::XLSX::Chartsheet;
 #NYI use Excel::Writer::XLSX::Format;
@@ -27,11 +30,20 @@ use Archive::Zip;
 #NYI use Excel::Writer::XLSX::Chart;
 #NYI use Excel::Writer::XLSX::Package::Packager;
 #NYI use Excel::Writer::XLSX::Package::XMLwriter;
-#NYI use Excel::Writer::XLSX::Utility qw(xl_cell_to_rowcol xl_rowcol_to_cell);
+#use Excel::Writer::XLSX::Utility;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
 
+
+
+sub croak($string) {
+  die $string;
+}
+
+sub carp($string) {
+  warn $string;
+}
 
 ###############################################################################
 #
@@ -39,13 +51,13 @@ use Archive::Zip;
 #
 ###############################################################################
 
-has $!tempdir            = undef;
+has $!tempdir;
 has $!date_1904          = 0;
 has $!activesheet        = 0;
 has $!firstsheet         = 0;
 has $!selected           = 0;
 has $!fileclosed         = 0;
-has $!filehandle         = undef;
+has $!filehandle;
 has $!internal_fh        = 0;
 has $!sheet_name         = 'Sheet';
 has $!chart_name         = 'Chart';
@@ -68,7 +80,7 @@ has @!named_ranges       = [];
 has @!custom_colors      = [];
 has %!doc_properties     = {};
 has @!custom_properties  = [];
-has @!createtime         = [ gmtime() ];
+has @!createtime         = [ now ];
 has $!num_vml_files      = 0;
 has $!num_comment_files  = 0;
 has $!optimization       = 0;
@@ -92,6 +104,8 @@ has $!calc_id      = 124519;
 has $!calc_mode    = 'auto';
 has $!calc_on_load = 1;
 
+has $!vba_project;
+has @!shapes;
 
 ###############################################################################
 #
@@ -142,7 +156,7 @@ submethod BUILD {
 #NYI     # Check for a filename unless it is an existing filehandle
 #NYI     if ( not ref $self->{_filename} and $self->{_filename} eq '' ) {
 #NYI         carp 'Filename required by Excel::Writer::XLSX->new()';
-#NYI         return undef;
+#NYI         return Nil;
 #NYI     }
 
 
@@ -239,7 +253,7 @@ method close {
     self.store_workbook;
 
     # Return the file close value.
-    if $!self_internal_fh {
+    if $!internal_fh {
         return $!filehandle.close();
     }
     else {
@@ -298,7 +312,7 @@ method get_worksheet_by_name($sheetname) {
 
     return Nil unless $sheetname.defined;
 
-    return $!sheetnames{$sheetname};
+    return %!sheetnames{$sheetname};
 }
 
 
@@ -329,9 +343,9 @@ method get_worksheet_by_name($sheetname) {
 #
 method add_worksheet($name) {
 
-    my $index = @{ $self->{_worksheets} };
-    my $name  = check_sheetname( $name );
-    my $fh    = Nil;
+    my $index = @!worksheets.elems;
+    $name  = self.check_sheetname( $name );
+    my $fh;
 
     # Porters take note, the following scheme of passing references to Workbook
     # data (in the \$self->{_foo} cases) instead of a reference to the Workbook
@@ -344,22 +358,22 @@ method add_worksheet($name) {
         $name,
         $index,
 
-#NYI        \$self->{_activesheet},
-#NYI        \$self->{_firstsheet},
+        $!activesheet,
+        $!firstsheet,
 
-#NYI        \$self->{_str_total},
-#NYI        \$self->{_str_unique},
-#NYI        \$self->{_str_table},
+        $!str_total,
+        $!str_unique,
+        %!str_table,
 
-#NYI        $self->{_date_1904},
-#NYI        $self->{_palette},
-#NYI        $self->{_optimization},
-#NYI        $self->{_tempdir},
-#NYI        $self->{_excel2003_style},
+        $!date_1904,
+        @!palette,
+        $!optimization,
+        $!tempdir,
+        $!excel2003_style,
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet->new( @init_data );
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( @init_data );
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;
 
@@ -462,7 +476,7 @@ method add_worksheet($name) {
 #
 method check_sheetname($name = '', $chart = 0) {
 
-    my $invalid_char = token <[\[\]:*?/\\]>;
+    my $invalid_char = token { <[\[\]:*?/\\]> };
 
     # Increment the Sheet/Chart number used for default sheet names below.
     if ( $chart ) {
@@ -476,7 +490,7 @@ method check_sheetname($name = '', $chart = 0) {
     if $name eq "" {
 
         if ( $chart ) {
-            $name = $!chart_name} ~ $!chartname_count;
+            $name = $!chart_name ~ $!chartname_count;
         }
         else {
             $name = $!sheet_name ~ $!sheetname_count;
@@ -487,13 +501,13 @@ method check_sheetname($name = '', $chart = 0) {
     croak "Sheetname $name must be <= 31 chars" if $name.chars > 31;
 
     # Check that sheetname doesn't contain any invalid characters
-    if $name =~ $invalid_char {
+    if $name ~~ $invalid_char {
         croak 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
     }
 
     # Check that the worksheet name doesn't already exist since this is a fatal
     # error in Excel 97. The check must also exclude case insensitive matches.
-    for @!_worksheets -> $worksheet {
+    for @!worksheets -> $worksheet {
         my $name_a = $name;
         my $name_b = $worksheet.name;
 
@@ -515,22 +529,22 @@ method check_sheetname($name = '', $chart = 0) {
 method add_format(*@options) {
 
     my @init_data =
-      ( $!xf_format_indices, $!dxf_format_indices );
+      ( %!xf_format_indices, %!dxf_format_indices );
 
     # Change default format style for Excel2003/XLS format.
-    if $!excel2003_style ) {
-        push @init_data, ( font => 'Arial', size => 10, theme => -1 );
+    if $!excel2003_style {
+        @init_data.append: ( font => 'Arial', size => 10, theme => -1 );
     }
 
     # Add the default format properties.
-    push @init_data, %{ $!default_format_properties} };
+    @init_data.push: { %!default_format_properties};
 
     # Add the user defined properties.
-    push @init_data, *@options;
+    @init_data.push: @options;
 
-    my $format = Excel::Writer::XLSX::Format->new( @init_data );
+    my $format = Excel::Writer::XLSX::Format.new( @init_data );
 
-    push @!formats, $format;    # Store format reference
+    @!formats.push: $format;    # Store format reference
 
     return $format;
 }
@@ -542,15 +556,15 @@ method add_format(*@options) {
 #
 # Add a new shape to the Excel workbook.
 #
-method add_shape(^@options) {
+method add_shape(*@options) {
 
-    my $fh    = undef;
-    my $shape = Excel::Writer::XLSX::Shape->new( $fh, @*options );
+    my $fh;
+    my $shape = Excel::Writer::XLSX::Shape.new( $fh, @options );
 
     $shape.palette = self.palette;
 
 
-    push @{ self.shapes }, $shape;    # Store shape reference.
+    @!shapes.push: $shape;    # Store shape reference.
 
     return $shape;
 }
@@ -587,11 +601,11 @@ method get_1904 {
 method set_custom_color($index, $red, $green?, $blue?) {
 
     # Match a HTML #xxyyzz style parameter
-    if $red.defined and $red ~~ /^ '#' (\w\w) (\w\w) (\w\w) {
+    if $red.defined and $red ~~ /^ '#' (\w\w) (\w\w) (\w\w)/ {
       ($red, $green, $blue) = ($0, $1, $2);
     }
 
-    my $aref = $!palette};
+    my $aref = @!palette;
 
     # Check that the colour index is the right range
     if ( $index < 8 or $index > 64 ) {
@@ -612,7 +626,7 @@ method set_custom_color($index, $red, $green?, $blue?) {
 
     # Set the RGB value.
     my @rgb = ( $red, $green, $blue );
-    @aref[$index] = @rgb;
+    $aref[$index] = @rgb;
 
     # Store the custom colors for the style.xml file.
     push @!custom_colors, sprintf "FF%02X%02X%02X", @rgb;
@@ -803,7 +817,7 @@ method set_size($width, $height) {
 method set_properties(*%param) {
 
     # Ignore if no args were passed.
-    return -1 unless *%param;
+    return -1 unless %param;
 
     # List of valid input parameters.
     my %valid = (
@@ -822,7 +836,7 @@ method set_properties(*%param) {
     );
 
     # Check for valid input parameters.
-    for %param.keys -> $parameter{
+    for %param.keys -> $parameter {
         if ( not %valid{$parameter}.defined ) {
             carp "Unknown parameter '$parameter' in set_properties()";
             return -1;
@@ -830,12 +844,12 @@ method set_properties(*%param) {
     }
 
     # Set the creation time unless specified by the user.
-    if ( ! *%param<created>.exists ) {
-        *%param<{created> = $!createtime;
+    if ( ! %param<created>.exists ) {
+        %param<created> = @!createtime;
     }
 
 
-    $self->{_doc_properties} = \%param;
+    %!doc_properties = %param;
 }
 
 
@@ -865,11 +879,23 @@ method set_custom_property($name, $value, $type?) {
 
     # Determine the type for strings and numbers if it hasn't been specified.
     if !$type {
-        if $value =~ /^\d+$/ {
+        if $value ~~ /^\d+$/ {
             $type = 'number_int';
         }
-        elsif $value =~
-            /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ # TODO
+        elsif $value ~~
+            /^
+             <[+-]>? <before \d|\.\d>
+             \d*
+             [\.\d*]?
+             [
+               [<[Ee]>
+                 [
+                   <[+-]>?
+                   \d+
+                 ]?
+               ]
+             ]?
+            $/
         {
             $type = 'number';
         }
@@ -972,23 +998,23 @@ method set_calc_mode($mode = 'auto', $calc-id?) {
 #
 method store_workbook {
 
-    my $tempdir  = File::Temp->newdir( DIR => $self->{_tempdir} );
-    my $packager = Excel::Writer::XLSX::Package::Packager->new();
-    my $zip      = Archive::Zip->new();
+    my $tempdir  = File::Temp.newdir( tempdir => $!tempdir );
+    my $packager = Excel::Writer::XLSX::Package::Packager.new();
+    my $zip      = Archive::SimpleZip.new();
 
 
-    # Add a default worksheet if non have been added.
+    # Add a default worksheet if none have been added.
     self.add_worksheet() if not @!worksheets;
 
     # Ensure that at least one worksheet has been selected.
     if ( $!activesheet == 0 ) {
-        @!worksheets[0]{selected} = 1;
-        @!worksheets[0]{hidden}   = 0;
+        @!worksheets[0]<selected> = 1;
+        @!worksheets[0]<hidden>   = 0;
     }
 
     # Set the active sheet.
     for @!worksheets -> $sheet {
-        $sheet{active} = 1 if $sheet{index} == $!activesheet;
+        $sheet<active> = 1 if $sheet<index> == $!activesheet;
     }
 
     # Convert the SST strings data structure.
@@ -1020,23 +1046,12 @@ method store_workbook {
     # Add the files to the zip archive. Due to issues with Archive::Zip in
     # taint mode we can't use addTree() so we have to build the file list
     # with File::Find and pass each one to addFile().
-    my @xlsx_files;
-
-    my $wanted = sub { push @xlsx_files, $File::Find::name if -f };
-
-    File::Find::find(
-        {
-            wanted          => $wanted,
-            untaint         => 1,
-            untaint_pattern => qr|^(.+)$|
-        },
-        $tempdir
-    );
+    my $xlsx_files = File::Find::find( dir => $tempdir, type => 'file' );
 
     # Store the xlsx component files with the temp dir name removed.
-    for @xlsx_files -> $filename {
+    for $xlsx_files -> $filename {
         my $short_name = $filename;
-        $short_name =~ s{^\Q$tempdir\E/?}{}; # TODO
+        $short_name ~~ s/^$tempdir '/'?//;
         $zip.addFile( $filename, $short_name );
     }
 
@@ -1049,24 +1064,23 @@ method store_workbook {
     }
     else {
 
-#TODO:
         # Archive::Zip needs to rewind a filehandle to write the zip headers.
         # This won't work for arbitrary user defined filehandles so we use
         # a temp file based filehandle to create the zip archive and then
         # stream that to the filehandle.
-        my $tmp_fh = tempfile( DIR => $self->{_tempdir} );
+        my $tmp_fh = tempfile( tempdir => $!tempdir );
         my $is_seekable = 1;
 
-        if ( $zip->writeToFileHandle( $tmp_fh, $is_seekable ) != 0 ) {
+        if $zip.writeToFileHandle( $tmp_fh, $is_seekable ) != 0 {
             carp 'Error writing zip container for xlsx file.';
         }
 
         my $buffer;
-        seek $tmp_fh, 0, 0;
+        $tmp_fh.seek: 0, 0;
 
-        while ( read( $tmp_fh, $buffer, 4_096 ) ) {
-            local $\ = undef;    # Protect print from -l on commandline.
-            print { $self->{_filehandle} } $buffer;
+        while $tmp_fh.read: $buffer, 4_096 {
+            # local $\ = undef;    # Protect print from -l on commandline.
+            $!filehandle.print: $buffer;
         }
     }
 }
@@ -2292,7 +2306,7 @@ method store_workbook {
 method set_optimization($level = 1) {
 
     croak "set_optimization() must be called before add_worksheet()"
-      if $!sheets();
+      if @!worksheets.elems == 0;
 
     $!optimization = $level;
 }
@@ -2644,3 +2658,5 @@ John McNamara jmcnamara@cpan.org
 (c) MM-MMXVII, John McNamara.
 
 All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
+
+=end pod
