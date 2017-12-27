@@ -13,27 +13,37 @@ unit class Excel::Writer::XLSX::Package::Packager;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
-use strict;
-use warnings;
-use Exporter;
-use Carp;
-use File::Copy;
-use Excel::Writer::XLSX::Package::App;
-use Excel::Writer::XLSX::Package::Comments;
-use Excel::Writer::XLSX::Package::ContentTypes;
-use Excel::Writer::XLSX::Package::Core;
-use Excel::Writer::XLSX::Package::Custom;
-use Excel::Writer::XLSX::Package::Relationships;
-use Excel::Writer::XLSX::Package::SharedStrings;
-use Excel::Writer::XLSX::Package::Styles;
-use Excel::Writer::XLSX::Package::Table;
-use Excel::Writer::XLSX::Package::Theme;
-use Excel::Writer::XLSX::Package::VML;
+use v6.c;
+#NYI use strict;
+#NYI use warnings;
+#NYI use Exporter;
+#NYI use Carp;
+#NYI use File::Copy;
+#NYI use Excel::Writer::XLSX::Package::App;
+#NYI use Excel::Writer::XLSX::Package::Comments;
+#NYI use Excel::Writer::XLSX::Package::ContentTypes;
+#NYI use Excel::Writer::XLSX::Package::Core;
+#NYI use Excel::Writer::XLSX::Package::Custom;
+#NYI use Excel::Writer::XLSX::Package::Relationships;
+#NYI use Excel::Writer::XLSX::Package::SharedStrings;
+#NYI use Excel::Writer::XLSX::Package::Styles;
+#NYI use Excel::Writer::XLSX::Package::Table;
+#NYI use Excel::Writer::XLSX::Package::Theme;
+#NYI use Excel::Writer::XLSX::Package::VML;
+#NYI 
+#NYI our @ISA     = qw(Exporter);
+#NYI our $VERSION = '0.96';
 
-our @ISA     = qw(Exporter);
-our $VERSION = '0.96';
-
+has $!package_dir      = '';
+has $!workbook;
+has $!worksheet_count  = 0;
+has $!chartsheet_count = 0;
+has $!chart_count      = 0;
+has $!drawing_count    = 0;
+has $!table_count      = 0;
+has @!named_ranges     = [];
+has $!num-vml-files;
+has $!num-comment-files;
 
 ###############################################################################
 #
@@ -48,26 +58,26 @@ our $VERSION = '0.96';
 #
 # Constructor.
 #
-sub new {
-
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
-
-    $self->{_package_dir}      = '';
-    $self->{_workbook}         = undef;
-    $self->{_worksheet_count}  = 0;
-    $self->{_chartsheet_count} = 0;
-    $self->{_chart_count}      = 0;
-    $self->{_drawing_count}    = 0;
-    $self->{_table_count}      = 0;
-    $self->{_named_ranges}     = [];
-
-
-    bless $self, $class;
-
-    return $self;
-}
+#NYI sub new {
+#NYI 
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter.new( $fh );
+#NYI 
+#NYI     $self->{_package_dir}      = '';
+#NYI     $self->{_workbook};
+#NYI     $self->{_worksheet_count}  = 0;
+#NYI     $self->{_chartsheet_count} = 0;
+#NYI     $self->{_chart_count}      = 0;
+#NYI     $self->{_drawing_count}    = 0;
+#NYI     $self->{_table_count}      = 0;
+#NYI     $self->{_named_ranges}     = [];
+#NYI 
+#NYI 
+#NYI     bless $self, $class;
+#NYI 
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -76,11 +86,8 @@ sub new {
 #
 # Set the XLSX OPC package directory.
 #
-sub _set_package_dir {
-
-    my $self = shift;
-
-    $self->{_package_dir} = shift;
+method set_package_dir($dir) {
+    $!package_dir = $dir;
 }
 
 
@@ -90,24 +97,20 @@ sub _set_package_dir {
 #
 # Add the Excel::Writer::XLSX::Workbook object to the package.
 #
-sub _add_workbook {
+method add_workbook($workbook) {
+    $!workbook          = $workbook;
+    $!chart_count       = $workbook.num-charts;
+    $!drawing_count     = $workbook.num-drawings;
+    $!num-vml-files     = $workbook.num-vml-files;
+    $!num-comment-files = $workbook.num-comment-files;
+    @!named_ranges      = $workbook.named-ranges;
 
-    my $self        = shift;
-    my $workbook    = shift;
-
-    $self->{_workbook}          = $workbook;
-    $self->{_chart_count}       = scalar @{ $workbook->{_charts} };
-    $self->{_drawing_count}     = scalar @{ $workbook->{_drawings} };
-    $self->{_num_vml_files}     = $workbook->{_num_vml_files};
-    $self->{_num_comment_files} = $workbook->{_num_comment_files};
-    $self->{_named_ranges}      = $workbook->{_named_ranges};
-
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        if ( $worksheet->{_is_chartsheet} ) {
-            $self->{_chartsheet_count}++;
+    for %$workbook.worksheets -> $worksheet {
+        if $worksheet.is_chartsheet {
+            $!chartsheet_count++;
         }
         else {
-            $self->{_worksheet_count}++;
+            $!worksheet_count++;
         }
     }
 }
@@ -119,32 +122,29 @@ sub _add_workbook {
 #
 # Write the xml files that make up the XLXS OPC package.
 #
-sub _create_package {
-
-    my $self = shift;
-
-    $self->_write_worksheet_files();
-    $self->_write_chartsheet_files();
-    $self->_write_workbook_file();
-    $self->_write_chart_files();
-    $self->_write_drawing_files();
-    $self->_write_vml_files();
-    $self->_write_comment_files();
-    $self->_write_table_files();
-    $self->_write_shared_strings_file();
-    $self->_write_app_file();
-    $self->_write_core_file();
-    $self->_write_custom_file();
-    $self->_write_content_types_file();
-    $self->_write_styles_file();
-    $self->_write_theme_file();
-    $self->_write_root_rels_file();
-    $self->_write_workbook_rels_file();
-    $self->_write_worksheet_rels_files();
-    $self->_write_chartsheet_rels_files();
-    $self->_write_drawing_rels_files();
-    $self->_add_image_files();
-    $self->_add_vba_project();
+method create_package {
+    self.write_worksheet_files();
+    self.write_chartsheet_files();
+    self.write_workbook_file();
+    self.write_chart_files();
+    self.write_drawing_files();
+    self.write_vml_files();
+    self.write_comment_files();
+    self.write_table_files();
+    self.write_shared_strings_file();
+    self.write_app_file();
+    self.write_core_file();
+    self.write_custom_file();
+    self.write_content_types_file();
+    self.write_styles_file();
+    self.write_theme_file();
+    self.write_root_rels_file();
+    self.write_workbook_rels_file();
+    self.write_worksheet_rels_files();
+    self.write_chartsheet_rels_files();
+    self.write_drawing_rels_files();
+    self.add_image_files();
+    self.add_vba_project();
 }
 
 
@@ -154,16 +154,14 @@ sub _create_package {
 #
 # Write the workbook.xml file.
 #
-sub _write_workbook_file {
+method write_workbook_file {
+    my $dir      = $!package_dir;
+    my $workbook = $!workbook;
 
-    my $self     = shift;
-    my $dir      = $self->{_package_dir};
-    my $workbook = $self->{_workbook};
+    _mkdir( $dir ~ '/xl' );
 
-    _mkdir( $dir . '/xl' );
-
-    $workbook->_set_xml_writer( $dir . '/xl/workbook.xml' );
-    $workbook->_assemble_xml_file();
+    $workbook.set_xml_writer( $dir ~ '/xl/workbook.xml' );
+    $workbook.assemble_xml_file();
 }
 
 
@@ -173,21 +171,19 @@ sub _write_workbook_file {
 #
 # Write the worksheet files.
 #
-sub _write_worksheet_files {
+method write_worksheet_files {
+    my $dir  = $!package_dir;
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
-
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/worksheets' );
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/worksheets' );
 
     my $index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        next if $worksheet->{_is_chartsheet};
+    for $!workbook.worksheets -> $worksheet {
+        next if $worksheet.is_chartsheet;
 
-        $worksheet->_set_xml_writer(
-            $dir . '/xl/worksheets/sheet' . $index++ . '.xml' );
-        $worksheet->_assemble_xml_file();
+        $worksheet.set_xml_writer(
+            $dir ~ '/xl/worksheets/sheet' ~ $index++ ~ '.xml' );
+        $worksheet.assemble_xml_file();
 
     }
 }
@@ -199,21 +195,19 @@ sub _write_worksheet_files {
 #
 # Write the chartsheet files.
 #
-sub _write_chartsheet_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_chartsheet_files {
+    my $dir  = $!package_dir;
 
     my $index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        next unless $worksheet->{_is_chartsheet};
+    for $!workbook.worksheets -> $worksheet {
+        next unless $worksheet.is_chartsheet;
 
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/chartsheets' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/chartsheets' );
 
-        $worksheet->_set_xml_writer(
-            $dir . '/xl/chartsheets/sheet' . $index++ . '.xml' );
-        $worksheet->_assemble_xml_file();
+        $worksheet.set_xml_writer(
+            $dir ~ '/xl/chartsheets/sheet' ~ $index++ ~ '.xml' );
+        $worksheet.assemble_xml_file();
 
     }
 }
@@ -225,21 +219,19 @@ sub _write_chartsheet_files {
 #
 # Write the chart files.
 #
-sub _write_chart_files {
+method write_chart_files {
+    my $dir  = $!package_dir;
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+    return unless $!workbook.charts;
 
-    return unless @{ $self->{_workbook}->{_charts} };
-
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/charts' );
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/charts' );
 
     my $index = 1;
-    for my $chart ( @{ $self->{_workbook}->{_charts} } ) {
-        $chart->_set_xml_writer(
-            $dir . '/xl/charts/chart' . $index++ . '.xml' );
-        $chart->_assemble_xml_file();
+    for $!workbook.charts -> $chart {
+        $chart.set_xml_writer(
+            $dir ~ '/xl/charts/chart' ~ $index++ ~ '.xml' );
+        $chart.assemble_xml_file();
 
     }
 }
@@ -251,21 +243,19 @@ sub _write_chart_files {
 #
 # Write the drawing files.
 #
-sub _write_drawing_files {
+method write_drawing_files {
+    my $dir  = $!package_dir;
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+    return unless $!drawing_count;
 
-    return unless $self->{_drawing_count};
-
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/drawings' );
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/drawings' );
 
     my $index = 1;
-    for my $drawing ( @{ $self->{_workbook}->{_drawings} } ) {
-        $drawing->_set_xml_writer(
-            $dir . '/xl/drawings/drawing' . $index++ . '.xml' );
-        $drawing->_assemble_xml_file();
+    for $!workbook.drawings -> $drawing {
+        $drawing.set_xml_writer(
+            $dir ~ '/xl/drawings/drawing' ~ $index++ ~ '.xml' );
+        $drawing.assemble_xml_file();
     }
 }
 
@@ -276,45 +266,43 @@ sub _write_drawing_files {
 #
 # Write the comment VML files.
 #
-sub _write_vml_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_vml_files {
+    my $dir  = $!package_dir;
 
     my $index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
+    for $!workbook.worksheets -> $worksheet {
 
-        next if !$worksheet->{_has_vml} and !$worksheet->{_has_header_vml};
+        next if !$worksheet.has_vml and !$worksheet.has_header_vml;
 
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/drawings' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/drawings' );
 
-        if ( $worksheet->{_has_vml} ) {
-            my $vml = Excel::Writer::XLSX::Package::VML->new();
+        if $worksheet.has_vml {
+            my $vml = Excel::Writer::XLSX::Package::VML.new();
 
-            $vml->_set_xml_writer(
-                $dir . '/xl/drawings/vmlDrawing' . $index . '.vml' );
-            $vml->_assemble_xml_file(
-                $worksheet->{_vml_data_id},    $worksheet->{_vml_shape_id},
-                $worksheet->{_comments_array}, $worksheet->{_buttons_array},
-                undef
+            $vml.set_xml_writer(
+                $dir ~ '/xl/drawings/vmlDrawing' ~ $index ~ '.vml' );
+            $vml.assemble_xml_file(
+                $worksheet.vml_data_id,    $worksheet.vml_shape_id,
+                $worksheet.comments_array, $worksheet.buttons_array,
+                Nil
             );
 
             $index++;
         }
 
-        if ( $worksheet->{_has_header_vml} ) {
-            my $vml = Excel::Writer::XLSX::Package::VML->new();
+        if $worksheet.has_header_vml {
+            my $vml = Excel::Writer::XLSX::Package::VML.new();
 
-            $vml->_set_xml_writer(
-                $dir . '/xl/drawings/vmlDrawing' . $index . '.vml' );
-            $vml->_assemble_xml_file(
-                $worksheet->{_vml_header_id},
-                $worksheet->{_vml_header_id} * 1024,
-                undef, undef, $worksheet->{_header_images_array}
+            $vml.writer(
+                $dir ~ '/xl/drawings/vmlDrawing' ~ $index ~ '.vml' );
+            $vml.assemble_xml_file(
+                $worksheet.vml_header_id,
+                $worksheet.vml_header_id * 1024,
+                Nil, Nil, $worksheet.header_images_array
             );
 
-            $self->_write_vml_drawing_rels_file($worksheet, $index);
+            self.write_vml_drawing_rels_file($worksheet, $index);
 
             $index++;
         }
@@ -328,22 +316,20 @@ sub _write_vml_files {
 #
 # Write the comment files.
 #
-sub _write_comment_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_comment_files {
+    my $dir  = $!package_dir;
 
     my $index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        next unless $worksheet->{_has_comments};
+    for $!workbook.worksheets -> $worksheet {
+        next unless $worksheet.has_comments;
 
-        my $comment = Excel::Writer::XLSX::Package::Comments->new();
+        my $comment = Excel::Writer::XLSX::Package::Comments.new();
 
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/drawings' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/drawings' );
 
-        $comment->_set_xml_writer( $dir . '/xl/comments' . $index++ . '.xml' );
-        $comment->_assemble_xml_file( $worksheet->{_comments_array} );
+        $comment.set_xml_writer( $dir ~ '/xl/comments' ~ $index++ ~ '.xml' );
+        $comment.assemble_xml_file( $worksheet.comments_array );
     }
 }
 
@@ -354,26 +340,25 @@ sub _write_comment_files {
 #
 # Write the sharedStrings.xml file.
 #
-sub _write_shared_strings_file {
+method write_shared_strings_file {
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
-    my $sst  = Excel::Writer::XLSX::Package::SharedStrings->new();
+    my $dir  = $!package_dir;
+    my $sst  = Excel::Writer::XLSX::Package::SharedStrings.new();
 
-    my $total    = $self->{_workbook}->{_str_total};
-    my $unique   = $self->{_workbook}->{_str_unique};
-    my $sst_data = $self->{_workbook}->{_str_array};
+    my $total    = $!workbook.str_total;
+    my $unique   = $!workbook.str_unique;
+    my $sst_data = $!workbook.str_array;
 
     return unless $total > 0;
 
-    _mkdir( $dir . '/xl' );
+    _mkdir( $dir ~ '/xl' );
 
-    $sst->_set_string_count( $total );
-    $sst->_set_unique_count( $unique );
-    $sst->_add_strings( $sst_data );
+    $sst.set_string_count( $total );
+    $sst.set_unique_count( $unique );
+    $sst.add_strings( $sst_data );
 
-    $sst->_set_xml_writer( $dir . '/xl/sharedStrings.xml' );
-    $sst->_assemble_xml_file();
+    $sst.set_xml_writer( $dir ~ '/xl/sharedStrings.xml' );
+    $sst.assemble_xml_file();
 }
 
 
@@ -383,47 +368,45 @@ sub _write_shared_strings_file {
 #
 # Write the app.xml file.
 #
-sub _write_app_file {
+method write_app_file {
+    my $dir        = $!package_dir;
+    my $properties = $!workbook.doc_properties;
+    my $app        = Excel::Writer::XLSX::Package::App.new();
 
-    my $self       = shift;
-    my $dir        = $self->{_package_dir};
-    my $properties = $self->{_workbook}->{_doc_properties};
-    my $app        = Excel::Writer::XLSX::Package::App->new();
-
-    _mkdir( $dir . '/docProps' );
+    _mkdir( $dir ~ '/docProps' );
 
     # Add the Worksheet heading pairs.
-    $app->_add_heading_pair( [ 'Worksheets', $self->{_worksheet_count} ] );
+    $app.add_heading_pair( [ 'Worksheets', $!worksheet_count ] );
 
     # Add the Chartsheet heading pairs.
-    $app->_add_heading_pair( [ 'Charts', $self->{_chartsheet_count} ] );
+    $app.add_heading_pair( [ 'Charts', $!chartsheet_count ] );
 
     # Add the Worksheet parts.
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        next if $worksheet->{_is_chartsheet};
-        $app->_add_part_name( $worksheet->get_name() );
+    for $!workbook.worksheets -> $worksheet {
+        next if $worksheet.is_chartsheet;
+        $app.add_part_name( $worksheet.get_name() );
     }
 
     # Add the Chartsheet parts.
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        next unless $worksheet->{_is_chartsheet};
-        $app->_add_part_name( $worksheet->get_name() );
+    for $!workbook.worksheets -> $worksheet {
+        next unless $worksheet.is_chartsheet;
+        $app.add_part_name( $worksheet.get_name() );
     }
 
     # Add the Named Range heading pairs.
-    if ( my $range_count = scalar @{ $self->{_named_ranges} } ) {
-        $app->_add_heading_pair( [ 'Named Ranges', $range_count ] );
+    if my $range_count = @!named_ranges.elems {
+        $app.add_heading_pair( [ 'Named Ranges', $range_count ] );
     }
 
     # Add the Named Ranges parts.
-    for my $named_range ( @{ $self->{_named_ranges} } ) {
-        $app->_add_part_name( $named_range );
+    for @!named_ranges -> $named-range {
+        $app.add_part_name( $named-range );
     }
 
-    $app->_set_properties( $properties );
+    $app.set_properties( $properties );
 
-    $app->_set_xml_writer( $dir . '/docProps/app.xml' );
-    $app->_assemble_xml_file();
+    $app.set_xml_writer( $dir ~ '/docProps/app.xml' );
+    $app.assemble_xml_file();
 }
 
 
@@ -433,18 +416,16 @@ sub _write_app_file {
 #
 # Write the core.xml file.
 #
-sub _write_core_file {
+method write_core_file {
+    my $dir        = $!package_dir;
+    my $properties = $!workbook.doc_properties;
+    my $core       = Excel::Writer::XLSX::Package::Core.new();
 
-    my $self       = shift;
-    my $dir        = $self->{_package_dir};
-    my $properties = $self->{_workbook}->{_doc_properties};
-    my $core       = Excel::Writer::XLSX::Package::Core->new();
+    _mkdir( $dir ~ '/docProps' );
 
-    _mkdir( $dir . '/docProps' );
-
-    $core->_set_properties( $properties );
-    $core->_set_xml_writer( $dir . '/docProps/core.xml' );
-    $core->_assemble_xml_file();
+    $core.set_properties( $properties );
+    $core.set_xml_writer( $dir ~ '/docProps/core.xml' );
+    $core.assemble_xml_file();
 }
 
 
@@ -454,20 +435,18 @@ sub _write_core_file {
 #
 # Write the custom.xml file.
 #
-sub _write_custom_file {
+method write_custom_file {
+    my $dir        = $!package_dir;
+    my $properties = $!workbook.custom_properties;
+    my $custom     = Excel::Writer::XLSX::Package::Custom.new();
 
-    my $self       = shift;
-    my $dir        = $self->{_package_dir};
-    my $properties = $self->{_workbook}->{_custom_properties};
-    my $custom     = Excel::Writer::XLSX::Package::Custom->new();
+    return if !$properties;
 
-    return if !@$properties;
+    _mkdir( $dir ~ '/docProps' );
 
-    _mkdir( $dir . '/docProps' );
-
-    $custom->_set_properties( $properties );
-    $custom->_set_xml_writer( $dir . '/docProps/custom.xml' );
-    $custom->_assemble_xml_file();
+    $custom.set_properties( $properties );
+    $custom.set_xml_writer( $dir ~ '/docProps/custom.xml' );
+    $custom.assemble_xml_file();
 }
 
 
@@ -477,62 +456,60 @@ sub _write_custom_file {
 #
 # Write the ContentTypes.xml file.
 #
-sub _write_content_types_file {
+method write_content_types_file {
+    my $dir     = $!package_dir;
+    my $content = Excel::Writer::XLSX::Package::ContentTypes.new();
 
-    my $self    = shift;
-    my $dir     = $self->{_package_dir};
-    my $content = Excel::Writer::XLSX::Package::ContentTypes->new();
-
-    $content->_add_image_types( %{ $self->{_workbook}->{_image_types} } );
+    $content.add_image_types( $!workbook.image_types );
 
     my $worksheet_index  = 1;
     my $chartsheet_index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        if ( $worksheet->{_is_chartsheet} ) {
-            $content->_add_chartsheet_name( 'sheet' . $chartsheet_index++ );
+    for $!workbook.worksheets -> $worksheet {
+        if $worksheet.is_chartsheet {
+            $content.add_chartsheet_name( 'sheet' ~ $chartsheet_index++ );
         }
         else {
-            $content->_add_worksheet_name( 'sheet' . $worksheet_index++ );
+            $content.add_worksheet_name( 'sheet' ~ $worksheet_index++ );
         }
     }
 
-    for my $i ( 1 .. $self->{_chart_count} ) {
-        $content->_add_chart_name( 'chart' . $i );
+    for 1 .. $!chart_count -> $i {
+        $content.add_chart_name( 'chart' ~ $i );
     }
 
-    for my $i ( 1 .. $self->{_drawing_count} ) {
-        $content->_add_drawing_name( 'drawing' . $i );
+    for 1 .. $!drawing_count -> $i {
+        $content.add_drawing_name( 'drawing' ~ $i );
     }
 
-    if ( $self->{_num_vml_files} ) {
-        $content->_add_vml_name();
+    if $!num-vml-files {
+        $content.add_vml_name();
     }
 
-    for my $i ( 1 .. $self->{_table_count} ) {
-        $content->_add_table_name( 'table' . $i );
+    for 1 .. $!table_count -> $i {
+        $content.add_table_name( 'table' ~ $i );
     }
 
-    for my $i ( 1 .. $self->{_num_comment_files} ) {
-        $content->_add_comment_name( 'comments' . $i );
+    for 1 .. $!num-comment-files -> $i {
+        $content.add_comment_name( 'comments' ~ $i );
     }
 
     # Add the sharedString rel if there is string data in the workbook.
-    if ( $self->{_workbook}->{_str_total} ) {
-        $content->_add_shared_strings();
+    if $!workbook.str_total {
+        $content.add_shared_strings();
     }
 
     # Add vbaProject if present.
-    if ( $self->{_workbook}->{_vba_project} ) {
-        $content->_add_vba_project();
+    if $!workbook.vba_project {
+        $content.add_vba_project();
     }
 
     # Add the custom properties if present.
-    if ( @{ $self->{_workbook}->{_custom_properties} } ) {
-        $content->_add_custom_properties();
+    if $!workbook.custom_properties {
+        $content.add_custom_properties();
     }
 
-    $content->_set_xml_writer( $dir . '/[Content_Types].xml' );
-    $content->_assemble_xml_file();
+    $content.set_xml_writer( $dir ~ '/[Content_Types].xml' );
+    $content.assemble_xml_file();
 }
 
 
@@ -542,24 +519,22 @@ sub _write_content_types_file {
 #
 # Write the style xml file.
 #
-sub _write_styles_file {
+method write_styles_file {
+    my $dir              = $!package_dir;
+    my $xf_formats       = $!workbook.xf_formats;
+    my $palette          = $!workbook.palette;
+    my $font_count       = $!workbook.font_count;
+    my $num_format_count = $!workbook.num_format_count;
+    my $border_count     = $!workbook.border_count;
+    my $fill_count       = $!workbook.fill_count;
+    my $custom_colors    = $!workbook.custom_colors;
+    my $dxf_formats      = $!workbook.dxf_formats;
 
-    my $self             = shift;
-    my $dir              = $self->{_package_dir};
-    my $xf_formats       = $self->{_workbook}->{_xf_formats};
-    my $palette          = $self->{_workbook}->{_palette};
-    my $font_count       = $self->{_workbook}->{_font_count};
-    my $num_format_count = $self->{_workbook}->{_num_format_count};
-    my $border_count     = $self->{_workbook}->{_border_count};
-    my $fill_count       = $self->{_workbook}->{_fill_count};
-    my $custom_colors    = $self->{_workbook}->{_custom_colors};
-    my $dxf_formats      = $self->{_workbook}->{_dxf_formats};
+    my $rels = Excel::Writer::XLSX::Package::Styles.new();
 
-    my $rels = Excel::Writer::XLSX::Package::Styles->new();
+    _mkdir( $dir ~ '/xl' );
 
-    _mkdir( $dir . '/xl' );
-
-    $rels->_set_style_properties(
+    $rels.set_style_properties(
         $xf_formats,
         $palette,
         $font_count,
@@ -571,8 +546,8 @@ sub _write_styles_file {
 
     );
 
-    $rels->_set_xml_writer( $dir . '/xl/styles.xml' );
-    $rels->_assemble_xml_file();
+    $rels.set_xml_writer( $dir ~ '/xl/styles.xml' );
+    $rels.assemble_xml_file();
 }
 
 
@@ -582,17 +557,15 @@ sub _write_styles_file {
 #
 # Write the style xml file.
 #
-sub _write_theme_file {
+method write_theme_file {
+    my $dir  = $!package_dir;
+    my $rels = Excel::Writer::XLSX::Package::Theme.new();
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
-    my $rels = Excel::Writer::XLSX::Package::Theme->new();
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/theme' );
 
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/theme' );
-
-    $rels->_set_xml_writer( $dir . '/xl/theme/theme1.xml' );
-    $rels->_assemble_xml_file();
+    $rels.set_xml_writer( $dir ~ '/xl/theme/theme1.xml' );
+    $rels.assemble_xml_file();
 }
 
 
@@ -602,32 +575,30 @@ sub _write_theme_file {
 #
 # Write the table files.
 #
-sub _write_table_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_table_files {
+    my $dir  = $!package_dir;
 
     my $index = 1;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        my @table_props = @{ $worksheet->{_tables} };
+    for $!workbook.worksheets -> $worksheet {
+        my @table_props = $worksheet.tables;
 
         next unless @table_props;
 
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/tables' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/tables' );
 
-        for my $table_props ( @table_props ) {
+        for @table_props -> $table-props {
 
-            my $table = Excel::Writer::XLSX::Package::Table->new();
+            my $table = Excel::Writer::XLSX::Package::Table.new();
 
-            $table->_set_xml_writer(
-                $dir . '/xl/tables/table' . $index++ . '.xml' );
+            $table.set_xml_writer(
+                $dir ~ '/xl/tables/table' ~ $index++ ~ '.xml' );
 
-            $table->_set_properties( $table_props );
+            $table.set_properties( $table-props );
 
-            $table->_assemble_xml_file();
+            $table.assemble_xml_file();
 
-            $self->{_table_count}++;
+            $!table_count++;
         }
     }
 }
@@ -639,29 +610,27 @@ sub _write_table_files {
 #
 # Write the _rels/.rels xml file.
 #
-sub _write_root_rels_file {
+method write_root_rels_file {
+    my $dir  = $!package_dir;
+    my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
-    my $rels = Excel::Writer::XLSX::Package::Relationships->new();
+    _mkdir( $dir ~ '/_rels' );
 
-    _mkdir( $dir . '/_rels' );
+    $rels.add_document_relationship( '/officeDocument', 'xl/workbook.xml' );
 
-    $rels->_add_document_relationship( '/officeDocument', 'xl/workbook.xml' );
-
-    $rels->_add_package_relationship( '/metadata/core-properties',
+    $rels.add_package_relationship( '/metadata/core-properties',
         'docProps/core.xml' );
 
-    $rels->_add_document_relationship( '/extended-properties',
+    $rels.add_document_relationship( '/extended-properties',
         'docProps/app.xml' );
 
-    if ( @{ $self->{_workbook}->{_custom_properties} } ) {
-        $rels->_add_document_relationship( '/custom-properties',
+    if $!workbook.custom_properties {
+        $rels.add_document_relationship( '/custom-properties',
             'docProps/custom.xml' );
     }
 
-    $rels->_set_xml_writer( $dir . '/_rels/.rels' );
-    $rels->_assemble_xml_file();
+    $rels.set_xml_writer( $dir ~ '/_rels/.rels' );
+    $rels.assemble_xml_file();
 }
 
 
@@ -671,45 +640,43 @@ sub _write_root_rels_file {
 #
 # Write the _rels/.rels xml file.
 #
-sub _write_workbook_rels_file {
+method write_workbook_rels_file {
+    my $dir  = $!package_dir;
+    my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
-    my $rels = Excel::Writer::XLSX::Package::Relationships->new();
-
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/_rels' );
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/_rels' );
 
     my $worksheet_index  = 1;
     my $chartsheet_index = 1;
 
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
-        if ( $worksheet->{_is_chartsheet} ) {
-            $rels->_add_document_relationship( '/chartsheet',
-                'chartsheets/sheet' . $chartsheet_index++ . '.xml' );
+    for $!workbook.worksheets -> $worksheet {
+        if $worksheet.is_chartsheet {
+            $rels.add_document_relationship( '/chartsheet',
+                'chartsheets/sheet' ~ $chartsheet_index++ ~ '.xml' );
         }
         else {
-            $rels->_add_document_relationship( '/worksheet',
-                'worksheets/sheet' . $worksheet_index++ . '.xml' );
+            $rels.add_document_relationship( '/worksheet',
+                'worksheets/sheet' ~ $worksheet_index++ ~ '.xml' );
         }
     }
 
-    $rels->_add_document_relationship( '/theme',  'theme/theme1.xml' );
-    $rels->_add_document_relationship( '/styles', 'styles.xml' );
+    $rels.add_document_relationship( '/theme',  'theme/theme1.xml' );
+    $rels.add_document_relationship( '/styles', 'styles.xml' );
 
     # Add the sharedString rel if there is string data in the workbook.
-    if ( $self->{_workbook}->{_str_total} ) {
-        $rels->_add_document_relationship( '/sharedStrings',
+    if $!workbook.str_total {
+        $rels.add_document_relationship( '/sharedStrings',
             'sharedStrings.xml' );
     }
 
     # Add vbaProject if present.
-    if ( $self->{_workbook}->{_vba_project} ) {
-        $rels->_add_ms_package_relationship( '/vbaProject', 'vbaProject.bin' );
+    if $!workbook.vba_project {
+        $rels.add_ms_package_relationship( '/vbaProject', 'vbaProject.bin' );
     }
 
-    $rels->_set_xml_writer( $dir . '/xl/_rels/workbook.xml.rels' );
-    $rels->_assemble_xml_file();
+    $rels.set_xml_writer( $dir ~ '/xl/_rels/workbook.xml.rels' );
+    $rels.assemble_xml_file();
 }
 
 
@@ -720,43 +687,41 @@ sub _write_workbook_rels_file {
 # Write the worksheet .rels files for worksheets that contain links to external
 # data such as hyperlinks or drawings.
 #
-sub _write_worksheet_rels_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_worksheet_rels_files {
+    my $dir  = $!package_dir;
 
     my $index = 0;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
+    for $!workbook.worksheets -> $worksheet {
 
-        next if $worksheet->{_is_chartsheet};
+        next if $worksheet.is_chartsheet;
 
         $index++;
 
         my @external_links = (
-            @{ $worksheet->{_external_hyper_links} },
-            @{ $worksheet->{_external_drawing_links} },
-            @{ $worksheet->{_external_vml_links} },
-            @{ $worksheet->{_external_table_links} },
-            @{ $worksheet->{_external_comment_links} },
+            $worksheet.external_hyper_links,
+            $worksheet.external_drawing_links,
+            $worksheet.external_vml_links,
+            $worksheet.external_table_links,
+            $worksheet.external_comment_links,
         );
 
         next unless @external_links;
 
         # Create the worksheet .rels dirs.
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/worksheets' );
-        _mkdir( $dir . '/xl/worksheets/_rels' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/worksheets' );
+        _mkdir( $dir ~ '/xl/worksheets/_rels' );
 
-        my $rels = Excel::Writer::XLSX::Package::Relationships->new();
+        my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-        for my $link_data ( @external_links ) {
-            $rels->_add_worksheet_relationship( @$link_data );
+        for @external_links -> $link-data {
+            $rels.add_worksheet_relationship( $link-data );
         }
 
         # Create the .rels file such as /xl/worksheets/_rels/sheet1.xml.rels.
-        $rels->_set_xml_writer(
-            $dir . '/xl/worksheets/_rels/sheet' . $index . '.xml.rels' );
-        $rels->_assemble_xml_file();
+        $rels.set_xml_writer(
+            $dir ~ '/xl/worksheets/_rels/sheet' ~ $index ~ '.xml.rels' );
+        $rels.assemble_xml_file();
     }
 }
 
@@ -767,38 +732,36 @@ sub _write_worksheet_rels_files {
 #
 # Write the chartsheet .rels files for links to drawing files.
 #
-sub _write_chartsheet_rels_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_chartsheet_rels_files {
+    my $dir  = $!package_dir;
 
 
     my $index = 0;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
+    for $!workbook.worksheets -> $worksheet {
 
-        next unless $worksheet->{_is_chartsheet};
+        next unless $worksheet.is_chartsheet;
 
         $index++;
 
-        my @external_links = @{ $worksheet->{_external_drawing_links} };
+        my @external_links = $worksheet.external_drawing_links;
 
         next unless @external_links;
 
         # Create the chartsheet .rels dir.
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/chartsheets' );
-        _mkdir( $dir . '/xl/chartsheets/_rels' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/chartsheets' );
+        _mkdir( $dir ~ '/xl/chartsheets/_rels' );
 
-        my $rels = Excel::Writer::XLSX::Package::Relationships->new();
+        my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-        for my $link_data ( @external_links ) {
-            $rels->_add_worksheet_relationship( @$link_data );
+        for @external_links -> $link-data {
+            $rels.add_worksheet_relationship( $link-data );
         }
 
         # Create the .rels file such as /xl/chartsheets/_rels/sheet1.xml.rels.
-        $rels->_set_xml_writer(
-            $dir . '/xl/chartsheets/_rels/sheet' . $index . '.xml.rels' );
-        $rels->_assemble_xml_file();
+        $rels.set_xml_writer(
+            $dir ~ '/xl/chartsheets/_rels/sheet' ~ $index ~ '.xml.rels' );
+        $rels.assemble_xml_file();
     }
 }
 
@@ -809,36 +772,34 @@ sub _write_chartsheet_rels_files {
 #
 # Write the drawing .rels files for worksheets that contain charts or drawings.
 #
-sub _write_drawing_rels_files {
-
-    my $self = shift;
-    my $dir  = $self->{_package_dir};
+method write_drawing_rels_files {
+    my $dir  = $!package_dir;
 
 
     my $index = 0;
-    for my $worksheet ( @{ $self->{_workbook}->{_worksheets} } ) {
+    for $!workbook.worksheets -> $worksheet {
 
-        if ( @{ $worksheet->{_drawing_links} } || $worksheet->{_has_shapes} ) {
+        if $worksheet.drawing_links || $worksheet.has_shapes {
             $index++;
         }
 
-        next unless @{ $worksheet->{_drawing_links} };
+        next unless $worksheet.drawing_links;
 
         # Create the drawing .rels dir.
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/drawings' );
-        _mkdir( $dir . '/xl/drawings/_rels' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/drawings' );
+        _mkdir( $dir ~ '/xl/drawings/_rels' );
 
-        my $rels = Excel::Writer::XLSX::Package::Relationships->new();
+        my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-        for my $drawing_data ( @{ $worksheet->{_drawing_links} } ) {
-            $rels->_add_document_relationship( @$drawing_data );
+        for $worksheet.drawing_links -> $drawing-data {
+            $rels.add_document_relationship( $drawing-data );
         }
 
         # Create the .rels file such as /xl/drawings/_rels/sheet1.xml.rels.
-        $rels->_set_xml_writer(
-            $dir . '/xl/drawings/_rels/drawing' . $index . '.xml.rels' );
-        $rels->_assemble_xml_file();
+        $rels.set_xml_writer(
+            $dir ~ '/xl/drawings/_rels/drawing' ~ $index ~ '.xml.rels' );
+        $rels.assemble_xml_file();
     }
 }
 
@@ -850,29 +811,25 @@ sub _write_drawing_rels_files {
 # Write the vmlDdrawing .rels files for worksheets with images in header or
 # footers.
 #
-sub _write_vml_drawing_rels_file {
-
-    my $self      = shift;
-    my $worksheet = shift;
-    my $index     = shift;
-    my $dir       = $self->{_package_dir};
+method write_vml_drawing_rels_file($worksheet, $index) {
+    my $dir       = $!package_dir;
 
 
     # Create the drawing .rels dir.
-    _mkdir( $dir . '/xl' );
-    _mkdir( $dir . '/xl/drawings' );
-    _mkdir( $dir . '/xl/drawings/_rels' );
+    _mkdir( $dir ~ '/xl' );
+    _mkdir( $dir ~ '/xl/drawings' );
+    _mkdir( $dir ~ '/xl/drawings/_rels' );
 
-    my $rels = Excel::Writer::XLSX::Package::Relationships->new();
+    my $rels = Excel::Writer::XLSX::Package::Relationships.new();
 
-    for my $drawing_data ( @{ $worksheet->{_vml_drawing_links} } ) {
-        $rels->_add_document_relationship( @$drawing_data );
+    for $worksheet.vml_drawing_links -> $drawing-data {
+        $rels.add_document_relationship( $drawing-data );
     }
 
     # Create the .rels file such as /xl/drawings/_rels/vmlDrawing1.vml.rels.
-    $rels->_set_xml_writer(
-        $dir . '/xl/drawings/_rels/vmlDrawing' . $index . '.vml.rels' );
-    $rels->_assemble_xml_file();
+    $rels.set_xml_writer(
+        $dir ~ '/xl/drawings/_rels/vmlDrawing' ~ $index ~ '.vml.rels' );
+    $rels.assemble_xml_file();
 
 }
 
@@ -883,21 +840,19 @@ sub _write_vml_drawing_rels_file {
 #
 # Write the /xl/media/image?.xml files.
 #
-sub _add_image_files {
-
-    my $self     = shift;
-    my $dir      = $self->{_package_dir};
-    my $workbook = $self->{_workbook};
+method add_image_files {
+    my $dir      = $!package_dir;
+    my $workbook = $!workbook;
     my $index    = 1;
 
-    for my $image ( @{ $workbook->{_images} } ) {
-        my $filename  = $image->[0];
-        my $extension = '.' . $image->[1];
+    for $workbook.images -> $image {
+        my $filename  = $image[0];
+        my $extension = '.' ~ $image[1];
 
-        _mkdir( $dir . '/xl' );
-        _mkdir( $dir . '/xl/media' );
+        _mkdir( $dir ~ '/xl' );
+        _mkdir( $dir ~ '/xl/media' );
 
-        copy( $filename, $dir . '/xl/media/image' . $index++ . $extension );
+        copy( $filename, $dir ~ '/xl/media/image' ~ $index++ ~ $extension );
     }
 }
 
@@ -908,17 +863,15 @@ sub _add_image_files {
 #
 # Write the vbaProject.bin file.
 #
-sub _add_vba_project {
-
-    my $self        = shift;
-    my $dir         = $self->{_package_dir};
-    my $vba_project = $self->{_workbook}->{_vba_project};
+method add_vba_project {
+    my $dir         = $!package_dir;
+    my $vba_project = $!workbook.vba_project;
 
     return unless $vba_project;
 
-    _mkdir( $dir . '/xl' );
+    _mkdir( $dir ~ '/xl' );
 
-    copy( $vba_project, $dir . '/xl/vbaProject.bin' );
+    copy( $vba_project, $dir ~ '/xl/vbaProject.bin' );
 }
 
 
@@ -928,25 +881,18 @@ sub _add_vba_project {
 #
 # Wrapper function for Perl's mkdir to allow error trapping.
 #
-sub _mkdir {
+sub _mkdir($dir) {
 
-    my $dir = shift;
-
-    return if -e $dir;
+    return if $dir.IO ~~ :e;
 
     my $ret = mkdir( $dir );
 
-    if ( !$ret ) {
-        croak "Couldn't create sub directory $dir: $!";
+    if !$ret {
+        fail "Couldn't create sub directory $dir: $!";
     }
 }
 
-
-1;
-
-
-__END__
-
+=begin pod
 =pod
 
 =head1 NAME
@@ -1009,3 +955,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
