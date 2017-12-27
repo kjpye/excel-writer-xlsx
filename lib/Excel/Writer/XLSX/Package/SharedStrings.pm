@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::SharedStrings;
+unit class Excel::Writer::XLSX::Package::SharedStrings;
 
 ###############################################################################
 #
@@ -13,15 +13,15 @@ package Excel::Writer::XLSX::Package::SharedStrings;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
-use strict;
-use warnings;
-use Carp;
-use Encode;
-use Excel::Writer::XLSX::Package::XMLwriter;
+use v6.c;
+#NYI use strict;
+#NYI use warnings;
+#NYI use Carp;
+#NYI use Encode;
+#use Excel::Writer::XLSX::Package::XMLwriter;
 
-our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
-our $VERSION = '0.96';
+#NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
+#NYI our $VERSION = '0.96';
 
 
 ###############################################################################
@@ -30,6 +30,9 @@ our $VERSION = '0.96';
 #
 ###############################################################################
 
+has @!strings;
+has $!string_count;
+has $!unique_count;
 
 ###############################################################################
 #
@@ -37,20 +40,20 @@ our $VERSION = '0.96';
 #
 # Constructor.
 #
-sub new {
+#NYI sub new {
 
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    $self->{_strings}      = [];
-    $self->{_string_count} = 0;
-    $self->{_unique_count} = 0;
+#NYI     $self->{_strings}      = [];
+#NYI     $self->{_string_count} = 0;
+#NYI     $self->{_unique_count} = 0;
 
-    bless $self, $class;
+#NYI     bless $self, $class;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -59,23 +62,20 @@ sub new {
 #
 # Assemble and write the XML file.
 #
-sub _assemble_xml_file {
-
-    my $self = shift;
-
-    $self->xml_declaration;
+method assemble_xml_file {
+    self.xml_declaration;
 
     # Write the sst table.
-    $self->_write_sst( $self->{_string_count}, $self->{_unique_count} );
+    self.write_sst( $!string_count, $!unique_count );
 
     # Write the sst strings.
-    $self->_write_sst_strings();
+    self.write_sst_strings();
 
     # Close the sst tag.
-    $self->xml_end_tag( 'sst' );
+    self.xml_end_tag( 'sst' );
 
     # Close the XML writer filehandle.
-    $self->xml_get_fh()->close();
+    self.xml_get_fh.close();
 }
 
 
@@ -85,11 +85,8 @@ sub _assemble_xml_file {
 #
 # Set the total sst string count.
 #
-sub _set_string_count {
-
-    my $self = shift;
-
-    $self->{_string_count} = shift;
+method set_string_count($count) {
+    $!string_count = $count;
 }
 
 
@@ -99,11 +96,8 @@ sub _set_string_count {
 #
 # Set the total of unique sst strings.
 #
-sub _set_unique_count {
-
-    my $self = shift;
-
-    $self->{_unique_count} = shift;
+method set_unique_count($count) {
+    $!unique_count = $count;
 }
 
 
@@ -113,11 +107,8 @@ sub _set_unique_count {
 #
 # Add the array ref of strings to be written.
 #
-sub _add_strings {
-
-    my $self = shift;
-
-    $self->{_strings} = shift;
+method add_strings($strings) {
+    @!strings= $strings;
 }
 
 
@@ -141,21 +132,17 @@ sub _add_strings {
 #
 # Write the <sst> element.
 #
-sub _write_sst {
-
-    my $self         = shift;
-    my $count        = shift;
-    my $unique_count = shift;
+method write_sst($count, $unique-count) {
     my $schema       = 'http://schemas.openxmlformats.org';
-    my $xmlns        = $schema . '/spreadsheetml/2006/main';
+    my $xmlns        = $schema ~ '/spreadsheetml/2006/main';
 
     my @attributes = (
         'xmlns'       => $xmlns,
         'count'       => $count,
-        'uniqueCount' => $unique_count,
+        'uniqueCount' => $unique-count,
     );
 
-    $self->xml_start_tag( 'sst', @attributes );
+    self.xml_start_tag( 'sst', @attributes );
 }
 
 
@@ -165,12 +152,9 @@ sub _write_sst {
 #
 # Write the sst string elements.
 #
-sub _write_sst_strings {
-
-    my $self = shift;
-
-    for my $string ( @{ $self->{_strings} } ) {
-        $self->_write_si( $string );
+method write_sst_strings {
+    for @!strings -> $string {
+        self.write_si( $string );
     }
 }
 
@@ -181,10 +165,7 @@ sub _write_sst_strings {
 #
 # Write the <si> element.
 #
-sub _write_si {
-
-    my $self       = shift;
-    my $string     = shift;
+method write_si($string) {
     my @attributes = ();
 
     # Excel escapes control characters with _xHHHH_ and also escapes any
@@ -193,34 +174,34 @@ sub _write_si {
     # The following substitutions deal with those cases.
 
     # Escape the escape.
-    $string =~ s/(_x[0-9a-fA-F]{4}_)/_x005F$1/g;
+    $string ~~ s:g/('_x' <[0..9 a..f A..F]> ** 4 '_')/_x005F$0/;
 
     # Convert control character to the _xHHHH_ escape.
-    $string =~ s/([\x00-\x08\x0B-\x1F])/sprintf "_x%04X_", ord($1)/eg;
+    $string ~~ s:g/(<[\x00..\x08 \x0B..\x1F]>)/{sprintf "_x%04X_", ord($0)}/;
 
 
     # Add attribute to preserve leading or trailing whitespace.
-    if ( $string =~ /^\s/ || $string =~ /\s$/ ) {
+    if $string ~~ /^\s/ || $string ~~ /\s$/ {
         push @attributes, ( 'xml:space' => 'preserve' );
     }
 
 
     # Write any rich strings without further tags.
-    if ( $string =~ m{^<r>} && $string =~ m{</r>$} ) {
+    if $string ~~ /^'<r>'/ && $string ~~ /'</r>'$/ {
 
         # Prevent utf8 strings from getting double encoded.
         $string = decode_utf8( $string );
 
-        $self->xml_rich_si_element( $string );
+        self.xml_rich_si_element( $string );
     }
     else {
-        $self->xml_si_element( $string, @attributes );
+        self.xml_si_element( $string, @attributes );
     }
 
 }
 
 
-1;
+=begin pod
 
 
 __END__
@@ -258,3 +239,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
