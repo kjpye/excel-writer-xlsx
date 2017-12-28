@@ -523,11 +523,8 @@ method show_blanks_as($option) {
 #
 # Display data in hidden rows or columns.
 #
-sub show_hidden_data {
-
-    my $self = shift;
-
-    $self->{_show_hidden_data} = 1;
+method show_hidden_data {
+    $!show_hidden_data = 1;
 }
 
 
@@ -537,23 +534,15 @@ sub show_hidden_data {
 #
 # Set dimensions or scale for the chart.
 #
-sub set_size {
-
-    my $self = shift;
-    my %args = @_;
-
-    $self->{_width}    = $args{width}    if $args{width};
-    $self->{_height}   = $args{height}   if $args{height};
-    $self->{_x_scale}  = $args{x_scale}  if $args{x_scale};
-    $self->{_y_scale}  = $args{y_scale}  if $args{y_scale};
-    $self->{_x_offset} = $args{x_offset} if $args{x_offset};
-    $self->{_y_offset} = $args{y_offset} if $args{y_offset};
+method set_size(*%args) {
+    $!width    = %args<width>    if %args<width>;
+    $!height   = %args<height>   if %args<height>;
+    $!x_scale  = %args<x_scale>  if %args<x_scale>;
+    $!y_scale  = %args<y_scale>  if %args<y_scale>;
+    $!x_offset = %args<x_offset> if %args<x_offset>;
+    $!y_offset = %args<y_offset> if %args<y_offset>;
 
 }
-
-# Backward compatibility with poorly chosen method name.
-*size = *set_size;
-
 
 ###############################################################################
 #
@@ -561,25 +550,21 @@ sub set_size {
 #
 # Set properties for an axis data table.
 #
-sub set_table {
-
-    my $self = shift;
-    my %args = @_;
-
+method set_table(*%args) {
     my %table = (
-        _horizontal => 1,
-        _vertical   => 1,
-        _outline    => 1,
-        _show_keys  => 0,
+        horizontal => 1,
+        vertical   => 1,
+        outline    => 1,
+        show_keys  => 0,
     );
 
-    $table{_horizontal} = $args{horizontal} if defined $args{horizontal};
-    $table{_vertical}   = $args{vertical}   if defined $args{vertical};
-    $table{_outline}    = $args{outline}    if defined $args{outline};
-    $table{_show_keys}  = $args{show_keys}  if defined $args{show_keys};
-    $table{_font}       = $self->_convert_font_args( $args{font} );
+    %table<horizontal> = %args<horizontal> if %args<horizontal>.defined;
+    %table<vertical>   = %args<vertical>   if %args<vertical>.defined;
+    %table<outline>    = %args<outline>    if %args<outline>.defined;
+    %table<show_keys>  = %args<show_keys>  if %args<show_keys>.defined;
+    %table<font>       = self.convert_font_args( %args<font> );
 
-    $self->{_table} = \%table;
+    %!table = %table;
 }
 
 
@@ -589,26 +574,22 @@ sub set_table {
 #
 # Set properties for the chart up-down bars.
 #
-sub set_up_down_bars {
-
-    my $self = shift;
-    my %args = @_;
-
+method set_up_down_bars(*%args) {
     # Map border to line.
-    if ( defined $args{up}->{border} ) {
-        $args{up}->{line} = $args{up}->{border};
+    if %args<up><border>.defined {
+        %args<up><line> = %args<up><border>;
     }
-    if ( defined $args{down}->{border} ) {
-        $args{down}->{line} = $args{down}->{border};
+    if %args<down><border>.defined {
+        %args<down><line> = %args<down><border>;
     }
 
     # Set the up and down bar properties.
-    my $up_line   = $self->_get_line_properties( $args{up}->{line} );
-    my $down_line = $self->_get_line_properties( $args{down}->{line} );
-    my $up_fill   = $self->_get_fill_properties( $args{up}->{fill} );
-    my $down_fill = $self->_get_fill_properties( $args{down}->{fill} );
+    my $up_line   = self.get_line_properties( %args<up><line> );
+    my $down_line = self.get_line_properties( %args<down><line> );
+    my $up_fill   = self.get_fill_properties( %args<up><fill> );
+    my $down_fill = self.get_fill_properties( %args<down><fill> );
 
-    $self->{_up_down_bars} = {
+    %!up_down_bars = {
         _up => {
             _line => $up_line,
             _fill => $up_fill,
@@ -627,15 +608,11 @@ sub set_up_down_bars {
 #
 # Set properties for the chart drop lines.
 #
-sub set_drop_lines {
-
-    my $self = shift;
-    my %args = @_;
-
+method set_drop_lines(*%args) {
     # Set the drop line properties.
-    my $line = $self->_get_line_properties( $args{line} );
+    my $line = self.get_line_properties( %args<line> );
 
-    $self->{_drop_lines} = { _line => $line };
+    %!drop_lines = { _line => $line };
 }
 
 
@@ -645,15 +622,11 @@ sub set_drop_lines {
 #
 # Set properties for the chart high-low lines.
 #
-sub set_high_low_lines {
-
-    my $self = shift;
-    my %args = @_;
-
+method set_high_low_lines(*%args) {
     # Set the drop line properties.
-    my $line = $self->_get_line_properties( $args{line} );
+    my $line = self.get_line_properties( %args<line> );
 
-    $self->{_hi_low_lines} = { _line => $line };
+    %!hi_low_lines = { _line => $line };
 }
 
 
@@ -663,12 +636,8 @@ sub set_high_low_lines {
 #
 # Add another chart to create a combined chart.
 #
-sub combine {
-
-    my $self  = shift;
-    my $chart = shift;
-
-    $self->{_combined} = $chart;
+method combine($chart) {
+    $!combined = $chart;
 }
 
 
@@ -686,111 +655,106 @@ sub combine {
 #
 # Convert user defined axis values into private hash values.
 #
-sub _convert_axis_args {
-
-    my $self = shift;
-    my $axis = shift;
-    my %arg  = ( %{ $axis->{_defaults} }, @_ );
-
+method convert_axis_args($axis, *%args) {
     my ( $name, $name_formula ) =
-      $self->_process_names( $arg{name}, $arg{name_formula} );
+      self.process_names( %arg<name>, %arg<name_formula> );
 
-    my $data_id = $self->_get_data_id( $name_formula, $arg{data} );
+    my $data_id = self.get_data_id( $name_formula, %arg<data> );
 
     $axis = {
-        _defaults          => $axis->{_defaults},
+        _defaults          => %axis<_defaults>,
         _name              => $name,
         _formula           => $name_formula,
         _data_id           => $data_id,
-        _reverse           => $arg{reverse},
-        _min               => $arg{min},
-        _max               => $arg{max},
-        _minor_unit        => $arg{minor_unit},
-        _major_unit        => $arg{major_unit},
-        _minor_unit_type   => $arg{minor_unit_type},
-        _major_unit_type   => $arg{major_unit_type},
-        _log_base          => $arg{log_base},
-        _crossing          => $arg{crossing},
-        _position_axis     => $arg{position_axis},
-        _position          => $arg{position},
-        _label_position    => $arg{label_position},
-        _num_format        => $arg{num_format},
-        _num_format_linked => $arg{num_format_linked},
-        _interval_unit     => $arg{interval_unit},
-        _interval_tick     => $arg{interval_tick},
-        _visible           => defined $arg{visible} ? $arg{visible} : 1,
+        _reverse           => %arg<reverse>,
+        _min               => %arg<min>,
+        _max               => %arg<max>,
+        _minor_unit        => %arg<minor_unit>,
+        _major_unit        => %arg<major_unit>,
+        _minor_unit_type   => %arg<minor_unit_type>,
+        _major_unit_type   => %arg<major_unit_type>,
+        _log_base          => %arg<log_base>,
+        _crossing          => %arg<crossing>,
+        _position_axis     => %arg<position_axis>,
+        _position          => %arg<position>,
+        _label_position    => %arg<label_position>,
+        _num_format        => %arg<num_format>,
+        _num_format_linked => %arg<num_format_linked>,
+        _interval_unit     => %arg<interval_unit>,
+        _interval_tick     => %arg<interval_tick>,
+        _visible           => %arg<visible>.defined ?? %arg<visible> !! 1,
         _text_axis         => 0,
     };
 
     # Map major_gridlines properties.
-    if ( $arg{major_gridlines} && $arg{major_gridlines}->{visible} ) {
-        $axis->{_major_gridlines} =
-          $self->_get_gridline_properties( $arg{major_gridlines} );
+    if %arg<major_gridlines> && %arg<major_gridlines><visible> {
+        $axis<_major_gridlines> =
+          self.get_gridline_properties( %arg<major_gridlines> );
     }
 
     # Map minor_gridlines properties.
-    if ( $arg{minor_gridlines} && $arg{minor_gridlines}->{visible} ) {
-        $axis->{_minor_gridlines} =
-          $self->_get_gridline_properties( $arg{minor_gridlines} );
+    if %arg<minor_gridlines> && %arg<minor_gridlines><visible> {
+        $axis<_minor_gridlines> =
+          self.get_gridline_properties( %arg<minor_gridlines> );
     }
 
     # Convert the display units.
-    $axis->{_display_units} = $self->_get_display_units( $arg{display_units} );
-    if ( defined $arg{display_units_visible} ) {
-        $axis->{_display_units_visible} = $arg{display_units_visible};
+    $axis<_display_units> = self.get_display_units( %arg<display_units> );
+    if %arg<display_units_visible>.defined {
+        $axis<_display_units_visible> = %arg<display_units_visible>;
     }
     else {
-        $axis->{_display_units_visible} = 1;
+        $axis<_display_units_visible> = 1;
     }
 
     # Only use the first letter of bottom, top, left or right.
-    if ( defined $axis->{_position} ) {
-        $axis->{_position} = substr lc $axis->{_position}, 0, 1;
+    if $axis<_position>.defined {
+        $axis<_position> = substr $axis<_position>.lc, 0, 1;
     }
 
     # Set the position for a category axis on or between the tick marks.
-    if ( defined $axis->{_position_axis} ) {
-        if ( $axis->{_position_axis} eq 'on_tick' ) {
-            $axis->{_position_axis} = 'midCat';
+    if $axis._position_axis>.defined {
+        if $axis<_position_axis> eq 'on_tick' {
+            $axis<_position_axis> = 'midCat';
         }
-        elsif ( $axis->{_position_axis} eq 'between' ) {
+        elsif $axis<_position_axis> eq 'between' {
 
             # Doesn't need to be modified.
         }
         else {
             # Otherwise use the default value.
-            $axis->{_position_axis} = undef;
+            $axis<_position_axis> = Nil;
         }
     }
 
     # Set the category axis as a date axis.
-    if ( $arg{date_axis} ) {
-        $self->{_date_category} = 1;
+    if %arg<date_axis> {
+        $!date_category = 1;
     }
 
     # Set the category axis as a text axis.
-    if ( $arg{text_axis} ) {
-        $self->{_date_category} = 0;
-        $axis->{_text_axis} = 1;
+    if %arg<text_axis> {
+        $!date_category = 0;
+        $axis<_text_axis> = 1;
     }
 
 
     # Set the font properties if present.
-    $axis->{_num_font}  = $self->_convert_font_args( $arg{num_font} );
-    $axis->{_name_font} = $self->_convert_font_args( $arg{name_font} );
+    $axis<_num_font>  = self.convert_font_args( %arg<num_font> );
+    $axis<_name_font> = self.convert_font_args( %arg<name_font> );
 
     # Set the axis name layout.
-    $axis->{_layout} = $self->_get_layout_properties( $arg{name_layout}, 1 );
+    $axis<_layout> = self.get_layout_properties( %arg<name_layout>, 1 );
 
     # Set the line properties for the axis.
-    $axis->{_line} = $self->_get_line_properties( $arg{line} );
+    $axis<_line> = self.get_line_properties( %arg<line> );
 
     # Set the fill properties for the axis.
-    $axis->{_fill} = $self->_get_fill_properties( $arg{fill} );
+    $axis<_fill> = self.get_fill_properties( %arg<fill> );
 
     # Set the tick marker types.
-    $axis->{_minor_tick_mark} = $self->_get_tick_type($arg{minor_tick_mark});
-    $axis->{_major_tick_mark} = $self->_get_tick_type($arg{major_tick_mark});
+    $axis<_minor_tick_mark> = self.get_tick_type(%arg<minor_tick_mark>);
+    $axis<_major_tick_mark> = self.get_tick_type(%arg<major_tick_mark>);
 
 
     return $axis;
@@ -803,32 +767,28 @@ sub _convert_axis_args {
 #
 # Convert user defined font values into private hash values.
 #
-sub _convert_font_args {
-
-    my $self = shift;
-    my $args = shift;
-
-    return unless $args;
+method convert_font_args(*%args) {
+    return unless %args;
 
     my $font = {
-        _name         => $args->{name},
-        _color        => $args->{color},
-        _size         => $args->{size},
-        _bold         => $args->{bold},
-        _italic       => $args->{italic},
-        _underline    => $args->{underline},
-        _pitch_family => $args->{pitch_family},
-        _charset      => $args->{charset},
-        _baseline     => $args->{baseline} || 0,
-        _rotation     => $args->{rotation},
+        _name         => %args<name>,
+        _color        => %args<color>,
+        _size         => %args<size>,
+        _bold         => %args<bold>,
+        _italic       => %args<italic>,
+        _underline    => %args<underline>,
+        _pitch_family => %args<pitch_family>,
+        _charset      => %args<charset>,
+        _baseline     => %args<baseline> || 0,
+        _rotation     => %args<rotation>,
     };
 
     # Convert font size units.
-    $font->{_size} *= 100 if $font->{_size};
+    $font<_size> *= 100 if $font<_size>;
 
     # Convert rotation into 60,000ths of a degree.
-    if ( $font->{_rotation} ) {
-        $font->{_rotation} = 60_000 * int( $font->{_rotation} );
+    if $font<_rotation> {
+        $font<_rotation> = 60_000 * $font<_rotation>.int;
     }
 
     return $font;
@@ -841,15 +801,11 @@ sub _convert_font_args {
 #
 # Convert and aref of row col values to a range formula.
 #
-sub _aref_to_formula {
-
-    my $self = shift;
-    my $data = shift;
-
+method aref_to_formula($data) {
     # If it isn't an array ref it is probably a formula already.
-    return $data if !ref $data;
+    #TODO return $data if !ref $data;
 
-    my $formula = xl_range_formula( @$data );
+    my $formula = xl_range_formula( $data );
 
     return $formula;
 }
@@ -861,28 +817,23 @@ sub _aref_to_formula {
 #
 # Switch name and name_formula parameters if required.
 #
-sub _process_names {
+method process_names($name, $name-formula) {
+    if $name.defined {
 
-    my $self         = shift;
-    my $name         = shift;
-    my $name_formula = shift;
-
-    if ( defined $name ) {
-
-        if ( ref $name eq 'ARRAY' ) {
-            my $cell = xl_rowcol_to_cell( $name->[1], $name->[2], 1, 1 );
-            $name_formula = quote_sheetname( $name->[0] ) . '!' . $cell;
+        if $name.WHAT eq '(Array)' ) {
+            my $cell = xl_rowcol_to_cell( $name[1], $name[2], 1, 1 );
+            $name-formula = quote_sheetname( $name[0] ) ~ '!' ~ $cell;
             $name         = '';
         }
-        elsif ( $name =~ m/^=[^!]+!\$/ ) {
+        elsif $name ~~ /^\=<-[!]>+\!\$/ {
 
             # Name looks like a formula, use it to set name_formula.
-            $name_formula = $name;
+            $name-formula = $name;
             $name         = '';
         }
     }
 
-    return ( $name, $name_formula );
+    return ( $name, $name-formula );
 }
 
 
@@ -894,24 +845,25 @@ sub _process_names {
 #
 # TODO. Need to handle date type.
 #
-sub _get_data_type {
-
-    my $self = shift;
-    my $data = shift;
-
+method get_data_type($data) {
     # Check for no data in the series.
-    return 'none' if !defined $data;
-    return 'none' if @$data == 0;
+    return 'none' if ! $data.defined;
+    return 'none' if +$data == 0;
 
-    if (ref $data->[0] eq 'ARRAY') {
+    if $data[0].WHAT eq '(Array)' {
         return 'multi_str'
     }
 
     # If the token isn't a number assume it is a string.
-    for my $token ( @$data ) {
-        next if !defined $token;
+    for $data -> $token {
+        next if ! $token.defined;
         return 'str'
-          if $token !~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/;
+          if $token !~~ /^
+                          < [+-]>? <before \d|\.\d>
+                          \d*
+                          [\.\d*]?
+                          [ <[Ee]> [ <[+-]>? \d+ ] ]?
+                         $/;
     }
 
     # The series data was all numeric.
@@ -930,43 +882,40 @@ sub _get_data_type {
 # If there is no user defined data then it will be populated by the parent
 # workbook in Workbook::_add_chart_data()
 #
-sub _get_data_id {
-
-    my $self    = shift;
-    my $formula = shift;
-    my $data    = shift;
+method get_data_id($formula, $data) {
     my $id;
 
     # Ignore series without a range formula.
     return unless $formula;
 
     # Strip the leading '=' from the formula.
-    $formula =~ s/^=//;
+    $formula ~~ s/^\=//;
 
     # Store the data id in a hash keyed by the formula and store the data
     # in a separate array with the same id.
-    if ( !exists $self->{_formula_ids}->{$formula} ) {
+    if ! %!formula_ids{$formula}.exists {
 
         # Haven't seen this formula before.
-        $id = @{ $self->{_formula_data} };
+        $id = @!_formula_data;
 
-        push @{ $self->{_formula_data} }, $data;
-        $self->{_formula_ids}->{$formula} = $id;
+        push @!formula_data.push: $data;
+        %!formula_ids{$formula} = $id;
     }
     else {
 
         # Formula already seen. Return existing id.
-        $id = $self->{_formula_ids}->{$formula};
+        $id = %!formula_ids{$formula};
 
         # Store user defined data if it isn't already there.
-        if ( !defined $self->{_formula_data}->[$id] ) {
-            $self->{_formula_data}->[$id] = $data;
+        if ! @!formula_data[$id].defined {
+            @!formula_data[$id] = $data;
         }
     }
 
     return $id;
 }
 
+====================================
 
 ###############################################################################
 #
