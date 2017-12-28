@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::Table;
+unit class Excel::Writer::XLSX::Package::Table;
 
 ###############################################################################
 #
@@ -13,14 +13,11 @@ package Excel::Writer::XLSX::Package::Table;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
-use strict;
-use warnings;
-use Carp;
-use Excel::Writer::XLSX::Package::XMLwriter;
+use v6.c;
+#use Excel::Writer::XLSX::Package::XMLwriter;
 
-our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
-our $VERSION = '0.96';
+#NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
+#NYI our $VERSION = '0.96';
 
 
 ###############################################################################
@@ -29,6 +26,7 @@ our $VERSION = '0.96';
 #
 ###############################################################################
 
+has %!properties;
 
 ###############################################################################
 #
@@ -36,18 +34,18 @@ our $VERSION = '0.96';
 #
 # Constructor.
 #
-sub new {
+#NYI sub new {
 
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    $self->{_properties} = {};
+#NYI     $self->{_properties} = {};
 
-    bless $self, $class;
+#NYI     bless $self, $class;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -56,30 +54,27 @@ sub new {
 #
 # Assemble and write the XML file.
 #
-sub _assemble_xml_file {
-
-    my $self = shift;
-
-    $self->xml_declaration;
+method assemble_xml_file {
+    self.xml_declaration;
 
     # Write the table element.
-    $self->_write_table();
+    self.write_table();
 
     # Write the autoFilter element.
-    $self->_write_auto_filter();
+    self.write_auto_filter();
 
     # Write the tableColumns element.
-    $self->_write_table_columns();
+    self.write_table_columns();
 
     # Write the tableStyleInfo element.
-    $self->_write_table_style_info();
+    self.write_table_style_info();
 
 
     # Close the table tag.
-    $self->xml_end_tag( 'table' );
+    self.xml_end_tag( 'table' );
 
     # Close the XML writer filehandle.
-    $self->xml_get_fh()->close();
+    self.xml_get_fh.close();
 }
 
 
@@ -89,12 +84,8 @@ sub _assemble_xml_file {
 #
 # Set the document properties.
 #
-sub _set_properties {
-
-    my $self       = shift;
-    my $properties = shift;
-
-    $self->{_properties} = $properties;
+method set_properties($properties) {
+    %!properties = $properties;
 }
 
 
@@ -118,37 +109,35 @@ sub _set_properties {
 #
 # Write the <table> element.
 #
-sub _write_table {
-
-    my $self             = shift;
+method write_table {
     my $schema           = 'http://schemas.openxmlformats.org/';
-    my $xmlns            = $schema . 'spreadsheetml/2006/main';
-    my $id               = $self->{_properties}->{_id};
-    my $name             = $self->{_properties}->{_name};
-    my $display_name     = $self->{_properties}->{_name};
-    my $ref              = $self->{_properties}->{_range};
-    my $totals_row_shown = $self->{_properties}->{_totals_row_shown};
-    my $header_row_count = $self->{_properties}->{_header_row_count};
+    my $xmlns            = $schema ~ 'spreadsheetml/2006/main';
+    my $id               = %!properties<id>;
+    my $name             = %!properties<name>;
+    my $display-name     = %!properties<name>;
+    my $ref              = %!properties<range>;
+    my $totals-row-shown = %!properties<totals_row_shown>;
+    my $header-row-count = %!properties<header_row_count>;
 
     my @attributes = (
         'xmlns'       => $xmlns,
         'id'          => $id,
         'name'        => $name,
-        'displayName' => $display_name,
+        'displayName' => $display-name,
         'ref'         => $ref,
     );
 
-    push @attributes, ( 'headerRowCount' => 0 ) if !$header_row_count;
+    @attributes.push: ( 'headerRowCount' => 0 ) if !$header-row-count;
 
-    if ( $totals_row_shown ) {
-        push @attributes, ( 'totalsRowCount' => 1 );
+    if $totals-row-shown {
+        @attributes.push: ( 'totalsRowCount' => 1 );
     }
     else {
-        push @attributes, ( 'totalsRowShown' => 0 );
+        @attributes.push: ( 'totalsRowShown' => 0 );
     }
 
 
-    $self->xml_start_tag( 'table', @attributes );
+    self.xml_start_tag( 'table', @attributes );
 }
 
 
@@ -158,16 +147,14 @@ sub _write_table {
 #
 # Write the <autoFilter> element.
 #
-sub _write_auto_filter {
-
-    my $self       = shift;
-    my $autofilter = $self->{_properties}->{_autofilter};
+method write_auto_filter {
+    my $autofilter = %!properties<autofilter>;
 
     return unless $autofilter;
 
     my @attributes = ( 'ref' => $autofilter, );
 
-    $self->xml_empty_tag( 'autoFilter', @attributes );
+    self.xml_empty_tag( 'autoFilter', @attributes );
 }
 
 
@@ -177,24 +164,22 @@ sub _write_auto_filter {
 #
 # Write the <tableColumns> element.
 #
-sub _write_table_columns {
+method write_table_columns {
+    my @columns = %!properties<columns>;
 
-    my $self    = shift;
-    my @columns = @{ $self->{_properties}->{_columns} };
-
-    my $count = scalar @columns;
+    my $count = +@columns;
 
     my @attributes = ( 'count' => $count, );
 
-    $self->xml_start_tag( 'tableColumns', @attributes );
+    self.xml_start_tag( 'tableColumns', @attributes );
 
-    for my $col_data ( @columns ) {
+    for @columns -> $col-data {
 
         # Write the tableColumn element.
-        $self->_write_table_column( $col_data );
+        self.write_table_column( $col-data );
     }
 
-    $self->xml_end_tag( 'tableColumns' );
+    self.xml_end_tag( 'tableColumns' );
 }
 
 
@@ -204,39 +189,35 @@ sub _write_table_columns {
 #
 # Write the <tableColumn> element.
 #
-sub _write_table_column {
-
-    my $self     = shift;
-    my $col_data = shift;
-
+method write_table_column($col-data) {
     my @attributes = (
-        'id'   => $col_data->{_id},
-        'name' => $col_data->{_name},
+        'id'   => $col-data<id>,
+        'name' => $col-data<name>,
     );
 
 
-    if ( $col_data->{_total_string} ) {
-        push @attributes, ( totalsRowLabel => $col_data->{_total_string} );
+    if $col-data<total_string> {
+        @attributes.push: ( totalsRowLabel => $col-data<total_string> );
     }
-    elsif ( $col_data->{_total_function} ) {
-        push @attributes, ( totalsRowFunction => $col_data->{_total_function} );
-    }
-
-
-    if ( defined $col_data->{_format} ) {
-        push @attributes, ( dataDxfId => $col_data->{_format} );
+    elsif $col-data<total_function> {
+        @attributes.push: ( totalsRowFunction => $col-data<total_function> );
     }
 
-    if ( $col_data->{_formula} ) {
-        $self->xml_start_tag( 'tableColumn', @attributes );
+
+    if $col-data<format>.defined {
+        @attributes.push: ( dataDxfId => $col-data<format> );
+    }
+
+    if $col-data<formula> {
+        self.xml_start_tag( 'tableColumn', @attributes );
 
         # Write the calculatedColumnFormula element.
-        $self->_write_calculated_column_formula( $col_data->{_formula} );
+        self.write_calculated_column_formula( $col-data<formula> );
 
-        $self->xml_end_tag( 'tableColumn' );
+        self.xml_end_tag( 'tableColumn' );
     }
     else {
-        $self->xml_empty_tag( 'tableColumn', @attributes );
+        self.xml_empty_tag( 'tableColumn', @attributes );
     }
 
 }
@@ -248,26 +229,24 @@ sub _write_table_column {
 #
 # Write the <tableStyleInfo> element.
 #
-sub _write_table_style_info {
+method write_table_style_info {
+    my $props = %!properties;
 
-    my $self  = shift;
-    my $props = $self->{_properties};
-
-    my $name                = $props->{_style};
-    my $show_first_column   = $props->{_show_first_col};
-    my $show_last_column    = $props->{_show_last_col};
-    my $show_row_stripes    = $props->{_show_row_stripes};
-    my $show_column_stripes = $props->{_show_col_stripes};
+    my $name                = $props<style>;
+    my $show-first-column   = $props<show_first_col>;
+    my $show-last-column    = $props<show_last_col>;
+    my $show-row-stripes    = $props<show_row_stripes>;
+    my $show-column-stripes = $props<show_col_stripes>;
 
     my @attributes = (
         'name'              => $name,
-        'showFirstColumn'   => $show_first_column,
-        'showLastColumn'    => $show_last_column,
-        'showRowStripes'    => $show_row_stripes,
-        'showColumnStripes' => $show_column_stripes,
+        'showFirstColumn'   => $show-first-column,
+        'showLastColumn'    => $show-last-column,
+        'showRowStripes'    => $show-row-stripes,
+        'showColumnStripes' => $show-column-stripes,
     );
 
-    $self->xml_empty_tag( 'tableStyleInfo', @attributes );
+    self.xml_empty_tag( 'tableStyleInfo', @attributes );
 }
 
 
@@ -277,16 +256,12 @@ sub _write_table_style_info {
 #
 # Write the <calculatedColumnFormula> element.
 #
-sub _write_calculated_column_formula {
-
-    my $self    = shift;
-    my $formula = shift;
-
-    $self->xml_data_element( 'calculatedColumnFormula', $formula );
+method write_calculated_column_formula($formula) {
+    self.xml_data_element( 'calculatedColumnFormula', $formula );
 }
 
 
-1;
+=begin pod
 
 
 __END__
@@ -324,3 +299,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
