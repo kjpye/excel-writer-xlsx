@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::Custom;
+unit class Excel::Writer::XLSX::Package::Custom;
 
 ###############################################################################
 #
@@ -14,14 +14,11 @@ package Excel::Writer::XLSX::Package::Custom;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
-use strict;
-use warnings;
-use Carp;
-use Excel::Writer::XLSX::Package::XMLwriter;
+use v6.c;
+#use Excel::Writer::XLSX::Package::XMLwriter;
 
-our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
-our $VERSION = '0.96';
+#NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
+#NYI our $VERSION = '0.96';
 
 
 ###############################################################################
@@ -30,6 +27,8 @@ our $VERSION = '0.96';
 #
 ###############################################################################
 
+has %!properties;
+has $!pid = 0;
 
 ###############################################################################
 #
@@ -37,19 +36,19 @@ our $VERSION = '0.96';
 #
 # Constructor.
 #
-sub new {
+#NYI sub new {
 
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    $self->{_properties} = [];
-    $self->{_pid}        = 1;
+#NYI     $self->{_properties} = [];
+#NYI     $self->{_pid}        = 1;
 
-    bless $self, $class;
+#NYI     bless $self, $class;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -58,18 +57,15 @@ sub new {
 #
 # Assemble and write the XML file.
 #
-sub _assemble_xml_file {
+method assemble_xml_file {
+    self.xml_declaration;
 
-    my $self = shift;
+    self.write_properties();
 
-    $self->xml_declaration;
-
-    $self->_write_properties();
-
-    $self->xml_end_tag( 'Properties' );
+    self.xml_end_tag( 'Properties' );
 
     # Close the XML writer filehandle.
-    $self->xml_get_fh()->close();
+    self.xml_get_fh.close();
 }
 
 
@@ -79,12 +75,8 @@ sub _assemble_xml_file {
 #
 # Set the document properties.
 #
-sub _set_properties {
-
-    my $self       = shift;
-    my $properties = shift;
-
-    $self->{_properties} = $properties;
+method set_properties($properties) {
+    %!properties = $properties;
 }
 
 
@@ -108,24 +100,22 @@ sub _set_properties {
 #
 # Write the <Properties> element.
 #
-sub _write_properties {
-
-    my $self     = shift;
+method write_properties {
     my $schema   = 'http://schemas.openxmlformats.org/officeDocument/2006/';
-    my $xmlns    = $schema . 'custom-properties';
-    my $xmlns_vt = $schema . 'docPropsVTypes';
+    my $xmlns    = $schema ~ 'custom-properties';
+    my $xmlns_vt = $schema ~ 'docPropsVTypes';
 
     my @attributes = (
         'xmlns'    => $xmlns,
         'xmlns:vt' => $xmlns_vt,
     );
 
-    $self->xml_start_tag( 'Properties', @attributes );
+    self.xml_start_tag( 'Properties', @attributes );
 
-    for my $property ( @{ $self->{_properties} } ) {
+    for %!properties.keys -> $property {
 
         # Write the property element.
-        $self->_write_property( $property );
+        self.write_property( $property );
     }
 }
 
@@ -135,53 +125,50 @@ sub _write_properties {
 #
 # Write the <property> element.
 #
-sub _write_property {
-
-    my $self     = shift;
-    my $property = shift;
+method write_property($property) {
     my $fmtid    = '{D5CDD505-2E9C-101B-9397-08002B2CF9AE}';
 
-    $self->{_pid}++;
+    $!pid++;
 
-    my ( $name, $value, $type ) = @$property;
+    my ( $name, $value, $type ) = $property;
 
 
     my @attributes = (
         'fmtid' => $fmtid,
-        'pid'   => $self->{_pid},
+        'pid'   => $!pid,
         'name'  => $name,
     );
 
-    $self->xml_start_tag( 'property', @attributes );
+    self.xml_start_tag( 'property', @attributes );
 
-    if ( $type eq 'date' ) {
+    if $type eq 'date' {
 
         # Write the vt:filetime element.
-        $self->_write_vt_filetime( $value );
+        self.write_vt_filetime( $value );
     }
-    elsif ( $type eq 'number' ) {
+    elsif $type eq 'number' {
 
         # Write the vt:r8 element.
-        $self->_write_vt_r8( $value );
+        self.write_vt_r8( $value );
     }
-    elsif ( $type eq 'number_int' ) {
+    elsif $type eq 'number_int' {
 
         # Write the vt:i4 element.
-        $self->_write_vt_i4( $value );
+        self.write_vt_i4( $value );
     }
-    elsif ( $type eq 'bool' ) {
+    elsif $type eq 'bool' {
 
         # Write the vt:bool element.
-        $self->_write_vt_bool( $value );
+        self.write_vt_bool( $value );
     }
     else {
 
         # Write the vt:lpwstr element.
-        $self->_write_vt_lpwstr( $value );
+        self.write_vt_lpwstr( $value );
     }
 
 
-    $self->xml_end_tag( 'property' );
+    self.xml_end_tag( 'property' );
 }
 
 
@@ -191,12 +178,8 @@ sub _write_property {
 #
 # Write the <vt:lpwstr> element.
 #
-sub _write_vt_lpwstr {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'vt:lpwstr', $data );
+method write_vt_lpwstr($data) {
+    self.xml_data_element( 'vt:lpwstr', $data );
 }
 
 
@@ -206,12 +189,8 @@ sub _write_vt_lpwstr {
 #
 # Write the <vt:i4> element.
 #
-sub _write_vt_i4 {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'vt:i4', $data );
+method write_vt_i4($data) {
+    self.xml_data_element( 'vt:i4', $data );
 }
 
 
@@ -221,12 +200,8 @@ sub _write_vt_i4 {
 #
 # Write the <vt:r8> element.
 #
-sub _write_vt_r8 {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'vt:r8', $data );
+method write_vt_r8($data) {
+    self.xml_data_element( 'vt:r8', $data );
 }
 
 
@@ -236,19 +211,15 @@ sub _write_vt_r8 {
 #
 # Write the <vt:bool> element.
 #
-sub _write_vt_bool {
-
-    my $self = shift;
-    my $data = shift;
-
-    if ( $data ) {
+method write_vt_bool($data) {
+    if $data {
         $data = 'true';
     }
     else {
         $data = 'false';
     }
 
-    $self->xml_data_element( 'vt:bool', $data );
+    self.xml_data_element( 'vt:bool', $data );
 }
 
 ##############################################################################
@@ -257,16 +228,12 @@ sub _write_vt_bool {
 #
 # Write the <vt:filetime> element.
 #
-sub _write_vt_filetime {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'vt:filetime', $data );
+method write_vt_filetime($data) {
+    self.xml_data_element( 'vt:filetime', $data );
 }
 
 
-1;
+=begin pod
 
 
 __END__
@@ -304,3 +271,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
