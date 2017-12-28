@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::Relationships;
+unit class Excel::Writer::XLSX::Package::Relationships;
 
 ###############################################################################
 #
@@ -13,18 +13,15 @@ package Excel::Writer::XLSX::Package::Relationships;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
-use strict;
-use warnings;
-use Carp;
-use Excel::Writer::XLSX::Package::XMLwriter;
+use v6.c;
+#use Excel::Writer::XLSX::Package::XMLwriter;
 
-our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
-our $VERSION = '0.96';
+#NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
+#NYI our $VERSION = '0.96';
 
 our $schema_root     = 'http://schemas.openxmlformats.org';
-our $package_schema  = $schema_root . '/package/2006/relationships';
-our $document_schema = $schema_root . '/officeDocument/2006/relationships';
+our $package_schema  = $schema_root ~ '/package/2006/relationships';
+our $document_schema = $schema_root ~ '/officeDocument/2006/relationships';
 
 ###############################################################################
 #
@@ -32,6 +29,8 @@ our $document_schema = $schema_root . '/officeDocument/2006/relationships';
 #
 ###############################################################################
 
+has $!id = 1;
+has @!rels;
 
 ###############################################################################
 #
@@ -39,19 +38,19 @@ our $document_schema = $schema_root . '/officeDocument/2006/relationships';
 #
 # Constructor.
 #
-sub new {
+#NYI sub new {
 
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    $self->{_rels} = [];
-    $self->{_id}   = 1;
+#NYI     $self->{_rels} = [];
+#NYI     $self->{_id}   = 1;
 
-    bless $self, $class;
+#NYI     bless $self, $class;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -60,12 +59,9 @@ sub new {
 #
 # Assemble and write the XML file.
 #
-sub _assemble_xml_file {
-
-    my $self = shift;
-
-    $self->xml_declaration;
-    $self->_write_relationships();
+method assemble_xml_file {
+    self.xml_declaration;
+    self.write_relationships();
 }
 
 
@@ -75,15 +71,10 @@ sub _assemble_xml_file {
 #
 # Add container relationship to XLSX .rels xml files.
 #
-sub _add_document_relationship {
+method add_document_relationship($type, $target) {
+    $type   = $document_schema ~ $type;
 
-    my $self   = shift;
-    my $type   = shift;
-    my $target = shift;
-
-    $type   = $document_schema . $type;
-
-    push @{ $self->{_rels} }, [ $type, $target ];
+    @!rels.push: [ $type, $target ];
 }
 
 
@@ -93,15 +84,10 @@ sub _add_document_relationship {
 #
 # Add container relationship to XLSX .rels xml files.
 #
-sub _add_package_relationship {
+method add_package_relationship($type, $target) {
+    $type   = $package_schema ~ $type;
 
-    my $self   = shift;
-    my $type   = shift;
-    my $target = shift;
-
-    $type   = $package_schema . $type;
-
-    push @{ $self->{_rels} }, [ $type, $target ];
+    @!rels.push: [ $type, $target ];
 }
 
 
@@ -111,16 +97,12 @@ sub _add_package_relationship {
 #
 # Add container relationship to XLSX .rels xml files. Uses MS schema.
 #
-sub _add_ms_package_relationship {
-
-    my $self   = shift;
-    my $type   = shift;
-    my $target = shift;
+method add_ms_package_relationship($type, $target) {
     my $schema = 'http://schemas.microsoft.com/office/2006/relationships';
 
-    $type   = $schema . $type;
+    $type   = $schema ~ $type;
 
-    push @{ $self->{_rels} }, [ $type, $target ];
+    @!rels.push: [ $type, $target ];
 }
 
 
@@ -130,16 +112,10 @@ sub _add_ms_package_relationship {
 #
 # Add worksheet relationship to sheet.rels xml files.
 #
-sub _add_worksheet_relationship {
+method add_worksheet_relationship($type, $target, $target-mode) {
+    $type   = $document_schema ~ $type;
 
-    my $self        = shift;
-    my $type        = shift;
-    my $target      = shift;
-    my $target_mode = shift;
-
-    $type   = $document_schema . $type;
-
-    push @{ $self->{_rels} }, [ $type, $target, $target_mode ];
+    @!rels.push: [ $type, $target, $target-mode ];
 }
 
 
@@ -163,22 +139,19 @@ sub _add_worksheet_relationship {
 #
 # Write the <Relationships> element.
 #
-sub _write_relationships {
-
-    my $self = shift;
-
+method write_relationships {
     my @attributes = ( 'xmlns' => $package_schema, );
 
-    $self->xml_start_tag( 'Relationships', @attributes );
+    self.xml_start_tag( 'Relationships', @attributes );
 
-    for my $rel ( @{ $self->{_rels} } ) {
-        $self->_write_relationship( @$rel );
+    for @!rels -> $rel {
+        self.write_relationship( $rel );
     }
 
-    $self->xml_end_tag( 'Relationships' );
+    self.xml_end_tag( 'Relationships' );
 
     # Close the XML writer filehandle.
-    $self->xml_get_fh()->close();
+    self.xml_get_fh.close();
 }
 
 
@@ -188,26 +161,20 @@ sub _write_relationships {
 #
 # Write the <Relationship> element.
 #
-sub _write_relationship {
-
-    my $self        = shift;
-    my $type        = shift;
-    my $target      = shift;
-    my $target_mode = shift;
-
+method write_relationship($type, $target, $target-mode) {
     my @attributes = (
-        'Id'     => 'rId' . $self->{_id}++,
+        'Id'     => 'rId' ~ $!id++,
         'Type'   => $type,
         'Target' => $target,
     );
 
-    push @attributes, ( 'TargetMode' => $target_mode ) if $target_mode;
+    @attributes.push: ( 'TargetMode' => $target-mode ) if $target-mode;
 
-    $self->xml_empty_tag( 'Relationship', @attributes );
+    self.xml_empty_tag( 'Relationship', @attributes );
 }
 
 
-1;
+=begin pod
 
 
 __END__
@@ -245,3 +212,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
