@@ -1,4 +1,4 @@
-package Excel::Writer::XLSX::Package::VML;
+unit class Excel::Writer::XLSX::Package::VML;
 
 ###############################################################################
 #
@@ -11,16 +11,11 @@ package Excel::Writer::XLSX::Package::VML;
 # Documentation after __END__
 #
 
-# perltidy with the following options: -mbl=2 -pt=0 -nola
+use v6.c;
+#use Excel::Writer::XLSX::Package::XMLwriter;
 
-use 5.008002;
-use strict;
-use warnings;
-use Carp;
-use Excel::Writer::XLSX::Package::XMLwriter;
-
-our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
-our $VERSION = '0.96';
+#NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
+#NYI our $VERSION = '0.96';
 
 
 ###############################################################################
@@ -36,16 +31,16 @@ our $VERSION = '0.96';
 #
 # Constructor.
 #
-sub new {
+#NYI sub new {
 
-    my $class = shift;
-    my $fh    = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
+#NYI     my $class = shift;
+#NYI     my $fh    = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Package::XMLwriter->new( $fh );
 
-    bless $self, $class;
+#NYI     bless $self, $class;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 
 ###############################################################################
@@ -54,65 +49,55 @@ sub new {
 #
 # Assemble and write the XML file.
 #
-sub _assemble_xml_file {
-
-    my $self               = shift;
-    my $data_id            = shift;
-    my $vml_shape_id       = shift;
-    my $comments_data      = shift;
-    my $buttons_data       = shift;
-    my $header_images_data = shift;
-    my $z_index            = 1;
-
-
-    $self->_write_xml_namespace;
+method assemble_xml_file($data-id, $vml-shape-id, $comments-data, $buttons-data, $header-images-data, $z-index = 1) {
+    self.write_xml_namespace;
 
     # Write the o:shapelayout element.
-    $self->_write_shapelayout( $data_id );
+    self.write_shapelayout( $data-id );
 
-    if ( defined $buttons_data && @$buttons_data ) {
+    if $buttons-data.defined && $buttons-data {
 
         # Write the v:shapetype element.
-        $self->_write_button_shapetype();
+        self.write_button_shapetype();
 
-        for my $button ( @$buttons_data ) {
+        for $buttons-data -> $button {
 
             # Write the v:shape element.
-            $self->_write_button_shape( ++$vml_shape_id, $z_index++, $button );
+            self.write_button_shape( ++$vml-shape-id, $z-index++, $button );
         }
     }
 
-    if ( defined $comments_data && @$comments_data ) {
+    if $comments-data.defined && $comments-data {
 
         # Write the v:shapetype element.
-        $self->_write_comment_shapetype();
+        self.write_comment_shapetype();
 
-        for my $comment ( @$comments_data ) {
+        for $comments-data -> $comment {
 
             # Write the v:shape element.
-            $self->_write_comment_shape( ++$vml_shape_id, $z_index++,
+            self.write_comment_shape( ++$vml-shape-id, $z-index++,
                 $comment );
         }
     }
 
-    if ( defined $header_images_data && @$header_images_data ) {
+    if $header-images-data.defined && $header-images-data {
 
         # Write the v:shapetype element.
-        $self->_write_image_shapetype();
+        self.write_image_shapetype();
 
         my $index = 1;
-        for my $image ( @$header_images_data ) {
+        for $header-images-data -> $image {
 
             # Write the v:shape element.
-            $self->_write_image_shape( ++$vml_shape_id, $index++, $image );
+            self.write_image_shape( ++$vml-shape-id, $index++, $image );
         }
     }
 
 
-    $self->xml_end_tag( 'xml' );
+    self.xml_end_tag( 'xml' );
 
     # Close the XML writer filehandle.
-    $self->xml_get_fh()->close();
+    self.xml_get_fh.close();
 }
 
 
@@ -129,20 +114,17 @@ sub _assemble_xml_file {
 #
 # Convert comment vertices from pixels to points.
 #
-sub _pixels_to_points {
-
-    my $self     = shift;
-    my $vertices = shift;
-
+method pixels_to_points($vertices) {
     my (
-        $col_start, $row_start, $x1,    $y1,
-        $col_end,   $row_end,   $x2,    $y2,
+        $col-start, $row-start, $x1,    $y1,
+        $col-end,   $row-end,   $x2,    $y2,
         $left,      $top,       $width, $height
-    ) = @$vertices;
+    ) = $vertices;
 
-    for my $pixels ( $left, $top, $width, $height ) {
-        $pixels *= 0.75;
-    }
+#TODO
+#    for my $pixels ( $left, $top, $width, $height ) {
+#        $pixels *= 0.75;
+#    }
 
     return ( $left, $top, $width, $height );
 }
@@ -161,13 +143,11 @@ sub _pixels_to_points {
 #
 # Write the <xml> element. This is the root element of VML.
 #
-sub _write_xml_namespace {
-
-    my $self    = shift;
+method write_xml_namespace {
     my $schema  = 'urn:schemas-microsoft-com:';
-    my $xmlns   = $schema . 'vml';
-    my $xmlns_o = $schema . 'office:office';
-    my $xmlns_x = $schema . 'office:excel';
+    my $xmlns   = $schema ~ 'vml';
+    my $xmlns_o = $schema ~ 'office:office';
+    my $xmlns_x = $schema ~ 'office:excel';
 
     my @attributes = (
         'xmlns:v' => $xmlns,
@@ -175,7 +155,7 @@ sub _write_xml_namespace {
         'xmlns:x' => $xmlns_x,
     );
 
-    $self->xml_start_tag( 'xml', @attributes );
+    self.xml_start_tag( 'xml', @attributes );
 }
 
 
@@ -185,20 +165,17 @@ sub _write_xml_namespace {
 #
 # Write the <o:shapelayout> element.
 #
-sub _write_shapelayout {
-
-    my $self    = shift;
-    my $data_id = shift;
+method write_shapelayout($data-id) {
     my $ext     = 'edit';
 
     my @attributes = ( 'v:ext' => $ext );
 
-    $self->xml_start_tag( 'o:shapelayout', @attributes );
+    self.xml_start_tag( 'o:shapelayout', @attributes );
 
     # Write the o:idmap element.
-    $self->_write_idmap( $data_id );
+    self.write_idmap( $data-id );
 
-    $self->xml_end_tag( 'o:shapelayout' );
+    self.xml_end_tag( 'o:shapelayout' );
 }
 
 
@@ -208,18 +185,15 @@ sub _write_shapelayout {
 #
 # Write the <o:idmap> element.
 #
-sub _write_idmap {
-
-    my $self    = shift;
+method write_idmap($data-id) {
     my $ext     = 'edit';
-    my $data_id = shift;
 
     my @attributes = (
         'v:ext' => $ext,
-        'data'  => $data_id,
+        'data'  => $data-id,
     );
 
-    $self->xml_empty_tag( 'o:idmap', @attributes );
+    self.xml_empty_tag( 'o:idmap', @attributes );
 }
 
 
@@ -229,9 +203,7 @@ sub _write_idmap {
 #
 # Write the <v:shapetype> element.
 #
-sub _write_comment_shapetype {
-
-    my $self      = shift;
+method write_comment_shapetype {
     my $id        = '_x0000_t202';
     my $coordsize = '21600,21600';
     my $spt       = 202;
@@ -244,15 +216,15 @@ sub _write_comment_shapetype {
         'path'      => $path,
     );
 
-    $self->xml_start_tag( 'v:shapetype', @attributes );
+    self.xml_start_tag( 'v:shapetype', @attributes );
 
     # Write the v:stroke element.
-    $self->_write_stroke();
+    self.write_stroke();
 
     # Write the v:path element.
-    $self->_write_comment_path( 't', 'rect' );
+    self.write_comment_path( 't', 'rect' );
 
-    $self->xml_end_tag( 'v:shapetype' );
+    self.xml_end_tag( 'v:shapetype' );
 }
 
 
@@ -262,9 +234,7 @@ sub _write_comment_shapetype {
 #
 # Write the <v:shapetype> element.
 #
-sub _write_button_shapetype {
-
-    my $self      = shift;
+method write_button_shapetype {
     my $id        = '_x0000_t201';
     my $coordsize = '21600,21600';
     my $spt       = 201;
@@ -277,18 +247,18 @@ sub _write_button_shapetype {
         'path'      => $path,
     );
 
-    $self->xml_start_tag( 'v:shapetype', @attributes );
+    self.xml_start_tag( 'v:shapetype', @attributes );
 
     # Write the v:stroke element.
-    $self->_write_stroke();
+    self.write_stroke();
 
     # Write the v:path element.
-    $self->_write_button_path( 't', 'rect' );
+    self.write_button_path( 't', 'rect' );
 
     # Write the o:lock element.
-    $self->_write_shapetype_lock();
+    self.write_shapetype_lock();
 
-    $self->xml_end_tag( 'v:shapetype' );
+    self.xml_end_tag( 'v:shapetype' );
 }
 
 
@@ -298,9 +268,7 @@ sub _write_button_shapetype {
 #
 # Write the <v:shapetype> element.
 #
-sub _write_image_shapetype {
-
-    my $self             = shift;
+method write_image_shapetype {
     my $id               = '_x0000_t75';
     my $coordsize        = '21600,21600';
     my $spt              = 75;
@@ -319,21 +287,21 @@ sub _write_image_shapetype {
         'stroked'          => $stroked,
     );
 
-    $self->xml_start_tag( 'v:shapetype', @attributes );
+    self.xml_start_tag( 'v:shapetype', @attributes );
 
     # Write the v:stroke element.
-    $self->_write_stroke();
+    self.write_stroke();
 
     # Write the v:formulas element.
-    $self->_write_formulas();
+    self.write_formulas();
 
     # Write the v:path element.
-    $self->_write_image_path();
+    self.write_image_path();
 
     # Write the o:lock element.
-    $self->_write_aspect_ratio_lock();
+    self.write_aspect_ratio_lock();
 
-    $self->xml_end_tag( 'v:shapetype' );
+    self.xml_end_tag( 'v:shapetype' );
 }
 
 
@@ -343,14 +311,12 @@ sub _write_image_shapetype {
 #
 # Write the <v:stroke> element.
 #
-sub _write_stroke {
-
-    my $self      = shift;
+method write_stroke {
     my $joinstyle = 'miter';
 
     my @attributes = ( 'joinstyle' => $joinstyle );
 
-    $self->xml_empty_tag( 'v:stroke', @attributes );
+    self.xml_empty_tag( 'v:stroke', @attributes );
 }
 
 
@@ -360,17 +326,13 @@ sub _write_stroke {
 #
 # Write the <v:path> element.
 #
-sub _write_comment_path {
-
-    my $self            = shift;
-    my $gradientshapeok = shift;
-    my $connecttype     = shift;
+method write_comment_path($gradientshapeok, $connecttype) {
     my @attributes      = ();
 
-    push @attributes, ( 'gradientshapeok' => 't' ) if $gradientshapeok;
-    push @attributes, ( 'o:connecttype' => $connecttype );
+    @attributes.push: ( 'gradientshapeok' => 't' ) if $gradientshapeok;
+    @attributes.push: ( 'o:connecttype' => $connecttype );
 
-    $self->xml_empty_tag( 'v:path', @attributes );
+    self.xml_empty_tag( 'v:path', @attributes );
 }
 
 
@@ -380,9 +342,7 @@ sub _write_comment_path {
 #
 # Write the <v:path> element.
 #
-sub _write_button_path {
-
-    my $self        = shift;
+method write_button_path {
     my $shadowok    = 'f';
     my $extrusionok = 'f';
     my $strokeok    = 'f';
@@ -397,7 +357,7 @@ sub _write_button_path {
         'o:connecttype' => $connecttype,
     );
 
-    $self->xml_empty_tag( 'v:path', @attributes );
+    self.xml_empty_tag( 'v:path', @attributes );
 }
 
 
@@ -407,9 +367,7 @@ sub _write_button_path {
 #
 # Write the <v:path> element.
 #
-sub _write_image_path {
-
-    my $self            = shift;
+method write_image_path {
     my $extrusionok     = 'f';
     my $gradientshapeok = 't';
     my $connecttype     = 'rect';
@@ -420,7 +378,7 @@ sub _write_image_path {
         'o:connecttype'   => $connecttype,
     );
 
-    $self->xml_empty_tag( 'v:path', @attributes );
+    self.xml_empty_tag( 'v:path', @attributes );
 }
 
 
@@ -430,9 +388,7 @@ sub _write_image_path {
 #
 # Write the <o:lock> element.
 #
-sub _write_shapetype_lock {
-
-    my $self      = shift;
+method write_shapetype_lock {
     my $ext       = 'edit';
     my $shapetype = 't';
 
@@ -441,7 +397,7 @@ sub _write_shapetype_lock {
         'shapetype' => $shapetype,
     );
 
-    $self->xml_empty_tag( 'o:lock', @attributes );
+    self.xml_empty_tag( 'o:lock', @attributes );
 }
 
 
@@ -451,9 +407,7 @@ sub _write_shapetype_lock {
 #
 # Write the <o:lock> element.
 #
-sub _write_rotation_lock {
-
-    my $self     = shift;
+method write_rotation_lock {
     my $ext      = 'edit';
     my $rotation = 't';
 
@@ -462,7 +416,7 @@ sub _write_rotation_lock {
         'rotation' => $rotation,
     );
 
-    $self->xml_empty_tag( 'o:lock', @attributes );
+    self.xml_empty_tag( 'o:lock', @attributes );
 }
 
 
@@ -472,9 +426,7 @@ sub _write_rotation_lock {
 #
 # Write the <o:lock> element.
 #
-sub _write_aspect_ratio_lock {
-
-    my $self        = shift;
+method write_aspect_ratio_lock {
     my $ext         = 'edit';
     my $aspectratio = 't';
 
@@ -483,7 +435,7 @@ sub _write_aspect_ratio_lock {
         'aspectratio' => $aspectratio,
     );
 
-    $self->xml_empty_tag( 'o:lock', @attributes );
+    self.xml_empty_tag( 'o:lock', @attributes );
 }
 
 ##############################################################################
@@ -492,47 +444,42 @@ sub _write_aspect_ratio_lock {
 #
 # Write the <v:shape> element.
 #
-sub _write_comment_shape {
-
-    my $self       = shift;
-    my $id         = shift;
-    my $z_index    = shift;
-    my $comment    = shift;
+method write_comment_shape($id, $z-index, $comment) {
     my $type       = '#_x0000_t202';
     my $insetmode  = 'auto';
     my $visibility = 'hidden';
 
     # Set the shape index.
-    $id = '_x0000_s' . $id;
+    $id = '_x0000_s' ~ $id;
 
     # Get the comment parameters
-    my $row       = $comment->[0];
-    my $col       = $comment->[1];
-    my $string    = $comment->[2];
-    my $author    = $comment->[3];
-    my $visible   = $comment->[4];
-    my $fillcolor = $comment->[5];
-    my $vertices  = $comment->[6];
+    my $row       = $comment[0];
+    my $col       = $comment[1];
+    my $string    = $comment[2];
+    my $author    = $comment[3];
+    my $visible   = $comment[4];
+    my $fillcolor = $comment[5];
+    my $vertices  = $comment[6];
 
-    my ( $left, $top, $width, $height ) = $self->_pixels_to_points( $vertices );
+    my ( $left, $top, $width, $height ) = self.pixels_to_points( $vertices );
 
     # Set the visibility.
     $visibility = 'visible' if $visible;
 
     my $style =
         'position:absolute;'
-      . 'margin-left:'
-      . $left . 'pt;'
-      . 'margin-top:'
-      . $top . 'pt;'
-      . 'width:'
-      . $width . 'pt;'
-      . 'height:'
-      . $height . 'pt;'
-      . 'z-index:'
-      . $z_index . ';'
-      . 'visibility:'
-      . $visibility;
+      ~ 'margin-left:'
+      ~ $left ~ 'pt;'
+      ~ 'margin-top:'
+      ~ $top ~ 'pt;'
+      ~ 'width:'
+      ~ $width ~ 'pt;'
+      ~ 'height:'
+      ~ $height ~ 'pt;'
+      ~ 'z-index:'
+      ~ $z-index ~ ';'
+      ~ 'visibility:'
+      ~ $visibility;
 
 
     my @attributes = (
@@ -543,24 +490,24 @@ sub _write_comment_shape {
         'o:insetmode' => $insetmode,
     );
 
-    $self->xml_start_tag( 'v:shape', @attributes );
+    self.xml_start_tag( 'v:shape', @attributes );
 
     # Write the v:fill element.
-    $self->_write_comment_fill();
+    self.write_comment_fill();
 
     # Write the v:shadow element.
-    $self->_write_shadow();
+    self.write_shadow();
 
     # Write the v:path element.
-    $self->_write_comment_path( undef, 'none' );
+    self.write_comment_path( Nil, 'none' );
 
     # Write the v:textbox element.
-    $self->_write_comment_textbox();
+    self.write_comment_textbox();
 
     # Write the x:ClientData element.
-    $self->_write_comment_client_data( $row, $col, $visible, $vertices );
+    self.write_comment_client_data( $row, $col, $visible, $vertices );
 
-    $self->xml_end_tag( 'v:shape' );
+    self.xml_end_tag( 'v:shape' );
 }
 
 
@@ -570,37 +517,32 @@ sub _write_comment_shape {
 #
 # Write the <v:shape> element.
 #
-sub _write_button_shape {
-
-    my $self       = shift;
-    my $id         = shift;
-    my $z_index    = shift;
-    my $button     = shift;
+method write_button_shape($id, $z-index, $button) {
     my $type       = '#_x0000_t201';
 
     # Set the shape index.
-    $id = '_x0000_s' . $id;
+    $id = '_x0000_s' ~ $id;
 
     # Get the button parameters
-    my $row       = $button->{_row};
-    my $col       = $button->{_col};
-    my $vertices  = $button->{_vertices};
+    my $row       = $button<row>;
+    my $col       = $button<col>;
+    my $vertices  = $button<vertices>;
 
-    my ( $left, $top, $width, $height ) = $self->_pixels_to_points( $vertices );
+    my ( $left, $top, $width, $height ) = self.pixels_to_points( $vertices );
 
     my $style =
         'position:absolute;'
-      . 'margin-left:'
-      . $left . 'pt;'
-      . 'margin-top:'
-      . $top . 'pt;'
-      . 'width:'
-      . $width . 'pt;'
-      . 'height:'
-      . $height . 'pt;'
-      . 'z-index:'
-      . $z_index . ';'
-      . 'mso-wrap-style:tight';
+      ~ 'margin-left:'
+      ~ $left ~ 'pt;'
+      ~ 'margin-top:'
+      ~ $top ~ 'pt;'
+      ~ 'width:'
+      ~ $width ~ 'pt;'
+      ~ 'height:'
+      ~ $height ~ 'pt;'
+      ~ 'z-index:'
+      ~ $z-index ~ ';'
+      ~ 'mso-wrap-style:tight';
 
 
     my @attributes = (
@@ -613,21 +555,21 @@ sub _write_button_shape {
         'o:insetmode' => 'auto',
     );
 
-    $self->xml_start_tag( 'v:shape', @attributes );
+    self.xml_start_tag( 'v:shape', @attributes );
 
     # Write the v:fill element.
-    $self->_write_button_fill();
+    self.write_button_fill();
 
     # Write the o:lock element.
-    $self->_write_rotation_lock();
+    self.write_rotation_lock();
 
     # Write the v:textbox element.
-    $self->_write_button_textbox( $button->{_font} );
+    self.write_button_textbox( $button<font> );
 
     # Write the x:ClientData element.
-    $self->_write_button_client_data( $button );
+    self.write_button_client_data( $button );
 
-    $self->xml_end_tag( 'v:shape' );
+    self.xml_end_tag( 'v:shape' );
 }
 
 
@@ -637,43 +579,38 @@ sub _write_button_shape {
 #
 # Write the <v:shape> element.
 #
-sub _write_image_shape {
-
-    my $self       = shift;
-    my $id         = shift;
-    my $index      = shift;
-    my $image_data = shift;
+method write_image_shape($id, $index, $image-data) {
     my $type       = '#_x0000_t75';
 
     # Set the shape index.
-    $id = '_x0000_s' . $id;
+    $id = '_x0000_s' ~ $id;
 
     # Get the image parameters
-    my $width    = $image_data->[0];
-    my $height   = $image_data->[1];
-    my $name     = $image_data->[2];
-    my $position = $image_data->[3];
-    my $x_dpi    = $image_data->[4];
-    my $y_dpi    = $image_data->[5];
+    my $width    = $image-data[0];
+    my $height   = $image-data[1];
+    my $name     = $image-data[2];
+    my $position = $image-data[3];
+    my $x_dpi    = $image-data[4];
+    my $y_dpi    = $image-data[5];
 
     # Scale the height/width by the resolution, relative to 72dpi.
     $width  = $width  * 72 / $x_dpi;
     $height = $height * 72 / $y_dpi;
 
     # Excel uses a rounding based around 72 and 96 dpi.
-    $width  = 72/96 * int($width  * 96/72 + 0.25);
-    $height = 72/96 * int($height * 96/72 + 0.25);
+    $width  = 72/96 * ($width  * 96/72 + 0.25).int;
+    $height = 72/96 * ($height * 96/72 + 0.25).int;
 
     my $style =
         'position:absolute;'
-      . 'margin-left:0;'
-      . 'margin-top:0;'
-      . 'width:'
-      . $width . 'pt;'
-      . 'height:'
-      . $height . 'pt;'
-      . 'z-index:'
-      . $index;
+      ~ 'margin-left:0;'
+      ~ 'margin-top:0;'
+      ~ 'width:'
+      ~ $width ~ 'pt;'
+      ~ 'height:'
+      ~ $height ~ 'pt;'
+      ~ 'z-index:'
+      ~ $index;
 
     my @attributes = (
         'id'     => $position,
@@ -682,15 +619,15 @@ sub _write_image_shape {
         'style'  => $style,
     );
 
-    $self->xml_start_tag( 'v:shape', @attributes );
+    self.xml_start_tag( 'v:shape', @attributes );
 
     # Write the v:imagedata element.
-    $self->_write_imagedata( $index, $name );
+    self.write_imagedata( $index, $name );
 
     # Write the o:lock element.
-    $self->_write_rotation_lock();
+    self.write_rotation_lock();
 
-    $self->xml_end_tag( 'v:shape' );
+    self.xml_end_tag( 'v:shape' );
 }
 
 ##############################################################################
@@ -699,14 +636,12 @@ sub _write_image_shape {
 #
 # Write the <v:fill> element.
 #
-sub _write_comment_fill {
-
-    my $self    = shift;
+method write_comment_fill {
     my $color_2 = '#ffffe1';
 
     my @attributes = ( 'color2' => $color_2 );
 
-    $self->xml_empty_tag( 'v:fill', @attributes );
+    self.xml_empty_tag( 'v:fill', @attributes );
 }
 
 
@@ -716,9 +651,7 @@ sub _write_comment_fill {
 #
 # Write the <v:fill> element.
 #
-sub _write_button_fill {
-
-    my $self             = shift;
+method write_button_fill {
     my $color_2          = 'buttonFace [67]';
     my $detectmouseclick = 't';
 
@@ -727,7 +660,7 @@ sub _write_button_fill {
         'o:detectmouseclick' => $detectmouseclick,
     );
 
-    $self->xml_empty_tag( 'v:fill', @attributes );
+    self.xml_empty_tag( 'v:fill', @attributes );
 }
 
 
@@ -737,9 +670,7 @@ sub _write_button_fill {
 #
 # Write the <v:shadow> element.
 #
-sub _write_shadow {
-
-    my $self     = shift;
+method write_shadow {
     my $on       = 't';
     my $color    = 'black';
     my $obscured = 't';
@@ -750,7 +681,7 @@ sub _write_shadow {
         'obscured' => $obscured,
     );
 
-    $self->xml_empty_tag( 'v:shadow', @attributes );
+    self.xml_empty_tag( 'v:shadow', @attributes );
 }
 
 
@@ -760,19 +691,17 @@ sub _write_shadow {
 #
 # Write the <v:textbox> element.
 #
-sub _write_comment_textbox {
-
-    my $self  = shift;
+method write_comment_textbox {
     my $style = 'mso-direction-alt:auto';
 
     my @attributes = ( 'style' => $style );
 
-    $self->xml_start_tag( 'v:textbox', @attributes );
+    self.xml_start_tag( 'v:textbox', @attributes );
 
     # Write the div element.
-    $self->_write_div( 'left' );
+    self.write_div( 'left' );
 
-    $self->xml_end_tag( 'v:textbox' );
+    self.xml_end_tag( 'v:textbox' );
 }
 
 
@@ -782,20 +711,17 @@ sub _write_comment_textbox {
 #
 # Write the <v:textbox> element.
 #
-sub _write_button_textbox {
-
-    my $self  = shift;
-    my $font  = shift;
+method write_button_textbox($font) {
     my $style = 'mso-direction-alt:auto';
 
     my @attributes = ( 'style' => $style, 'o:singleclick' => 'f' );
 
-    $self->xml_start_tag( 'v:textbox', @attributes );
+    self.xml_start_tag( 'v:textbox', @attributes );
 
     # Write the div element.
-    $self->_write_div( 'center', $font );
+    self.write_div( 'center', $font );
 
-    $self->xml_end_tag( 'v:textbox' );
+    self.xml_end_tag( 'v:textbox' );
 }
 
 
@@ -805,25 +731,20 @@ sub _write_button_textbox {
 #
 # Write the <div> element.
 #
-sub _write_div {
-
-    my $self  = shift;
-    my $align = shift;
-    my $font  = shift;
-    my $style = 'text-align:' . $align;
+method write_div($align, $font) {
+    my $style = 'text-align:' ~ $align;
 
     my @attributes = ( 'style' => $style );
 
-    $self->xml_start_tag( 'div', @attributes );
+    self.xml_start_tag( 'div', @attributes );
 
-
-    if ( $font ) {
+    if $font {
 
         # Write the font element.
-        $self->_write_font( $font );
+        self.write_font( $font );
     }
 
-    $self->xml_end_tag( 'div' );
+    self.xml_end_tag( 'div' );
 }
 
 ##############################################################################
@@ -832,11 +753,8 @@ sub _write_div {
 #
 # Write the <font> element.
 #
-sub _write_font {
-
-    my $self    = shift;
-    my $font    = shift;
-    my $caption = $font->{_caption};
+method write_font($font) {
+    my $caption = $font<caption>;
     my $face    = 'Calibri';
     my $size    = 220;
     my $color   = '#000000';
@@ -847,7 +765,7 @@ sub _write_font {
         'color' => $color,
     );
 
-    $self->xml_data_element( 'font', $caption, @attributes );
+    self.xml_data_element( 'font', $caption, @attributes );
 }
 
 
@@ -857,41 +775,35 @@ sub _write_font {
 #
 # Write the <x:ClientData> element.
 #
-sub _write_comment_client_data {
-
-    my $self        = shift;
-    my $row         = shift;
-    my $col         = shift;
-    my $visible     = shift;
-    my $vertices    = shift;
+method write_comment_client_data($row, $col, $visible, $vertices) {
     my $object_type = 'Note';
 
     my @attributes = ( 'ObjectType' => $object_type );
 
-    $self->xml_start_tag( 'x:ClientData', @attributes );
+    self.xml_start_tag( 'x:ClientData', @attributes );
 
     # Write the x:MoveWithCells element.
-    $self->_write_move_with_cells();
+    self.write_move_with_cells();
 
     # Write the x:SizeWithCells element.
-    $self->_write_size_with_cells();
+    self.write_size_with_cells();
 
     # Write the x:Anchor element.
-    $self->_write_anchor( $vertices );
+    self.write_anchor( $vertices );
 
     # Write the x:AutoFill element.
-    $self->_write_auto_fill();
+    self.write_auto_fill();
 
     # Write the x:Row element.
-    $self->_write_row( $row );
+    self.write_row( $row );
 
     # Write the x:Column element.
-    $self->_write_column( $col );
+    self.write_column( $col );
 
     # Write the x:Visible element.
-    $self->_write_visible() if $visible;
+    self.write_visible() if $visible;
 
-    $self->xml_end_tag( 'x:ClientData' );
+    self.xml_end_tag( 'x:ClientData' );
 }
 
 
@@ -901,41 +813,38 @@ sub _write_comment_client_data {
 #
 # Write the <x:ClientData> element.
 #
-sub _write_button_client_data {
-
-    my $self      = shift;
-    my $button    = shift;
-    my $row       = $button->{_row};
-    my $col       = $button->{_col};
-    my $macro     = $button->{_macro};
-    my $vertices  = $button->{_vertices};
+method write_button_client_data($button) {
+    my $row       = $button<row>;
+    my $col       = $button<col>;
+    my $macro     = $button<macro>;
+    my $vertices  = $button<vertices>;
 
 
     my $object_type = 'Button';
 
     my @attributes = ( 'ObjectType' => $object_type );
 
-    $self->xml_start_tag( 'x:ClientData', @attributes );
+    self.xml_start_tag( 'x:ClientData', @attributes );
 
     # Write the x:Anchor element.
-    $self->_write_anchor( $vertices );
+    self.write_anchor( $vertices );
 
     # Write the x:PrintObject element.
-    $self->_write_print_object();
+    self.write_print_object();
 
     # Write the x:AutoFill element.
-    $self->_write_auto_fill();
+    self.write_auto_fill();
 
     # Write the x:FmlaMacro element.
-    $self->_write_fmla_macro( $macro );
+    self.write_fmla_macro( $macro );
 
     # Write the x:TextHAlign element.
-    $self->_write_text_halign();
+    self.write_text_halign();
 
     # Write the x:TextVAlign element.
-    $self->_write_text_valign();
+    self.write_text_valign();
 
-    $self->xml_end_tag( 'x:ClientData' );
+    self.xml_end_tag( 'x:ClientData' );
 }
 
 
@@ -945,11 +854,8 @@ sub _write_button_client_data {
 #
 # Write the <x:MoveWithCells> element.
 #
-sub _write_move_with_cells {
-
-    my $self = shift;
-
-    $self->xml_empty_tag( 'x:MoveWithCells' );
+method write_move_with_cells {
+    self.xml_empty_tag( 'x:MoveWithCells' );
 }
 
 
@@ -959,11 +865,8 @@ sub _write_move_with_cells {
 #
 # Write the <x:SizeWithCells> element.
 #
-sub _write_size_with_cells {
-
-    my $self = shift;
-
-    $self->xml_empty_tag( 'x:SizeWithCells' );
+method write_size_with_cells {
+    self.xml_empty_tag( 'x:SizeWithCells' );
 }
 
 
@@ -973,11 +876,8 @@ sub _write_size_with_cells {
 #
 # Write the <x:Visible> element.
 #
-sub _write_visible {
-
-    my $self = shift;
-
-    $self->xml_empty_tag( 'x:Visible' );
+method write_visible {
+    self.xml_empty_tag( 'x:Visible' );
 }
 
 
@@ -987,18 +887,14 @@ sub _write_visible {
 #
 # Write the <x:Anchor> element.
 #
-sub _write_anchor {
-
-    my $self     = shift;
-    my $vertices = shift;
-
+method write_anchor($vertices) {
     my ( $col_start, $row_start, $x1, $y1, $col_end, $row_end, $x2, $y2 ) =
-      @$vertices;
+      $vertices;
 
     my $data = join ", ",
       ( $col_start, $x1, $row_start, $y1, $col_end, $x2, $row_end, $y2 );
 
-    $self->xml_data_element( 'x:Anchor', $data );
+    self.xml_data_element( 'x:Anchor', $data );
 }
 
 
@@ -1008,12 +904,10 @@ sub _write_anchor {
 #
 # Write the <x:AutoFill> element.
 #
-sub _write_auto_fill {
-
-    my $self = shift;
+method write_auto_fill {
     my $data = 'False';
 
-    $self->xml_data_element( 'x:AutoFill', $data );
+    self.xml_data_element( 'x:AutoFill', $data );
 }
 
 
@@ -1023,12 +917,8 @@ sub _write_auto_fill {
 #
 # Write the <x:Row> element.
 #
-sub _write_row {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'x:Row', $data );
+method write_row($data) {
+    self.xml_data_element( 'x:Row', $data );
 }
 
 
@@ -1038,12 +928,8 @@ sub _write_row {
 #
 # Write the <x:Column> element.
 #
-sub _write_column {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'x:Column', $data );
+method write_column($data) {
+    self.xml_data_element( 'x:Column', $data );
 }
 
 
@@ -1053,12 +939,10 @@ sub _write_column {
 #
 # Write the <x:PrintObject> element.
 #
-sub _write_print_object {
-
-    my $self = shift;
+method write_print_object {
     my $data = 'False';
 
-    $self->xml_data_element( 'x:PrintObject', $data );
+    self.xml_data_element( 'x:PrintObject', $data );
 }
 
 
@@ -1068,12 +952,10 @@ sub _write_print_object {
 #
 # Write the <x:TextHAlign> element.
 #
-sub _write_text_halign {
-
-    my $self = shift;
+method write_text_halign {
     my $data = 'Center';
 
-    $self->xml_data_element( 'x:TextHAlign', $data );
+    self.xml_data_element( 'x:TextHAlign', $data );
 }
 
 
@@ -1083,12 +965,10 @@ sub _write_text_halign {
 #
 # Write the <x:TextVAlign> element.
 #
-sub _write_text_valign {
-
-    my $self = shift;
+method write_text_valign {
     my $data = 'Center';
 
-    $self->xml_data_element( 'x:TextVAlign', $data );
+    self.xml_data_element( 'x:TextVAlign', $data );
 }
 
 
@@ -1098,12 +978,8 @@ sub _write_text_valign {
 #
 # Write the <x:FmlaMacro> element.
 #
-sub _write_fmla_macro {
-
-    my $self = shift;
-    my $data = shift;
-
-    $self->xml_data_element( 'x:FmlaMacro', $data );
+method write_fmla_macro($data) {
+    self.xml_data_element( 'x:FmlaMacro', $data );
 }
 
 ##############################################################################
@@ -1112,18 +988,13 @@ sub _write_fmla_macro {
 #
 # Write the <v:imagedata> element.
 #
-sub _write_imagedata {
-
-    my $self    = shift;
-    my $index   = shift;
-    my $o_title = shift;
-
+method write_imagedata($index, $o-title) {
     my @attributes = (
-        'o:relid' => 'rId' . $index,
-        'o:title' => $o_title,
+        'o:relid' => 'rId' ~ $index,
+        'o:title' => $o-title,
     );
 
-    $self->xml_empty_tag( 'v:imagedata', @attributes );
+    self.xml_empty_tag( 'v:imagedata', @attributes );
 }
 
 
@@ -1134,27 +1005,24 @@ sub _write_imagedata {
 #
 # Write the <v:formulas> element.
 #
-sub _write_formulas {
-
-    my $self                 = shift;
-
-    $self->xml_start_tag( 'v:formulas' );
+method write_formulas {
+    self.xml_start_tag( 'v:formulas' );
 
     # Write the v:f elements.
-    $self->_write_f('if lineDrawn pixelLineWidth 0');
-    $self->_write_f('sum @0 1 0');
-    $self->_write_f('sum 0 0 @1');
-    $self->_write_f('prod @2 1 2');
-    $self->_write_f('prod @3 21600 pixelWidth');
-    $self->_write_f('prod @3 21600 pixelHeight');
-    $self->_write_f('sum @0 0 1');
-    $self->_write_f('prod @6 1 2');
-    $self->_write_f('prod @7 21600 pixelWidth');
-    $self->_write_f('sum @8 21600 0');
-    $self->_write_f('prod @7 21600 pixelHeight');
-    $self->_write_f('sum @10 21600 0');
+    self.write_f('if lineDrawn pixelLineWidth 0');
+    self.write_f('sum @0 1 0');
+    self.write_f('sum 0 0 @1');
+    self.write_f('prod @2 1 2');
+    self.write_f('prod @3 21600 pixelWidth');
+    self.write_f('prod @3 21600 pixelHeight');
+    self.write_f('sum @0 0 1');
+    self.write_f('prod @6 1 2');
+    self.write_f('prod @7 21600 pixelWidth');
+    self.write_f('sum @8 21600 0');
+    self.write_f('prod @7 21600 pixelHeight');
+    self.write_f('sum @10 21600 0');
 
-    $self->xml_end_tag( 'v:formulas' );
+    self.xml_end_tag( 'v:formulas' );
 }
 
 
@@ -1164,18 +1032,13 @@ sub _write_formulas {
 #
 # Write the <v:f> element.
 #
-sub _write_f {
-
-    my $self = shift;
-    my $eqn  = shift;
-
+method write_f($eqn) {
     my @attributes = ( 'eqn' => $eqn );
 
-    $self->xml_empty_tag( 'v:f', @attributes );
+    self.xml_empty_tag( 'v:f', @attributes );
 }
 
-1;
-
+=begin pod
 
 __END__
 
@@ -1212,3 +1075,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod
