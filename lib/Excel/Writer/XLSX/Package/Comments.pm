@@ -14,8 +14,8 @@ unit class Excel::Writer::XLSX::Package::Comments;
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
 use v6.c;
-#use Excel::Writer::XLSX::Package::XMLwriter;
-#use Excel::Writer::XLSX::Utility qw(xl_rowcol_to_cell);
+use Excel::Writer::XLSX::Package::XMLwriter;
+use Excel::Writer::XLSX::Utility;
 
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
@@ -177,7 +177,7 @@ method write_comment_list($comment-data) {
 # Write the <comment> element.
 #
 method write_comment($row, $col, $text, $author-id) {
-    my $ref       = xl_rowcol_to_cell( $row, $col );
+    my $ref       = xl-rowcol-to-cell( $row, $col );
 
     my @attributes = ( 'ref' => $ref );
 

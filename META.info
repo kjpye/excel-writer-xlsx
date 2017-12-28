@@ -3,11 +3,14 @@
     "version"     : "0.2.0",
     "description" : "Generate Excel XLSX files",
     "author"      : "Kevin Pye (Kevin.Pye@gmail.com)",
-    "depends"     : [],
+    "depends"     : [
+                      "File::Temp",
+                      "Archive::SimpleZip"
+                    ],
     "provides"    : {
+                    "Excel::Writer::XLSX::Utility"                : "lib/Excel/Writer/XLSX/Utility.pm",
                     "Excel::Writer::XLSX"                         : "lib/Excel/Writer/XLSX.pm",
                     "Excel::Writer::XLSX::Format"                 : "lib/Excel/Writer/XLSX/Format.pm",
-                    "Excel::Writer::XLSX::Utility"                : "lib/Excel/Writer/XLSX/Utility.pm",
                     "Excel::Writer::XLSX::Workbook"               : "lib/Excel/Writer/XLSX/Workbook.pm",
                     "Excel::Writer::XLSX::Worksheet"              : "lib/Excel/Writer/XLSX/Worksheet.pm",
                     "Excel::Writer::XLSX::Package::App"           : "lib/Excel/Writer/XLSX/Package/App.pm",

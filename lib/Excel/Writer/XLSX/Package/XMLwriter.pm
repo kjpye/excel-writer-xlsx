@@ -10,7 +10,7 @@ unit class Excel::Writer::XLSX::Package::XMLwriter;
 #
 # Documentation at end
 
-use 6.c;
+use v6.c;
 
 has $fh;
 
@@ -59,7 +59,7 @@ method set_xml_writer($filename) {
 # Write the XML declaration.
 #
 method xml_declaration {
-    $!fh.print qq(<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n);
+    $!fh.print: qq[<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n];
 }
 
 
@@ -71,13 +71,13 @@ method xml_declaration {
 #
 method xml_start_tag($tag is copy, *%options) {
 
-  for *%options.kv -> $key, $value {
+  for %options.kv -> $key, $value {
         $value .= escape_attributes;
 
-        $tag ~= qq( $key="$value");
+        $tag ~= qq[ $key="$value"];
     }
 
-    $!fh.print "<{$tag}>";
+    $!fh.print: "<{$tag}>";
 }
 
 ###############################################################################
@@ -89,11 +89,11 @@ method xml_start_tag($tag is copy, *%options) {
 
 method xml_start_tag_unencoded($tag is copy, *%options) {
 
-  for *%options.kv -> $key, $value {
-    $tag .= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $tag ~= qq[ $key="$value"];
   }
 
-  $!fh.print "<$tag>";
+  $!fh.print: "<$tag>";
 }
 
 ###############################################################################
@@ -103,7 +103,7 @@ method xml_start_tag_unencoded($tag is copy, *%options) {
 # Write an XML end tag.
 
 method xml_end_tag($tag) {
-    $!fh.print "</$tag>";
+    $!fh.print: "</$tag>";
 }
 
 ###############################################################################
@@ -114,12 +114,12 @@ method xml_end_tag($tag) {
 #
 method xml_empty_tag($tag is copy, *%options) {
 
-  for *%options.kv -> $key, $value {
+  for %options.kv -> $key, $value {
     $value .= escape_attributes;
-    $tag ~= qq( $key="$value");
+    $tag ~= qq[ $key="$value"];
   }
 
-  $!fh.print "<$tag/>";
+  $!fh.print: "<$tag/>";
 }
 
 ###############################################################################
@@ -131,10 +131,10 @@ method xml_empty_tag($tag is copy, *%options) {
 #
 method xml_empty_tag_unencoded($tag is copy, *%options) {
 
-  for *%options.kv -> $key, $value {
-    $tag ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $tag ~= qq[ $key="$value"];
   }
-  $!fh.print "<$tag/>";
+  $!fh.print: "<$tag/>";
 }
 
 
@@ -149,14 +149,14 @@ method xml_data_element($tag is copy, $data is copy, *%options) {
 
   my $end_tag = $tag;
 
-  for *%options.kv -> $key, $value {
+  for %options.kv -> $key, $value {
     $value .= escape_attributes;
-    $tag ~= qq( $key="$value");
+    $tag ~= qq[ $key="$value"];
   }
 
   $data .= escape_data;
 
-  $!fh.print "<$tag>$data</$end_tag>";
+  $!fh.print: "<$tag>$data</$end_tag>";
 }
 
 
@@ -171,10 +171,10 @@ method xml_data_element_unencoded($tag is copy, $data, *%options) {
 
   my $end_tag = $tag;
 
-  for *options.kv -> $key, $value {
-    $tag ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $tag ~= qq[ $key="$value"];
   }
-  $!fh.print "<$tag>$data</$end_tag>";
+  $!fh.print: "<$tag>$data</$end_tag>";
 }
 
 
@@ -184,15 +184,15 @@ method xml_data_element_unencoded($tag is copy, $data, *%options) {
 #
 # Optimised tag writer for <c> cell string elements in the inner loop.
 #
-method xml_string_element(^%options) {
+method xml_string_element($index, *%options) {
 
   my $attr  = '';
 
-  for *%options.kv -> $key, $value {
-    $attr ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
 
-  $!fh.print "<c$attr t=\"s\"><v>$index</v></c>";
+  $!fh.print: "<c$attr t=\"s\"><v>{$index}</v></c>";
 }
 
 
@@ -206,13 +206,13 @@ method xml_si_element($string is copy, *%options) {
 
   my $attr   = '';
 
-  for *%options.kv -> $key, $value {
-    $attr ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
 
   $string .= escape_data;
 
-  $!fh.print "<si><t$attr>$string</t></si>";
+  $!fh.print: "<si><t$attr>$string</t></si>";
 }
 
 
@@ -223,7 +223,7 @@ method xml_si_element($string is copy, *%options) {
 # Optimised tag writer for shared strings <si> rich string elements.
 #
 method xml_rich_si_element($string) {
-  $!fh.print "<si>$string</si>";
+  $!fh.print: "<si>$string</si>";
 }
 
 
@@ -233,14 +233,14 @@ method xml_rich_si_element($string) {
 #
 # Optimised tag writer for <c> cell number elements in the inner loop.
 #
-sub xml_number_element($number, *%options) {
+method xml_number_element($number, *%options) {
 
   my $attr   = '';
 
-  for *%options.kv -> $key, $value {
-    $attr ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
-  $!fh.print "<c$attr><v>$number</v></c>";
+  $!fh.print: "<c{$attr}><v>{$number}</v></c>";
 }
 
 
@@ -254,13 +254,13 @@ method xml_formula_element($formula is copy, $result, *%options) {
 
   my $attr    = '';
 
-  for *%options.kv -> $key, $value {
-    $attr ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
 
   $formula .= escape_data;
 
-  $!fh.print "<c$attr><f>$formula</f><v>$result</v></c>";
+  $!fh.print: "<c$attr><f>$formula</f><v>$result</v></c>";
 }
 
 
@@ -278,13 +278,13 @@ method xml_inline_string($string is copy, $preserve, *%options) {
   # Set the <t> attribute to preserve whitespace.
   $t_attr = ' xml:space="preserve"' if $preserve;
 
-  for *%options.kv -> $key, $value {
-    $attr .= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
 
   $string .= escape_data;
 
-  $!fh.print "<c$attr t=\"inlineStr\"><is><t$t_attr>$string</t></is></c>";
+  $!fh.print: "<c$attr t=\"inlineStr\"><is><t$t_attr>$string</t></is></c>";
 }
 
 
@@ -298,11 +298,11 @@ method xml_rich_inline_string($string, *%options) {
 
   my $attr   = '';
 
-  for *%options.kv -> $key, $value {
-    $attr ~= qq( $key="$value");
+  for %options.kv -> $key, $value {
+    $attr ~= qq[ $key="$value"];
   }
 
-  $!fh.print "<c$attr t=\"inlineStr\"><is>$string</is></c>";
+  $!fh.print: "<c$attr t=\"inlineStr\"><is>$string</is></c>";
 }
 
 
@@ -329,13 +329,13 @@ method xml_rich_inline_string($string, *%options) {
 #
 method escape_attributes($str is copy) {
 
-  return $str if $str !~ m/<["&<>\n]>/;
+  return $str if $str !~~ /<["&<>\n]>/;
 
-  $str ~~ s:g/\&/&amp;/g;
-  $str ~~ s:g/\"/&quot;/g;
-  $str ~~ s:g/\</&lt;/g;
-  $str ~~ s:g/\>/&gt;/g;
-  $str ~~ s:g/\n/&#xA;/g;
+  $str ~~ s:g/\&/&amp;/;
+  $str ~~ s:g/\"/&quot;/;
+  $str ~~ s:g/\</&lt;/;
+  $str ~~ s:g/\>/&gt;/;
+  $str ~~ s:g/\n/&#xA;/;
 
   return $str;
 }
@@ -350,11 +350,11 @@ method escape_attributes($str is copy) {
 #
 method escape_data($str is copy) {
 
-  return $str if $str !~ m/<[&<>]>/;
+  return $str if $str !~~ m/<[&<>]>/;
 
-  $str ~~ s:g/&/&amp;/g;
-  $str ~~ s:g/</&lt;/g;
-  $str ~~ s:g/>/&gt;/g;
+  $str ~~ s:g/\&/&amp;/;
+  $str ~~ s:g/\</&lt;/;
+  $str ~~ s:g/\>/&gt;/;
 
   return $str;
 }
@@ -394,3 +394,4 @@ Either the Perl Artistic Licence L<http://dev.perl.org/licenses/artistic.html> o
 See the documentation for L<Excel::Writer::XLSX>.
 
 =cut
+=end pod

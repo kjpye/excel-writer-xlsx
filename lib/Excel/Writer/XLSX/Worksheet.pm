@@ -15,17 +15,11 @@ unit class Excel::Writer::XLSX::Worksheet;
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
 use v6.c;
-#NYI use Carp;
-#NYI use File::Temp 'tempfile';
-#NYI use List::Util qw(max min);
-#NYI use Excel::Writer::XLSX::Format;
-#NYI use Excel::Writer::XLSX::Drawing;
-#NYI use Excel::Writer::XLSX::Package::XMLwriter;
-#use Excel::Writer::XLSX::Utility   <xl_cell_to_rowcol
-#                                    xl_rowcol_to_cell
-#                                    xl_col_to_name
-#                                    xl_range
-#                                    quote_sheetname>;
+use File::Temp;
+use Excel::Writer::XLSX::Format;
+#use Excel::Writer::XLSX::Drawing;
+use Excel::Writer::XLSX::Package::XMLwriter;
+use Excel::Writer::XLSX::Utility;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
@@ -507,7 +501,7 @@ method set_first_sheet {
 #NYI             $defaults{$key} = $options->{$key};
 #NYI         }
 #NYI         else {
-#NYI             carp "Unknown protection object: $key\n";
+#NYI             warn "Unknown protection object: $key\n";
 #NYI         }
 #NYI     }
 #NYI 
@@ -595,7 +589,7 @@ method set_column(@data) {
     my $ignore_row = 1;
     my $ignore_col = 1;
 #TODO: Fix next two lines
-    $ignore_col = 0 if ref @data[3];          # Column has a format.
+    $ignore_col = 0 if @data[3].defined;          # Column has a format.
     $ignore_col = 0 if @data[2] && @data[4];  # Column has a width but is hidden
 
     return -2
@@ -657,13 +651,13 @@ method set_column(@data) {
 #NYI     if ( @_ == 2 ) {
 #NYI 
 #NYI         # Single cell selection.
-#NYI         $active_cell = xl_rowcol_to_cell( $_[0], $_[1] );
+#NYI         $active_cell = xl-rowcol-to-cell( $_[0], $_[1] );
 #NYI         $sqref = $active_cell;
 #NYI     }
 #NYI     elsif ( @_ == 4 ) {
 #NYI 
 #NYI         # Range selection.
-#NYI         $active_cell = xl_rowcol_to_cell( $_[0], $_[1] );
+#NYI         $active_cell = xl-rowcol-to-cell( $_[0], $_[1] );
 #NYI 
 #NYI         my ( $row_first, $col_first, $row_last, $col_last ) = @_;
 #NYI 
@@ -681,7 +675,7 @@ method set_column(@data) {
 #NYI             $sqref = $active_cell;
 #NYI         }
 #NYI         else {
-#NYI             $sqref = xl_range( $row_first, $row_last, $col_first, $col_last );
+#NYI             $sqref = xl-range( $row_first, $row_last, $col_first, $col_last );
 #NYI         }
 #NYI 
 #NYI     }
@@ -829,7 +823,7 @@ method set_paper($paper-size) {
 #NYI     $string =~ s/&\[Picture\]/&G/g;
 #NYI 
 #NYI     if ( length $string >= 255 ) {
-#NYI         carp 'Header string must be less than 255 characters';
+#NYI         warn 'Header string must be less than 255 characters';
 #NYI         return;
 #NYI     }
 #NYI 
@@ -894,7 +888,7 @@ method set_paper($paper-size) {
 #NYI     $string =~ s/&\[Picture\]/&G/g;
 #NYI 
 #NYI     if ( length $string >= 255 ) {
-#NYI         carp 'Footer string must be less than 255 characters';
+#NYI         warn 'Footer string must be less than 255 characters';
 #NYI         return;
 #NYI     }
 #NYI 
@@ -1063,7 +1057,7 @@ method repeat_rows($row-min, $row-max) {
     my $area = '$' ~ $row-min ~ ':' ~ '$' ~ $row-max;
 
     # Build up the print titles "Sheet1!$1:$2"
-    my $sheetname = quote_sheetname( $!name );
+    my $sheetname = quote-sheetname( $!name );
     $area = $sheetname ~ "!" ~ $area;
 
     $!repeat_rows = $area;
@@ -1086,13 +1080,13 @@ method repeat_columns($col-min, $col-max) {
     $col-max //= $col-min;    # Second col is optional
 
     # Convert to A notation.
-    $col-min = xl_col_to_name( $col-min, 1 );
-    $col-max = xl_col_to_name( $col-max, 1 );
+    $col-min = xl-col-to-name( $col-min, 1 );
+    $col-max = xl-col-to-name( $col-max, 1 );
 
     my $area = $col-min ~ ':' ~ $col-max;
 
     # Build up the print area range "=Sheet2!C1:C2"
-    my $sheetname = quote_sheetname( $!name );
+    my $sheetname = quote-sheetname( $!name );
     $area = $sheetname ~ "!" ~ $area;
 
     $!repeat_cols = $area;
@@ -1160,7 +1154,7 @@ method repeat_columns($col-min, $col-max) {
 #NYI 
 #NYI     # Build up the print area range "Sheet1!$A$1:$C$13".
 #NYI     my $area = $self->_convert_name_area( $row1, $col1, $row2, $col2 );
-#NYI     my $ref = xl_range( $row1, $row2, $col1, $col2 );
+#NYI     my $ref = xl-range( $row1, $row2, $col1, $col2 );
 #NYI 
 #NYI     $self->{_autofilter}     = $area;
 #NYI     $self->{_autofilter_ref} = $ref;
@@ -1180,9 +1174,9 @@ method repeat_columns($col-min, $col-max) {
 #NYI     my $col        = $_[0];
 #NYI     my $expression = $_[1];
 #NYI 
-#NYI     croak "Must call autofilter() before filter_column()"
+#NYI     fail "Must call autofilter() before filter_column()"
 #NYI       unless $self->{_autofilter};
-#NYI     croak "Incorrect number of arguments to filter_column()"
+#NYI     fail "Incorrect number of arguments to filter_column()"
 #NYI       unless @_ == 2;
 #NYI 
 #NYI 
@@ -1193,21 +1187,21 @@ method repeat_columns($col-min, $col-max) {
 #NYI         # Convert col ref to a cell ref and then to a col number.
 #NYI         ( undef, $col ) = $self->_substitute_cellref( $col . '1' );
 #NYI 
-#NYI         croak "Invalid column '$col_letter'" if $col >= $self->{_xls_colmax};
+#NYI         fail "Invalid column '$col_letter'" if $col >= $self->{_xls_colmax};
 #NYI     }
 #NYI 
 #NYI     my ( $col_first, $col_last ) = @{ $self->{_filter_range} };
 #NYI 
 #NYI     # Reject column if it is outside filter range.
 #NYI     if ( $col < $col_first or $col > $col_last ) {
-#NYI         croak "Column '$col' outside autofilter() column range "
+#NYI         fail "Column '$col' outside autofilter() column range "
 #NYI           . "($col_first .. $col_last)";
 #NYI     }
 #NYI 
 #NYI 
 #NYI     my @tokens = $self->_extract_filter_tokens( $expression );
 #NYI 
-#NYI     croak "Incorrect number of tokens in expression '$expression'"
+#NYI     fail "Incorrect number of tokens in expression '$expression'"
 #NYI       unless ( @tokens == 3 or @tokens == 7 );
 #NYI 
 #NYI 
@@ -1253,9 +1247,9 @@ method repeat_columns($col-min, $col-max) {
 #NYI     my $col    = shift;
 #NYI     my @tokens = @_;
 #NYI 
-#NYI     croak "Must call autofilter() before filter_column_list()"
+#NYI     fail "Must call autofilter() before filter_column_list()"
 #NYI       unless $self->{_autofilter};
-#NYI     croak "Incorrect number of arguments to filter_column_list()"
+#NYI     fail "Incorrect number of arguments to filter_column_list()"
 #NYI       unless @tokens;
 #NYI 
 #NYI     # Check for a column reference in A1 notation and substitute.
@@ -1265,14 +1259,14 @@ method repeat_columns($col-min, $col-max) {
 #NYI         # Convert col ref to a cell ref and then to a col number.
 #NYI         ( undef, $col ) = $self->_substitute_cellref( $col . '1' );
 #NYI 
-#NYI         croak "Invalid column '$col_letter'" if $col >= $self->{_xls_colmax};
+#NYI         fail "Invalid column '$col_letter'" if $col >= $self->{_xls_colmax};
 #NYI     }
 #NYI 
 #NYI     my ( $col_first, $col_last ) = @{ $self->{_filter_range} };
 #NYI 
 #NYI     # Reject column if it is outside filter range.
 #NYI     if ( $col < $col_first or $col > $col_last ) {
-#NYI         croak "Column '$col' outside autofilter() column range "
+#NYI         fail "Column '$col' outside autofilter() column range "
 #NYI           . "($col_first .. $col_last)";
 #NYI     }
 #NYI 
@@ -1347,7 +1341,7 @@ method repeat_columns($col-min, $col-max) {
 #NYI             $conditional = 1;
 #NYI         }
 #NYI         else {
-#NYI             croak "Token '$conditional' is not a valid conditional "
+#NYI             fail "Token '$conditional' is not a valid conditional "
 #NYI               . "in filter expression '$expression'";
 #NYI         }
 #NYI 
@@ -1406,14 +1400,14 @@ method repeat_columns($col-min, $col-max) {
 #NYI             or $value < 1
 #NYI             or $value > 500 )
 #NYI         {
-#NYI             croak "The value '$value' in expression '$expression' "
+#NYI             fail "The value '$value' in expression '$expression' "
 #NYI               . "must be in the range 1 to 500";
 #NYI         }
 #NYI 
 #NYI         $token = lc $token;
 #NYI 
 #NYI         if ( $token ne 'items' and $token ne '%' ) {
-#NYI             croak "The type '$token' in expression '$expression' "
+#NYI             fail "The type '$token' in expression '$expression' "
 #NYI               . "must be either 'items' or '%'";
 #NYI         }
 #NYI 
@@ -1433,7 +1427,7 @@ method repeat_columns($col-min, $col-max) {
 #NYI 
 #NYI 
 #NYI     if ( not $operator and $tokens[0] ) {
-#NYI         croak "Token '$tokens[1]' is not a valid operator "
+#NYI         fail "Token '$tokens[1]' is not a valid operator "
 #NYI           . "in filter expression '$expression'";
 #NYI     }
 #NYI 
@@ -1443,7 +1437,7 @@ method repeat_columns($col-min, $col-max) {
 #NYI 
 #NYI         # Only allow Equals or NotEqual in this context.
 #NYI         if ( $operator != 2 and $operator != 5 ) {
-#NYI             croak "The operator '$tokens[1]' in expression '$expression' "
+#NYI             fail "The operator '$tokens[1]' in expression '$expression' "
 #NYI               . "is not valid in relation to Blanks/NonBlanks'";
 #NYI         }
 #NYI 
@@ -1502,8 +1496,8 @@ method repeat_columns($col-min, $col-max) {
 #NYI     my $area;
 #NYI 
 #NYI     # Convert to A1 notation.
-#NYI     my $col_char_1 = xl_col_to_name( $col_num_1, 1 );
-#NYI     my $col_char_2 = xl_col_to_name( $col_num_2, 1 );
+#NYI     my $col_char_1 = xl-col-to-name( $col_num_1, 1 );
+#NYI     my $col_char_2 = xl-col-to-name( $col_num_2, 1 );
 #NYI     my $row_char_1 = '$' . ( $row_num_1 + 1 );
 #NYI     my $row_char_2 = '$' . ( $row_num_2 + 1 );
 #NYI 
@@ -1532,7 +1526,7 @@ method repeat_columns($col-min, $col-max) {
 #NYI     }
 #NYI 
 #NYI     # Build up the print area range "Sheet1!$A$1:$C$13".
-#NYI     my $sheetname = quote_sheetname( $self->{_name} );
+#NYI     my $sheetname = quote-sheetname( $self->{_name} );
 #NYI     $area = $sheetname . "!" . $area;
 #NYI 
 #NYI     return $area;
@@ -1634,7 +1628,7 @@ method set_v_pagebreaks(*@breaks) {
 method set_zoom($scale = 100) {
     # Confine the scale to Excel's range
     if not 10 <= $scale <= 400 {
-        carp "Zoom factor $scale outside range: 10 <= zoom <= 400";
+        warn "Zoom factor $scale outside range: 10 <= zoom <= 400";
         $scale = 100;
     }
 
@@ -1651,7 +1645,7 @@ method set_zoom($scale = 100) {
 method set_print_scale($scale = 100) {
     # Confine the scale to Excel's range
     if not 10 <= $scale <= 400 {
-        carp "Print scale $scale outside range: 10 <= zoom <= 400";
+        warn "Print scale $scale outside range: 10 <= zoom <= 400";
         $scale = 100;
     }
 
@@ -1920,7 +1914,7 @@ method write(*@args) {
 #NYI 
 #NYI     # Catch non array refs passed by user.
 #NYI     if ( ref $_[2] ne 'ARRAY' ) {
-#NYI         croak "Not an array ref in call to write_row()$!";
+#NYI         fail "Not an array ref in call to write_row()$!";
 #NYI     }
 #NYI 
 #NYI     my $row     = shift;
@@ -1971,7 +1965,7 @@ method write(*@args) {
 #NYI 
 #NYI     # Catch non array refs passed by user.
 #NYI     if ( ref $_[2] ne 'ARRAY' ) {
-#NYI         croak "Not an array ref in call to write_col()$!";
+#NYI         fail "Not an array ref in call to write_col()$!";
 #NYI     }
 #NYI 
 #NYI     my $row     = shift;
@@ -2014,7 +2008,7 @@ method write_comment(*@options) {
     if @options.elems < 3 { return -1 }    # Check the number of args
 
     # Check for pairs of optional arguments, i.e. an odd number of args.
-    croak "Uneven number of additional arguments" unless @options.elems %% 2;
+    fail "Uneven number of additional arguments" unless @options.elems %% 2;
 
     my $row = @options[0];
     my $col = @options[1];
@@ -2427,13 +2421,13 @@ method write_number(*@args) {
 #NYI     my $range;
 #NYI 
 #NYI     if ( $row1 == $row2 and $col1 == $col2 ) {
-#NYI         $range = xl_rowcol_to_cell( $row1, $col1 );
+#NYI         $range = xl-rowcol-to-cell( $row1, $col1 );
 #NYI 
 #NYI     }
 #NYI     else {
 #NYI         $range =
-#NYI             xl_rowcol_to_cell( $row1, $col1 ) . ':'
-#NYI           . xl_rowcol_to_cell( $row2, $col2 );
+#NYI             xl-rowcol-to-cell( $row1, $col1 ) . ':'
+#NYI           . xl-rowcol-to-cell( $row2, $col2 );
 #NYI     }
 #NYI 
 #NYI     # Remove array formula braces and the leading =.
@@ -2652,7 +2646,7 @@ method escape_url($url) {
 #NYI     my $tmp_url_str = $url_str || '';
 #NYI 
 #NYI     if ( length $url > 255 || length $tmp_url_str > 255 ) {
-#NYI         carp "Ignoring URL '$url' where link or anchor > 255 characters "
+#NYI         warn "Ignoring URL '$url' where link or anchor > 255 characters "
 #NYI           . "since it exceeds Excel's limit for URLS. See LIMITATIONS "
 #NYI           . "section of the Excel::Writer::XLSX documentation.";
 #NYI         return -4;
@@ -2662,7 +2656,7 @@ method escape_url($url) {
 #NYI     $self->{_hlink_count}++;
 #NYI 
 #NYI     if ( $self->{_hlink_count} > 65_530 ) {
-#NYI         carp "Ignoring URL '$url' since it exceeds Excel's limit of 65,530 "
+#NYI         warn "Ignoring URL '$url' since it exceeds Excel's limit of 65,530 "
 #NYI           . "URLS per worksheet. See LIMITATIONS section of the "
 #NYI           . "Excel::Writer::XLSX documentation.";
 #NYI         return -5;
@@ -2982,8 +2976,8 @@ method escape_url($url) {
 #NYI     if ( $_[0] =~ /^\D/ ) {
 #NYI         @_ = $self->_substitute_cellref( @_ );
 #NYI     }
-#NYI     croak "Incorrect number of arguments" if @_ < 6;
-#NYI     croak "Fifth parameter must be a format object" unless ref $_[5];
+#NYI     fail "Incorrect number of arguments" if @_ < 6;
+#NYI     fail "Fifth parameter must be a format object" unless ref $_[5];
 #NYI 
 #NYI     my $row_first  = shift;
 #NYI     my $col_first  = shift;
@@ -2995,7 +2989,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Excel doesn't allow a single cell to be merged
 #NYI     if ( $row_first == $row_last and $col_first == $col_last ) {
-#NYI         croak "Can't merge single cell";
+#NYI         fail "Can't merge single cell";
 #NYI     }
 #NYI 
 #NYI     # Swap last row/col with first row/col as necessary
@@ -3061,12 +3055,12 @@ method escape_url($url) {
 #NYI     }
 #NYI 
 #NYI     # Check that there is a format object.
-#NYI     croak "Format object missing or in an incorrect position"
+#NYI     fail "Format object missing or in an incorrect position"
 #NYI       unless ref $format;
 #NYI 
 #NYI     # Excel doesn't allow a single cell to be merged
 #NYI     if ( $row_first == $row_last and $col_first == $col_last ) {
-#NYI         croak "Can't merge single cell";
+#NYI         fail "Can't merge single cell";
 #NYI     }
 #NYI 
 #NYI     # Swap last row/col with first row/col as necessary
@@ -3107,7 +3101,7 @@ method escape_url($url) {
 #NYI         $self->write_formula_array( $row_first, $col_first, @_ );
 #NYI     }
 #NYI     else {
-#NYI         croak "Unknown type '$type'";
+#NYI         fail "Unknown type '$type'";
 #NYI     }
 #NYI 
 #NYI     # Pad out the rest of the area with formatted blank cells.
@@ -3167,7 +3161,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check that the last parameter is a hash list.
 #NYI     if ( ref $param ne 'HASH' ) {
-#NYI         carp "Last parameter '$param' in data_validation() must be a hash ref";
+#NYI         warn "Last parameter '$param' in data_validation() must be a hash ref";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -3194,7 +3188,7 @@ method escape_url($url) {
 #NYI     # Check for valid input parameters.
 #NYI     for my $param_key ( keys %$param ) {
 #NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             carp "Unknown parameter '$param_key' in data_validation()";
+#NYI             warn "Unknown parameter '$param_key' in data_validation()";
 #NYI             return -3;
 #NYI         }
 #NYI     }
@@ -3205,7 +3199,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # 'validate' is a required parameter.
 #NYI     if ( not exists $param->{validate} ) {
-#NYI         carp "Parameter 'validate' is required in data_validation()";
+#NYI         warn "Parameter 'validate' is required in data_validation()";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -3229,7 +3223,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check for valid validation types.
 #NYI     if ( not exists $valid_type{ lc( $param->{validate} ) } ) {
-#NYI         carp "Unknown validation type '$param->{validate}' for parameter "
+#NYI         warn "Unknown validation type '$param->{validate}' for parameter "
 #NYI           . "'validate' in data_validation()";
 #NYI         return -3;
 #NYI     }
@@ -3258,7 +3252,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # 'criteria' is a required parameter.
 #NYI     if ( not exists $param->{criteria} ) {
-#NYI         carp "Parameter 'criteria' is required in data_validation()";
+#NYI         warn "Parameter 'criteria' is required in data_validation()";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -3285,7 +3279,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check for valid criteria types.
 #NYI     if ( not exists $criteria_type{ lc( $param->{criteria} ) } ) {
-#NYI         carp "Unknown criteria type '$param->{criteria}' for parameter "
+#NYI         warn "Unknown criteria type '$param->{criteria}' for parameter "
 #NYI           . "'criteria' in data_validation()";
 #NYI         return -3;
 #NYI     }
@@ -3298,7 +3292,7 @@ method escape_url($url) {
 #NYI     if ( $param->{criteria} eq 'between' || $param->{criteria} eq 'notBetween' )
 #NYI     {
 #NYI         if ( not exists $param->{maximum} ) {
-#NYI             carp "Parameter 'maximum' is required in data_validation() "
+#NYI             warn "Parameter 'maximum' is required in data_validation() "
 #NYI               . "when using 'between' or 'not between' criteria";
 #NYI             return -3;
 #NYI         }
@@ -3320,7 +3314,7 @@ method escape_url($url) {
 #NYI         $param->{error_type} = 0;
 #NYI     }
 #NYI     elsif ( not exists $error_type{ lc( $param->{error_type} ) } ) {
-#NYI         carp "Unknown criteria type '$param->{error_type}' for parameter "
+#NYI         warn "Unknown criteria type '$param->{error_type}' for parameter "
 #NYI           . "'error_type' in data_validation()";
 #NYI         return -3;
 #NYI     }
@@ -3335,7 +3329,7 @@ method escape_url($url) {
 #NYI             my $date_time = $self->convert_date_time( $param->{value} );
 #NYI 
 #NYI             if ( !defined $date_time ) {
-#NYI                 carp "Invalid date/time value '$param->{value}' "
+#NYI                 warn "Invalid date/time value '$param->{value}' "
 #NYI                   . "in data_validation()";
 #NYI                 return -3;
 #NYI             }
@@ -3347,7 +3341,7 @@ method escape_url($url) {
 #NYI             my $date_time = $self->convert_date_time( $param->{maximum} );
 #NYI 
 #NYI             if ( !defined $date_time ) {
-#NYI                 carp "Invalid date/time value '$param->{maximum}' "
+#NYI                 warn "Invalid date/time value '$param->{maximum}' "
 #NYI                   . "in data_validation()";
 #NYI                 return -3;
 #NYI             }
@@ -3359,28 +3353,28 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check that the input title doesn't exceed the maximum length.
 #NYI     if ( $param->{input_title} and length $param->{input_title} > 32 ) {
-#NYI         carp "Length of input title '$param->{input_title}'"
+#NYI         warn "Length of input title '$param->{input_title}'"
 #NYI           . " exceeds Excel's limit of 32";
 #NYI         return -3;
 #NYI     }
 #NYI 
 #NYI     # Check that the error title don't exceed the maximum length.
 #NYI     if ( $param->{error_title} and length $param->{error_title} > 32 ) {
-#NYI         carp "Length of error title '$param->{error_title}'"
+#NYI         warn "Length of error title '$param->{error_title}'"
 #NYI           . " exceeds Excel's limit of 32";
 #NYI         return -3;
 #NYI     }
 #NYI 
 #NYI     # Check that the input message don't exceed the maximum length.
 #NYI     if ( $param->{input_message} and length $param->{input_message} > 255 ) {
-#NYI         carp "Length of input message '$param->{input_message}'"
+#NYI         warn "Length of input message '$param->{input_message}'"
 #NYI           . " exceeds Excel's limit of 255";
 #NYI         return -3;
 #NYI     }
 #NYI 
 #NYI     # Check that the error message don't exceed the maximum length.
 #NYI     if ( $param->{error_message} and length $param->{error_message} > 255 ) {
-#NYI         carp "Length of error message '$param->{error_message}'"
+#NYI         warn "Length of error message '$param->{error_message}'"
 #NYI           . " exceeds Excel's limit of 255";
 #NYI         return -3;
 #NYI     }
@@ -3392,7 +3386,7 @@ method escape_url($url) {
 #NYI 
 #NYI             my $formula = join ',', @{ $param->{value} };
 #NYI             if ( length $formula > 255 ) {
-#NYI                 carp "Length of list items '$formula' exceeds Excel's "
+#NYI                 warn "Length of list items '$formula' exceeds Excel's "
 #NYI                   . "limit of 255, use a formula range instead";
 #NYI                 return -3;
 #NYI             }
@@ -3472,7 +3466,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check that the last parameter is a hash list.
 #NYI     if ( ref $options ne 'HASH' ) {
-#NYI         carp "Last parameter in conditional_formatting() "
+#NYI         warn "Last parameter in conditional_formatting() "
 #NYI           . "must be a hash ref";
 #NYI         return -3;
 #NYI     }
@@ -3508,14 +3502,14 @@ method escape_url($url) {
 #NYI     # Check for valid input parameters.
 #NYI     for my $param_key ( keys %$param ) {
 #NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             carp "Unknown parameter '$param_key' in conditional_formatting()";
+#NYI             warn "Unknown parameter '$param_key' in conditional_formatting()";
 #NYI             return -3;
 #NYI         }
 #NYI     }
 #NYI 
 #NYI     # 'type' is a required parameter.
 #NYI     if ( not exists $param->{type} ) {
-#NYI         carp "Parameter 'type' is required in conditional_formatting()";
+#NYI         warn "Parameter 'type' is required in conditional_formatting()";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -3545,7 +3539,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check for valid validation types.
 #NYI     if ( not exists $valid_type{ lc( $param->{type} ) } ) {
-#NYI         carp "Unknown validation type '$param->{type}' for parameter "
+#NYI         warn "Unknown validation type '$param->{type}' for parameter "
 #NYI           . "'type' in conditional_formatting()";
 #NYI         return -3;
 #NYI     }
@@ -3603,7 +3597,7 @@ method escape_url($url) {
 #NYI             my $date_time = $self->convert_date_time( $param->{value} );
 #NYI 
 #NYI             if ( !defined $date_time ) {
-#NYI                 carp "Invalid date/time value '$param->{value}' "
+#NYI                 warn "Invalid date/time value '$param->{value}' "
 #NYI                   . "in conditional_formatting()";
 #NYI                 return -3;
 #NYI             }
@@ -3616,7 +3610,7 @@ method escape_url($url) {
 #NYI             my $date_time = $self->convert_date_time( $param->{minimum} );
 #NYI 
 #NYI             if ( !defined $date_time ) {
-#NYI                 carp "Invalid date/time value '$param->{minimum}' "
+#NYI                 warn "Invalid date/time value '$param->{minimum}' "
 #NYI                   . "in conditional_formatting()";
 #NYI                 return -3;
 #NYI             }
@@ -3629,7 +3623,7 @@ method escape_url($url) {
 #NYI             my $date_time = $self->convert_date_time( $param->{maximum} );
 #NYI 
 #NYI             if ( !defined $date_time ) {
-#NYI                 carp "Invalid date/time value '$param->{maximum}' "
+#NYI                 warn "Invalid date/time value '$param->{maximum}' "
 #NYI                   . "in conditional_formatting()";
 #NYI                 return -3;
 #NYI             }
@@ -3666,14 +3660,14 @@ method escape_url($url) {
 #NYI     if ( $param->{type} eq 'iconSet' ) {
 #NYI 
 #NYI         if ( !defined $param->{icon_style} ) {
-#NYI             carp "The 'icon_style' parameter must be specified when "
+#NYI             warn "The 'icon_style' parameter must be specified when "
 #NYI               . "'type' == 'icon_set' in conditional_formatting()";
 #NYI             return -3;
 #NYI         }
 #NYI 
 #NYI         # Check for valid icon styles.
 #NYI         if ( not exists $icon_set_styles{ $param->{icon_style} } ) {
-#NYI             carp "Unknown icon style '$param->{icon_style}' for parameter "
+#NYI             warn "Unknown icon style '$param->{icon_style}' for parameter "
 #NYI               . "'icon_style' in conditional_formatting()";
 #NYI             return -3;
 #NYI         }
@@ -3710,12 +3704,12 @@ method escape_url($url) {
 #NYI 
 #NYI     # If the first and last cell are the same write a single cell.
 #NYI     if ( ( $row1 == $row2 ) && ( $col1 == $col2 ) ) {
-#NYI         $range = xl_rowcol_to_cell( $row1, $col1 );
+#NYI         $range = xl-rowcol-to-cell( $row1, $col1 );
 #NYI         $start_cell = $range;
 #NYI     }
 #NYI     else {
-#NYI         $range = xl_range( $row1, $row2, $col1, $col2 );
-#NYI         $start_cell = xl_rowcol_to_cell( $row1, $col1 );
+#NYI         $range = xl-range( $row1, $row2, $col1, $col2 );
+#NYI         $start_cell = xl-rowcol-to-cell( $row1, $col1 );
 #NYI     }
 #NYI 
 #NYI     # Override with user defined multiple range if provided.
@@ -3755,7 +3749,7 @@ method escape_url($url) {
 #NYI               $start_cell, length( $param->{value} ), $param->{value};
 #NYI         }
 #NYI         else {
-#NYI             carp "Invalid text criteria '$param->{criteria}' "
+#NYI             warn "Invalid text criteria '$param->{criteria}' "
 #NYI               . "in conditional_formatting()";
 #NYI         }
 #NYI     }
@@ -3815,7 +3809,7 @@ method escape_url($url) {
 #NYI               $start_cell, $start_cell, $start_cell, $start_cell;
 #NYI         }
 #NYI         else {
-#NYI             carp "Invalid time_period criteria '$param->{criteria}' "
+#NYI             warn "Invalid time_period criteria '$param->{criteria}' "
 #NYI               . "in conditional_formatting()";
 #NYI         }
 #NYI     }
@@ -3973,7 +3967,7 @@ method escape_url($url) {
 #NYI                     && $type ne 'number'
 #NYI                     && $type ne 'formula' )
 #NYI                 {
-#NYI                     carp "Unknown icon property type '$props->{type}' for sub-"
+#NYI                     warn "Unknown icon property type '$props->{type}' for sub-"
 #NYI                       . "property 'type' in conditional_formatting()";
 #NYI                 }
 #NYI                 else {
@@ -4017,7 +4011,7 @@ method escape_url($url) {
 #NYI     # function to support optimisation mode. Disable add_table() when it is
 #NYI     # on for now.
 #NYI     if ( $self->{_optimization} == 1 ) {
-#NYI         carp "add_table() isn't supported when set_optimization() is on";
+#NYI         warn "add_table() isn't supported when set_optimization() is on";
 #NYI         return -1;
 #NYI     }
 #NYI 
@@ -4028,7 +4022,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check for a valid number of args.
 #NYI     if ( @_ < 4 ) {
-#NYI         carp "Not enough parameters to add_table()";
+#NYI         warn "Not enough parameters to add_table()";
 #NYI         return -1;
 #NYI     }
 #NYI 
@@ -4044,7 +4038,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check that the last parameter is a hash list.
 #NYI     if ( ref $param ne 'HASH' ) {
-#NYI         carp "Last parameter '$param' in add_table() must be a hash ref";
+#NYI         warn "Last parameter '$param' in add_table() must be a hash ref";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -4067,7 +4061,7 @@ method escape_url($url) {
 #NYI     # Check for valid input parameters.
 #NYI     for my $param_key ( keys %$param ) {
 #NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             carp "Unknown parameter '$param_key' in add_table()";
+#NYI             warn "Unknown parameter '$param_key' in add_table()";
 #NYI             return -3;
 #NYI         }
 #NYI     }
@@ -4092,19 +4086,19 @@ method escape_url($url) {
 #NYI 
 #NYI         # Warn if the name contains invalid chars as defined by Excel help.
 #NYI         if ( $name !~ m/^[\w\\][\w\\.]*$/ || $name =~ m/^\d/ ) {
-#NYI             carp "Invalid character in name '$name' used in add_table()";
+#NYI             warn "Invalid character in name '$name' used in add_table()";
 #NYI             return -3;
 #NYI         }
 #NYI 
 #NYI         # Warn if the name looks like a cell name.
 #NYI         if ( $name =~ m/^[a-zA-Z][a-zA-Z]?[a-dA-D]?[0-9]+$/ ) {
-#NYI             carp "Invalid name '$name' looks like a cell name in add_table()";
+#NYI             warn "Invalid name '$name' looks like a cell name in add_table()";
 #NYI             return -3;
 #NYI         }
 #NYI 
 #NYI         # Warn if the name looks like a R1C1.
 #NYI         if ( $name =~ m/^[rcRC]$/ || $name =~ m/^[rcRC]\d+[rcRC]\d+$/ ) {
-#NYI             carp "Invalid name '$name' like a RC cell ref in add_table()";
+#NYI             warn "Invalid name '$name' like a RC cell ref in add_table()";
 #NYI             return -3;
 #NYI         }
 #NYI 
@@ -4141,8 +4135,8 @@ method escape_url($url) {
 #NYI 
 #NYI 
 #NYI     # Set the table and autofilter ranges.
-#NYI     $table{_range}   = xl_range( $row1, $row2,          $col1, $col2 );
-#NYI     $table{_a_range} = xl_range( $row1, $last_data_row, $col1, $col2 );
+#NYI     $table{_range}   = xl-range( $row1, $row2,          $col1, $col2 );
+#NYI     $table{_a_range} = xl-range( $row1, $last_data_row, $col1, $col2 );
 #NYI 
 #NYI 
 #NYI     # If the header row if off the default is to turn autofilter off.
@@ -4185,7 +4179,7 @@ method escape_url($url) {
 #NYI                 my $name = $col_data->{_name};
 #NYI                 my $key = lc $name;
 #NYI                 if (exists $seen_names{$key}) {
-#NYI                     carp "add_table() contains duplicate name: '$name'";
+#NYI                     warn "add_table() contains duplicate name: '$name'";
 #NYI                     return -1;
 #NYI                 }
 #NYI                 else {
@@ -4318,7 +4312,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # Check that the last parameter is a hash list.
 #NYI     if ( ref $param ne 'HASH' ) {
-#NYI         carp "Parameter list in add_sparkline() must be a hash ref";
+#NYI         warn "Parameter list in add_sparkline() must be a hash ref";
 #NYI         return -1;
 #NYI     }
 #NYI 
@@ -4355,20 +4349,20 @@ method escape_url($url) {
 #NYI     # Check for valid input parameters.
 #NYI     for my $param_key ( keys %$param ) {
 #NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             carp "Unknown parameter '$param_key' in add_sparkline()";
+#NYI             warn "Unknown parameter '$param_key' in add_sparkline()";
 #NYI             return -2;
 #NYI         }
 #NYI     }
 #NYI 
 #NYI     # 'location' is a required parameter.
 #NYI     if ( not exists $param->{location} ) {
-#NYI         carp "Parameter 'location' is required in add_sparkline()";
+#NYI         warn "Parameter 'location' is required in add_sparkline()";
 #NYI         return -3;
 #NYI     }
 #NYI 
 #NYI     # 'range' is a required parameter.
 #NYI     if ( not exists $param->{range} ) {
-#NYI         carp "Parameter 'range' is required in add_sparkline()";
+#NYI         warn "Parameter 'range' is required in add_sparkline()";
 #NYI         return -3;
 #NYI     }
 #NYI 
@@ -4377,7 +4371,7 @@ method escape_url($url) {
 #NYI     my $type = $param->{type} || 'line';
 #NYI 
 #NYI     if ( $type ne 'line' && $type ne 'column' && $type ne 'win_loss' ) {
-#NYI         carp "Parameter 'type' must be 'line', 'column' "
+#NYI         warn "Parameter 'type' must be 'line', 'column' "
 #NYI           . "or 'win_loss' in add_sparkline()";
 #NYI         return -4;
 #NYI     }
@@ -4401,7 +4395,7 @@ method escape_url($url) {
 #NYI 
 #NYI     # The ranges and locations must match.
 #NYI     if ( $range_count != $location_count ) {
-#NYI         carp "Must have the same number of location and range "
+#NYI         warn "Must have the same number of location and range "
 #NYI           . "parameters in add_sparkline()";
 #NYI         return -5;
 #NYI     }
@@ -4411,7 +4405,7 @@ method escape_url($url) {
 #NYI 
 #NYI 
 #NYI     # Get the worksheet name for the range conversion below.
-#NYI     my $sheetname = quote_sheetname( $self->{_name} );
+#NYI     my $sheetname = quote-sheetname( $self->{_name} );
 #NYI 
 #NYI     # Cleanup the input ranges.
 #NYI     for my $range ( @{ $sparkline->{_ranges} } ) {
@@ -4419,7 +4413,7 @@ method escape_url($url) {
 #NYI         # Remove the absolute reference $ symbols.
 #NYI         $range =~ s{\$}{}g;
 #NYI 
-#NYI         # Remove the = from xl_range_formula(.
+#NYI         # Remove the = from xl-range-formula(.
 #NYI         $range =~ s{^=}{};
 #NYI 
 #NYI         # Convert a simple range into a full Sheet1!A1:D1 range.
@@ -4576,7 +4570,7 @@ method escape_url($url) {
 #NYI         $formula = qq{SUBTOTAL($func_num,[$col_name])};
 #NYI     }
 #NYI     else {
-#NYI         carp "Unsupported function '$function' in add_table()";
+#NYI         warn "Unsupported function '$function' in add_table()";
 #NYI     }
 #NYI 
 #NYI     return $formula;
@@ -4681,7 +4675,7 @@ method substitute_cellref($cell, *@args) {
 
     }
 
-    croak( "Unknown cell reference $cell" );
+    fail( "Unknown cell reference $cell" );
 }
 
 
@@ -4741,7 +4735,7 @@ method cell_to_rowcol($cell) {
 
 our @col_names = ( 'A' .. 'XFD' ); # CHECK
 
-method xl_rowcol_to_cell($row, $col) {
+method xl-rowcol-to-cell($row, $col) {
     return @col_names[ $col ] ~ ( $row + 1 );
 }
 
@@ -5201,16 +5195,16 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI     my $x_scale  = $_[5] || 1;
 #NYI     my $y_scale  = $_[6] || 1;
 #NYI 
-#NYI     croak "Insufficient arguments in insert_chart()" unless @_ >= 3;
+#NYI     fail "Insufficient arguments in insert_chart()" unless @_ >= 3;
 #NYI 
 #NYI     if ( ref $chart ) {
 #NYI 
 #NYI         # Check for a Chart object.
-#NYI         croak "Not a Chart object in insert_chart()"
+#NYI         fail "Not a Chart object in insert_chart()"
 #NYI           unless $chart->isa( 'Excel::Writer::XLSX::Chart' );
 #NYI 
 #NYI         # Check that the chart is an embedded style chart.
-#NYI         croak "Not a embedded style Chart object in insert_chart()"
+#NYI         fail "Not a embedded style Chart object in insert_chart()"
 #NYI           unless $chart->{_embedded};
 #NYI 
 #NYI     }
@@ -5219,7 +5213,7 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI     if (   $chart->{_already_inserted}
 #NYI         || $chart->{_combined} && $chart->{_combined}->{_already_inserted} )
 #NYI     {
-#NYI         carp "Chart cannot be inserted in a worksheet more than once";
+#NYI         warn "Chart cannot be inserted in a worksheet more than once";
 #NYI         return;
 #NYI     }
 #NYI     else {
@@ -5402,8 +5396,8 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI     my $x_scale  = $_[5] || 1;
 #NYI     my $y_scale  = $_[6] || 1;
 #NYI 
-#NYI     croak "Insufficient arguments in insert_image()" unless @_ >= 3;
-#NYI     croak "Couldn't locate $image: $!" unless -e $image;
+#NYI     fail "Insufficient arguments in insert_image()" unless @_ >= 3;
+#NYI     fail "Couldn't locate $image: $!" unless -e $image;
 #NYI 
 #NYI     push @{ $self->{_images} },
 #NYI       [ $row, $col, $image, $x_offset, $y_offset, $x_scale, $y_scale ];
@@ -5517,12 +5511,12 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI     }
 #NYI 
 #NYI     # Check the number of arguments.
-#NYI     croak "Insufficient arguments in insert_shape()" unless @_ >= 3;
+#NYI     fail "Insufficient arguments in insert_shape()" unless @_ >= 3;
 #NYI 
 #NYI     my $shape = $_[2];
 #NYI 
 #NYI     # Verify we are being asked to insert a "shape" object.
-#NYI     croak "Not a Shape object in insert_shape()"
+#NYI     fail "Not a Shape object in insert_shape()"
 #NYI       unless $shape->isa( 'Excel::Writer::XLSX::Shape' );
 #NYI 
 #NYI     # Set the shape properties.
@@ -5773,12 +5767,12 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI     my $index = shift;
 #NYI 
 #NYI     if ( !grep ( /^$shape->{_align}$/, qw[l ctr r just] ) ) {
-#NYI         croak "Shape $index ($shape->{_type}) alignment ($shape->{align}), "
+#NYI         fail "Shape $index ($shape->{_type}) alignment ($shape->{align}), "
 #NYI           . "not in ('l', 'ctr', 'r', 'just')\n";
 #NYI     }
 #NYI 
 #NYI     if ( !grep ( /^$shape->{_valign}$/, qw[t ctr b] ) ) {
-#NYI         croak "Shape $index ($shape->{_type}) vertical alignment "
+#NYI         fail "Shape $index ($shape->{_type}) vertical alignment "
 #NYI           . "($shape->{valign}), not ('t', 'ctr', 'b')\n";
 #NYI     }
 #NYI }
@@ -6231,10 +6225,10 @@ method xl_rowcol_to_cell($row, $col) {
 #NYI 
 #NYI 
 #NYI     # Enforce an even number of arguments in the pattern/replacement list.
-#NYI     croak "Odd number of elements in pattern/replacement list" if @pairs % 2;
+#NYI     fail "Odd number of elements in pattern/replacement list" if @pairs % 2;
 #NYI 
 #NYI     # Check that $formula is an array ref.
-#NYI     croak "Not a valid formula" if ref $formula_ref ne 'ARRAY';
+#NYI     fail "Not a valid formula" if ref $formula_ref ne 'ARRAY';
 #NYI 
 #NYI     my @tokens = @$formula_ref;
 #NYI 
@@ -6385,13 +6379,13 @@ method write_worksheet {
 #NYI         if ( $self->{_dim_colmin} == $self->{_dim_colmax} ) {
 #NYI 
 #NYI             # The dimensions are a single cell and not a range.
-#NYI             $ref = xl_rowcol_to_cell( 0, $self->{_dim_colmin} );
+#NYI             $ref = xl-rowcol-to-cell( 0, $self->{_dim_colmin} );
 #NYI         }
 #NYI         else {
 #NYI 
 #NYI             # The dimensions are a cell range.
-#NYI             my $cell_1 = xl_rowcol_to_cell( 0, $self->{_dim_colmin} );
-#NYI             my $cell_2 = xl_rowcol_to_cell( 0, $self->{_dim_colmax} );
+#NYI             my $cell_1 = xl-rowcol-to-cell( 0, $self->{_dim_colmin} );
+#NYI             my $cell_2 = xl-rowcol-to-cell( 0, $self->{_dim_colmax} );
 #NYI 
 #NYI             $ref = $cell_1 . ':' . $cell_2;
 #NYI         }
@@ -6402,15 +6396,15 @@ method write_worksheet {
 #NYI     {
 #NYI 
 #NYI         # The dimensions are a single cell and not a range.
-#NYI         $ref = xl_rowcol_to_cell( $self->{_dim_rowmin}, $self->{_dim_colmin} );
+#NYI         $ref = xl-rowcol-to-cell( $self->{_dim_rowmin}, $self->{_dim_colmin} );
 #NYI     }
 #NYI     else {
 #NYI 
 #NYI         # The dimensions are a cell range.
 #NYI         my $cell_1 =
-#NYI           xl_rowcol_to_cell( $self->{_dim_rowmin}, $self->{_dim_colmin} );
+#NYI           xl-rowcol-to-cell( $self->{_dim_rowmin}, $self->{_dim_colmin} );
 #NYI         my $cell_2 =
-#NYI           xl_rowcol_to_cell( $self->{_dim_rowmax}, $self->{_dim_colmax} );
+#NYI           xl-rowcol-to-cell( $self->{_dim_rowmax}, $self->{_dim_colmax} );
 #NYI 
 #NYI         $ref = $cell_1 . ':' . $cell_2;
 #NYI     }
@@ -7080,7 +7074,7 @@ method write_worksheet {
 #NYI         $xf_index = $xf->get_xf_index();
 #NYI     }
 #NYI 
-#NYI     my $range = _xl_rowcol_to_cell( $row, $col );
+#NYI     my $range = _xl-rowcol-to-cell( $row, $col );
 #NYI     my @attributes = ( 'r' => $range );
 #NYI 
 #NYI     # Add the cell format index.
@@ -7426,8 +7420,8 @@ method write_worksheet {
 #NYI 
 #NYI 
 #NYI     # Convert the merge dimensions to a cell range.
-#NYI     my $cell_1 = xl_rowcol_to_cell( $row_min, $col_min );
-#NYI     my $cell_2 = xl_rowcol_to_cell( $row_max, $col_max );
+#NYI     my $cell_1 = xl-rowcol-to-cell( $row_min, $col_min );
+#NYI     my $cell_2 = xl-rowcol-to-cell( $row_max, $col_max );
 #NYI     my $ref    = $cell_1 . ':' . $cell_2;
 #NYI 
 #NYI     my @attributes = ( 'ref' => $ref );
@@ -7821,7 +7815,7 @@ method write_brk($id, $max) {
 #NYI         $operator = $operators{$operator};
 #NYI     }
 #NYI     else {
-#NYI         croak "Unknown operator = $operator\n";
+#NYI         fail "Unknown operator = $operator\n";
 #NYI     }
 #NYI 
 #NYI     # The 'equal' operator is the default attribute and isn't stored.
@@ -7938,7 +7932,7 @@ method write_brk($id, $max) {
 #NYI     my $display  = shift;
 #NYI     my $tooltip  = shift;
 #NYI 
-#NYI     my $ref = xl_rowcol_to_cell( $row, $col );
+#NYI     my $ref = xl-rowcol-to-cell( $row, $col );
 #NYI     my $r_id = 'rId' . $id;
 #NYI 
 #NYI     my @attributes = (
@@ -7969,7 +7963,7 @@ method write_brk($id, $max) {
 #NYI     my $display  = shift;
 #NYI     my $tooltip  = shift;
 #NYI 
-#NYI     my $ref = xl_rowcol_to_cell( $row, $col );
+#NYI     my $ref = xl-rowcol-to-cell( $row, $col );
 #NYI 
 #NYI     my @attributes = ( 'ref' => $ref, 'location' => $location );
 #NYI 
@@ -8017,7 +8011,7 @@ method write_brk($id, $max) {
 #NYI 
 #NYI     my $y_split       = $row;
 #NYI     my $x_split       = $col;
-#NYI     my $top_left_cell = xl_rowcol_to_cell( $top_row, $left_col );
+#NYI     my $top_left_cell = xl-rowcol-to-cell( $top_row, $left_col );
 #NYI     my $active_pane;
 #NYI     my $state;
 #NYI     my $active_cell;
@@ -8033,8 +8027,8 @@ method write_brk($id, $max) {
 #NYI     if ( $row && $col ) {
 #NYI         $active_pane = 'bottomRight';
 #NYI 
-#NYI         my $row_cell = xl_rowcol_to_cell( $row, 0 );
-#NYI         my $col_cell = xl_rowcol_to_cell( 0,    $col );
+#NYI         my $row_cell = xl-rowcol-to-cell( $row, 0 );
+#NYI         my $col_cell = xl-rowcol-to-cell( 0,    $col );
 #NYI 
 #NYI         push @{ $self->{_selections} },
 #NYI           (
@@ -8118,7 +8112,7 @@ method write_brk($id, $max) {
 #NYI         $left_col = int( 0.5 + ( $x_split - 390 ) / 20 / 3 * 4 / 64 );
 #NYI     }
 #NYI 
-#NYI     my $top_left_cell = xl_rowcol_to_cell( $top_row, $left_col );
+#NYI     my $top_left_cell = xl-rowcol-to-cell( $top_row, $left_col );
 #NYI 
 #NYI     # If there is no selection set the active cell to the top left cell.
 #NYI     if ( !$has_selection ) {
@@ -8130,8 +8124,8 @@ method write_brk($id, $max) {
 #NYI     if ( $row && $col ) {
 #NYI         $active_pane = 'bottomRight';
 #NYI 
-#NYI         my $row_cell = xl_rowcol_to_cell( $top_row, 0 );
-#NYI         my $col_cell = xl_rowcol_to_cell( 0,        $left_col );
+#NYI         my $row_cell = xl-rowcol-to-cell( $top_row, 0 );
+#NYI         my $col_cell = xl-rowcol-to-cell( 0,        $left_col );
 #NYI 
 #NYI         push @{ $self->{_selections} },
 #NYI           (
@@ -8551,10 +8545,10 @@ method write_brk($id, $max) {
 #NYI 
 #NYI         # If the first and last cell are the same write a single cell.
 #NYI         if ( ( $row_first == $row_last ) && ( $col_first == $col_last ) ) {
-#NYI             $sqref .= xl_rowcol_to_cell( $row_first, $col_first );
+#NYI             $sqref .= xl-rowcol-to-cell( $row_first, $col_first );
 #NYI         }
 #NYI         else {
-#NYI             $sqref .= xl_range( $row_first, $row_last, $col_first, $col_last );
+#NYI             $sqref .= xl-range( $row_first, $row_last, $col_first, $col_last );
 #NYI         }
 #NYI     }
 

@@ -190,7 +190,7 @@ method write_si($string) {
     if $string ~~ /^'<r>'/ && $string ~~ /'</r>'$/ {
 
         # Prevent utf8 strings from getting double encoded.
-        $string = decode_utf8( $string );
+        #TODO $string = decode_utf8( $string );
 
         self.xml_rich_si_element( $string );
     }

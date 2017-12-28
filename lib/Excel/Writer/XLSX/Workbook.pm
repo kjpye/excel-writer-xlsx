@@ -1,6 +1,3 @@
-use lib '.';
-use Utility;
-
 unit class Excel::Writer::XLSX::Workbook;
 
 ###############################################################################
@@ -30,7 +27,7 @@ use Archive::SimpleZip;
 #NYI use Excel::Writer::XLSX::Chart;
 #NYI use Excel::Writer::XLSX::Package::Packager;
 #NYI use Excel::Writer::XLSX::Package::XMLwriter;
-#use Excel::Writer::XLSX::Utility;
+use Excel::Writer::XLSX::Utility;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';

@@ -10,7 +10,7 @@ unit module Excel::Writer::XLSX;
 # Documentation at end
 #
 
-use 6.c;
+use v6.c;
 
 #NYI use Exporter;
 
@@ -24,16 +24,16 @@ use Excel::Writer::XLSX::Workbook;
 #
 # new()
 #
-method new {
+#NYI method new {
 
-    my $class = shift;
-    my $self  = Excel::Writer::XLSX::Workbook->new( @_ );
+#NYI     my $class = shift;
+#NYI     my $self  = Excel::Writer::XLSX::Workbook.new( @_ );
 
-    # Check for file creation failures before re-blessing
-    bless $self, $class if defined $self;
+#NYI     # Check for file creation failures before re-blessing
+#NYI     bless $self, $class if defined $self;
 
-    return $self;
-}
+#NYI     return $self;
+#NYI }
 
 =begin pod
 
@@ -729,8 +729,8 @@ The C<Excel::Writer::XLSX::Utility> module that is included in the distro contai
 
     use Excel::Writer::XLSX::Utility;
 
-    ( $row, $col ) = xl_cell_to_rowcol( 'C2' );    # (1, 2)
-    $str           = xl_rowcol_to_cell( 1, 2 );    # C2
+    ( $row, $col ) = xl-cell-to-rowcol( 'C2' );    # (1, 2)
+    $str           = xl-rowcol-to-cell( 1, 2 );    # C2
 
 For simplicity, the parameter lists for the worksheet method calls in the following sections are given in terms of row-column notation. In all cases it is also possible to use A1 notation.
 
@@ -4074,10 +4074,10 @@ The L<Excel::Writer::XLSX::Utility> module which is included in the distro has d
 
     use Excel::Writer::XLSX::Utility;
 
-    $date           = xl_date_list(2002, 1, 1);         # 37257
-    $date           = xl_parse_date("11 July 1997");    # 35622
-    $time           = xl_parse_time('3:21:36 PM');      # 0.64
-    $date           = xl_decode_date_EU("13 May 2002"); # 37389
+    $date           = xl-date-list(2002, 1, 1);         # 37257
+    $date           = xl-parse-date("11 July 1997");    # 35622
+    $time           = xl-parse-time('3:21:36 PM');      # 0.64
+    $date           = xl-decode-date-EU("13 May 2002"); # 37389
 
 Note: some of these functions require additional CPAN modules.
 
@@ -5402,11 +5402,11 @@ This is the cell where the sparkline will be displayed:
 
 The C<location> should be a single cell. (For multiple cells see L<Grouped Sparklines> below).
 
-To specify the location in row-column notation use the C<xl_rowcol_to_cell()> function from the L<Excel::Writer::XLSX::Utility> module.
+To specify the location in row-column notation use the C<xl-rowcol-to-cell()> function from the L<Excel::Writer::XLSX::Utility> module.
 
     use Excel::Writer::XLSX::Utility ':rowcol';
     ...
-    location => xl_rowcol_to_cell( 0, 5 ), # F1
+    location => xl-rowcol-to-cell( 0, 5 ), # F1
 
 
 =head2 range
@@ -5430,12 +5430,12 @@ If the worksheet contains spaces or special characters you should quote the work
 
             range => q('Monthly Data'!A1:E1),
 
-To specify the location in row-column notation use the C<xl_range()> or C<xl_range_formula()> functions from the L<Excel::Writer::XLSX::Utility> module.
+To specify the location in row-column notation use the C<xl-range()> or C<xl-range-formula()> functions from the L<Excel::Writer::XLSX::Utility> module.
 
     use Excel::Writer::XLSX::Utility ':rowcol';
     ...
-    range => xl_range( 1, 1,  0, 4 ),                   # 'A1:E1'
-    range => xl_range_formula( 'Sheet1', 0, 0,  0, 4 ), # 'Sheet1!A2:E2'
+    range => xl-range( 1, 1,  0, 4 ),                   # 'A1:E1'
+    range => xl-range-formula( 'Sheet1', 0, 0,  0, 4 ), # 'Sheet1!A2:E2'
 
 =head2 type
 
@@ -5942,8 +5942,8 @@ Cells in Excel are referenced using the A1 notation system where the column is d
 
     use Excel::Writer::XLSX::Utility;
 
-    ( $row, $col ) = xl_cell_to_rowcol( 'C2' );    # (1, 2)
-    $str = xl_rowcol_to_cell( 1, 2 );              # C2
+    ( $row, $col ) = xl-cell-to-rowcol( 'C2' );    # (1, 2)
+    $str = xl-rowcol-to-cell( 1, 2 );              # C2
 
 The Excel C<$> notation in cell references is also supported. This allows you to specify whether a row or column is relative or absolute. This only has an effect if the cell is copied. The following examples show relative and absolute values.
 
@@ -7237,3 +7237,4 @@ John McNamara jmcnamara@cpan.org
 Copyright MM-MMXVII, John McNamara.
 
 All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
+=end pod
