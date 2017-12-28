@@ -1,0 +1,28 @@
+{
+    "name"        : "Excel-Writer-XLSX",
+    "version"     : "0.2.0",
+    "description" : "Generate Excel XLSX files",
+    "author"      : "Kevin Pye (Kevin.Pye@gmail.com)",
+    "depends"     : [],
+    "provides"    : {
+                    "Excel::Writer::XLSX"                         : "lib/Excel/Writer/XLSX.pm",
+                    "Excel::Writer::XLSX::Format"                 : "lib/Excel/Writer/XLSX/Format.pm",
+                    "Excel::Writer::XLSX::Utility"                : "lib/Excel/Writer/XLSX/Utility.pm",
+                    "Excel::Writer::XLSX::Workbook"               : "lib/Excel/Writer/XLSX/Workbook.pm",
+                    "Excel::Writer::XLSX::Worksheet"              : "lib/Excel/Writer/XLSX/Worksheet.pm",
+                    "Excel::Writer::XLSX::Package::App"           : "lib/Excel/Writer/XLSX/Package/App.pm",
+                    "Excel::Writer::XLSX::Package::Comments"      : "lib/Excel/Writer/XLSX/Package/Comments.pm",
+                    "Excel::Writer::XLSX::Package::ContentTypes"  : "lib/Excel/Writer/XLSX/Package/ContentTypes.pm",
+                    "Excel::Writer::XLSX::Package::Core"          : "lib/Excel/Writer/XLSX/Package/Core.pm",
+                    "Excel::Writer::XLSX::Package::Custom"        : "lib/Excel/Writer/XLSX/Package/Custom.pm",
+                    "Excel::Writer::XLSX::Package::Packager"      : "lib/Excel/Writer/XLSX/Package/Packager.pm",
+                    "Excel::Writer::XLSX::Package::Relationships" : "lib/Excel/Writer/XLSX/Package/Relationships.pm",
+                    "Excel::Writer::XLSX::Package::SharedStrings" : "lib/Excel/Writer/XLSX/Package/SharedStrings.pm",
+                    "Excel::Writer::XLSX::Package::Styles"        : "lib/Excel/Writer/XLSX/Package/Styles.pm",
+                    "Excel::Writer::XLSX::Package::Table"         : "lib/Excel/Writer/XLSX/Package/Table.pm",
+                    "Excel::Writer::XLSX::Package::Theme"         : "lib/Excel/Writer/XLSX/Package/Theme.pm",
+                    "Excel::Writer::XLSX::Package::VML"           : "lib/Excel/Writer/XLSX/Package/VML.pm",
+                    "Excel::Writer::XLSX::Package::XMLwriter"     : "lib/Excel/Writer/XLSX/Package/XMLwriter.pm"
+    },
+    "source-url"  : "https://github.com/kjpye/excel-writer-xlsx"
+}
