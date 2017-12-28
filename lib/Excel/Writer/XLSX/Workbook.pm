@@ -14,33 +14,22 @@ unit class Excel::Writer::XLSX::Workbook;
 #
 
 use v6.c;
-#NYI use Carp;
 #NYI use IO::File;
 #NYI use File::Find;
 use File::Temp; # <tempfile>;
 #NYI use File::Basename 'fileparse';
 use Archive::SimpleZip;
-#NYI use Excel::Writer::XLSX::Worksheet;
-#NYI use Excel::Writer::XLSX::Chartsheet;
-#NYI use Excel::Writer::XLSX::Format;
-#NYI use Excel::Writer::XLSX::Shape;
-#NYI use Excel::Writer::XLSX::Chart;
-#NYI use Excel::Writer::XLSX::Package::Packager;
-#NYI use Excel::Writer::XLSX::Package::XMLwriter;
+use Excel::Writer::XLSX::Worksheet;
+# use Excel::Writer::XLSX::Chartsheet;
+# use Excel::Writer::XLSX::Format;
+# use Excel::Writer::XLSX::Shape;
+# use Excel::Writer::XLSX::Chart;
+use Excel::Writer::XLSX::Package::Packager;
+use Excel::Writer::XLSX::Package::XMLwriter;
 use Excel::Writer::XLSX::Utility;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
-
-
-
-sub croak($string) {
-  die $string;
-}
-
-sub carp($string) {
-  warn $string;
-}
 
 ###############################################################################
 #
@@ -152,7 +141,7 @@ submethod BUILD {
 
 #NYI     # Check for a filename unless it is an existing filehandle
 #NYI     if ( not ref $self->{_filename} and $self->{_filename} eq '' ) {
-#NYI         carp 'Filename required by Excel::Writer::XLSX->new()';
+#NYI         warn 'Filename required by Excel::Writer::XLSX->new()';
 #NYI         return Nil;
 #NYI     }
 
@@ -395,7 +384,7 @@ method add_worksheet($name) {
 #NYI     # Type must be specified so we can create the required chart instance.
 #NYI     my $type = $arg{type};
 #NYI     if ( !defined $type ) {
-#NYI         croak "Must define chart type in add_chart()";
+#NYI         fail "Must define chart type in add_chart()";
 #NYI     }
 
 #NYI     # Ensure that the chart defaults to non embedded.
@@ -495,11 +484,11 @@ method check_sheetname($name = '', $chart = 0) {
     }
 
     # Check that sheet name is <= 31. Excel limit.
-    croak "Sheetname $name must be <= 31 chars" if $name.chars > 31;
+    fail "Sheetname $name must be <= 31 chars" if $name.chars > 31;
 
     # Check that sheetname doesn't contain any invalid characters
     if $name ~~ $invalid_char {
-        croak 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
+        fail 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
     }
 
     # Check that the worksheet name doesn't already exist since this is a fatal
@@ -509,7 +498,7 @@ method check_sheetname($name = '', $chart = 0) {
         my $name_b = $worksheet.name;
 
         if ( fc( $name_a ) eq fc( $name_b ) ) {
-            croak "Worksheet name '$name', with case ignored, is already used.";
+            fail "Worksheet name '$name', with case ignored, is already used.";
         }
     }
 
@@ -606,7 +595,7 @@ method set_custom_color($index, $red, $green?, $blue?) {
 
     # Check that the colour index is the right range
     if ( $index < 8 or $index > 64 ) {
-        carp "Color index $index outside range: 8 <= index <= 64";
+        warn "Color index $index outside range: 8 <= index <= 64";
         return 0;
     }
 
@@ -615,7 +604,7 @@ method set_custom_color($index, $red, $green?, $blue?) {
        and 0 <= $green < 0 <= 255
        and 0 <= $blue  < 0 <= 25 
     {
-        carp "Color component outside range: 0 <= color <= 255";
+        warn "Color component outside range: 0 <= color <= 255";
         return 0;
     }
 
@@ -714,7 +703,7 @@ method set_color_palette {
 #NYI     my $self = shift;
 #NYI     my $dir  = shift;
 
-#NYI     croak "$dir is not a valid directory" if defined $dir and not -d $dir;
+#NYI     fail "$dir is not a valid directory" if defined $dir and not -d $dir;
 
 #NYI     $self->{_tempdir} = $dir;
 
@@ -752,25 +741,25 @@ method set_color_palette {
 
 #NYI     # Warn if the sheet index wasn't found.
 #NYI     if ( !defined $sheet_index ) {
-#NYI         carp "Unknown sheet name $sheetname in defined_name()";
+#NYI         warn "Unknown sheet name $sheetname in defined_name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name contains invalid chars as defined by Excel help.
 #NYI     if ( $name !~ m/^[\w\\][\w\\.]*$/ || $name =~ m/^\d/ ) {
-#NYI         carp "Invalid character in name '$name' used in defined_name()";
+#NYI         warn "Invalid character in name '$name' used in defined_name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name looks like a cell name.
 #NYI     if ( $name =~ m/^[a-zA-Z][a-zA-Z]?[a-dA-D]?[0-9]+$/ ) {
-#NYI         carp "Invalid name '$name' looks like a cell name in defined_name()";
+#NYI         warn "Invalid name '$name' looks like a cell name in defined_name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name looks like a R1C1.
 #NYI     if ( $name =~ m/^[rcRC]$/ || $name =~ m/^[rcRC]\d+[rcRC]\d+$/ ) {
-#NYI         carp "Invalid name '$name' like a RC cell ref in defined_name()";
+#NYI         warn "Invalid name '$name' like a RC cell ref in defined_name()";
 #NYI         return -1;
 #NYI     }
 
@@ -835,7 +824,7 @@ method set_properties(*%param) {
     # Check for valid input parameters.
     for %param.keys -> $parameter {
         if ( not %valid{$parameter}.defined ) {
-            carp "Unknown parameter '$parameter' in set_properties()";
+            warn "Unknown parameter '$parameter' in set_properties()";
             return -1;
         }
     }
@@ -868,7 +857,7 @@ method set_custom_property($name, $value, $type?) {
     );
 
     if ! $name.defined || ! $value.defined {
-        carp "The name and value parameters must be defined "
+        warn "The name and value parameters must be defined "
           ~ "in set_custom_property()";
 
         return -1;
@@ -903,18 +892,18 @@ method set_custom_property($name, $value, $type?) {
 
     # Check for valid validation types.
     if ! %valid_type{$type}.exists {
-        carp "Unknown custom type '$type' in set_custom_property()";
+        warn "Unknown custom type '$type' in set_custom_property()";
         return -1;
     }
 
     #  Check for strings longer than Excel's limit of 255 chars.
     if $type eq 'text' and $value.chars > 255 {
-        carp "Length of text custom value '$value' exceeds "
+        warn "Length of text custom value '$value' exceeds "
           ~ "Excel's limit of 255 in set_custom_property()";
         return -1;
     }
     if $name.chars > 255 {
-        carp "Length of custom name '$name' exceeds "
+        warn "Length of custom name '$name' exceeds "
           ~ "Excel's limit of 255 in set_custom_property()";
         return -1;
     }
@@ -935,10 +924,10 @@ method set_custom_property($name, $value, $type?) {
 #NYI     my $self        = shift;
 #NYI     my $vba_project = shift;
 
-#NYI     croak "No vbaProject.bin specified in add_vba_project()"
+#NYI     fail "No vbaProject.bin specified in add_vba_project()"
 #NYI       if not $vba_project;
 
-#NYI     croak "Couldn't locate $vba_project in add_vba_project(): $!"
+#NYI     fail "Couldn't locate $vba_project in add_vba_project(): $!"
 #NYI       unless -e $vba_project;
 
 #NYI     $self->{_vba_project} = $vba_project;
@@ -1056,7 +1045,7 @@ method store_workbook {
     if $!internal_fh {
 
         if $zip.writeToFileHandle( $!filehandle ) != 0 {
-            carp 'Error writing zip container for xlsx file.';
+            warn 'Error writing zip container for xlsx file.';
         }
     }
     else {
@@ -1069,7 +1058,7 @@ method store_workbook {
         my $is_seekable = 1;
 
         if $zip.writeToFileHandle( $tmp_fh, $is_seekable ) != 0 {
-            carp 'Error writing zip container for xlsx file.';
+            warn 'Error writing zip container for xlsx file.';
         }
 
         my $buffer;
@@ -2050,7 +2039,7 @@ method store_workbook {
 
 #NYI     # Open the image file and import the data.
 #NYI     my $fh = FileHandle->new( $filename );
-#NYI     croak "Couldn't import $filename: $!" unless defined $fh;
+#NYI     fail "Couldn't import $filename: $!" unless defined $fh;
 #NYI     binmode $fh;
 
 #NYI     # Slurp the file into a string and do some size calcs.
@@ -2082,7 +2071,7 @@ method store_workbook {
 #NYI         $self->{_image_types}->{bmp} = 1;
 #NYI     }
 #NYI     else {
-#NYI         croak "Unsupported image format for file: $filename\n";
+#NYI         fail "Unsupported image format for file: $filename\n";
 #NYI     }
 
 #NYI     push @{ $self->{_images} }, [ $filename, $type ];
@@ -2147,7 +2136,7 @@ method store_workbook {
 #NYI     }
 
 #NYI     if ( not defined $height ) {
-#NYI         croak "$filename: no size data found in png image.\n";
+#NYI         fail "$filename: no size data found in png image.\n";
 #NYI     }
 
 #NYI     return ( $type, $width, $height, $x_dpi, $y_dpi );
@@ -2172,7 +2161,7 @@ method store_workbook {
 
 #NYI     # Check that the file is big enough to be a bitmap.
 #NYI     if ( length $data <= 0x36 ) {
-#NYI         croak "$filename doesn't contain enough data.";
+#NYI         fail "$filename doesn't contain enough data.";
 #NYI     }
 
 
@@ -2180,22 +2169,22 @@ method store_workbook {
 #NYI     my ( $width, $height ) = unpack "x18 V2", $data;
 
 #NYI     if ( $width > 0xFFFF ) {
-#NYI         croak "$filename: largest image width $width supported is 65k.";
+#NYI         fail "$filename: largest image width $width supported is 65k.";
 #NYI     }
 
 #NYI     if ( $height > 0xFFFF ) {
-#NYI         croak "$filename: largest image height supported is 65k.";
+#NYI         fail "$filename: largest image height supported is 65k.";
 #NYI     }
 
 #NYI     # Read the bitmap planes and bpp data. Verify them.
 #NYI     my ( $planes, $bitcount ) = unpack "x26 v2", $data;
 
 #NYI     if ( $bitcount != 24 ) {
-#NYI         croak "$filename isn't a 24bit true color bitmap.";
+#NYI         fail "$filename isn't a 24bit true color bitmap.";
 #NYI     }
 
 #NYI     if ( $planes != 1 ) {
-#NYI         croak "$filename: only 1 plane supported in bitmap image.";
+#NYI         fail "$filename: only 1 plane supported in bitmap image.";
 #NYI     }
 
 
@@ -2203,7 +2192,7 @@ method store_workbook {
 #NYI     my $compression = unpack "x30 V", $data;
 
 #NYI     if ( $compression != 0 ) {
-#NYI         croak "$filename: compression not supported in bitmap image.";
+#NYI         fail "$filename: compression not supported in bitmap image.";
 #NYI     }
 
 #NYI     return ( $type, $width, $height );
@@ -2263,7 +2252,7 @@ method store_workbook {
 #NYI     }
 
 #NYI     if ( not defined $height ) {
-#NYI         croak "$filename: no size data found in jpeg image.\n";
+#NYI         fail "$filename: no size data found in jpeg image.\n";
 #NYI     }
 
 #NYI     return ( $type, $width, $height, $x_dpi, $y_dpi );
@@ -2302,7 +2291,7 @@ method store_workbook {
 #
 method set_optimization($level = 1) {
 
-    croak "set_optimization() must be called before add_worksheet()"
+    fail "set_optimization() must be called before add_worksheet()"
       if @!worksheets.elems == 0;
 
     $!optimization = $level;
