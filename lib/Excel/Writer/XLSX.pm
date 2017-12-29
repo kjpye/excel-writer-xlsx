@@ -1,4 +1,7 @@
-unit module Excel::Writer::XLSX;
+use v6.c;
+use Excel::Writer::XLSX::Workbook;
+
+unit class Excel::Writer::XLSX is Excel::Writer::XLSX::Workbook;
 
 ###############################################################################
 #
@@ -10,12 +13,6 @@ unit module Excel::Writer::XLSX;
 # Documentation at end
 #
 
-use v6.c;
-
-#NYI use Exporter;
-
-use Excel::Writer::XLSX::Workbook;
-
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Workbook Exporter);
 #NYI our $VERSION = '0.96';
 
@@ -24,16 +21,9 @@ use Excel::Writer::XLSX::Workbook;
 #
 # new()
 #
-#NYI method new {
-
-#NYI     my $class = shift;
-#NYI     my $self  = Excel::Writer::XLSX::Workbook.new( @_ );
-
-#NYI     # Check for file creation failures before re-blessing
-#NYI     bless $self, $class if defined $self;
-
-#NYI     return $self;
-#NYI }
+method new(*@args) {
+    return Excel::Writer::XLSX::Workbook.new( @args );
+}
 
 =begin pod
 

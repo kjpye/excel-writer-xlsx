@@ -1,4 +1,16 @@
-unit class Excel::Writer::XLSX::Workbook;
+use v6.c;
+use File::Temp; # <tempfile>;
+use Archive::SimpleZip;
+use Excel::Writer::XLSX::Worksheet;
+# use Excel::Writer::XLSX::Chartsheet;
+# use Excel::Writer::XLSX::Format;
+# use Excel::Writer::XLSX::Shape;
+# use Excel::Writer::XLSX::Chart;
+use Excel::Writer::XLSX::Package::Packager;
+use Excel::Writer::XLSX::Package::XMLwriter;
+use Excel::Writer::XLSX::Utility;
+
+unit class Excel::Writer::XLSX::Workbook is Excel::Writer::XLSX::Package::XMLwriter;
 
 ###############################################################################
 #
@@ -13,21 +25,6 @@ unit class Excel::Writer::XLSX::Workbook;
 # Documentation after __END__
 #
 
-use v6.c;
-#NYI use IO::File;
-#NYI use File::Find;
-use File::Temp; # <tempfile>;
-#NYI use File::Basename 'fileparse';
-use Archive::SimpleZip;
-use Excel::Writer::XLSX::Worksheet;
-# use Excel::Writer::XLSX::Chartsheet;
-# use Excel::Writer::XLSX::Format;
-# use Excel::Writer::XLSX::Shape;
-# use Excel::Writer::XLSX::Chart;
-use Excel::Writer::XLSX::Package::Packager;
-use Excel::Writer::XLSX::Package::XMLwriter;
-use Excel::Writer::XLSX::Utility;
-
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
 
@@ -37,6 +34,7 @@ use Excel::Writer::XLSX::Utility;
 #
 ###############################################################################
 
+has $!filename;
 has $!tempdir;
 has $!date_1904          = 0;
 has $!activesheet        = 0;
@@ -99,13 +97,10 @@ has @!shapes;
 #
 # Constructor.
 #
-submethod BUILD {
+method TWEAK (*@args) {
 
-#NYI     my $class = shift;
-    my $self  = Excel::Writer::XLSX::Package::XMLwriter.new();
-
-    $self.filename = $_[0] || '';
-    my $options = $_[1] || {};
+#NYI     $self.filename = $_[0] || '';
+#NYI     my $options = $_[1] || {};
 
 #NYI     if ( exists $options->{tempdir} ) {
 #NYI         $self->{_tempdir} = $options->{tempdir};
@@ -172,7 +167,7 @@ submethod BUILD {
 #NYI     # Set colour palette.
 #NYI     $self->set_color_palette();
 
-    return $self;
+#NYI     return $self;
 }
 
 
@@ -327,7 +322,7 @@ method get_worksheet_by_name($sheetname) {
 #
 # Returns: reference to a worksheet object
 #
-method add_worksheet($name) {
+method add_worksheet($name? is copy) {
 
     my $index = @!worksheets.elems;
     $name  = self.check_sheetname( $name );
@@ -339,27 +334,27 @@ method add_worksheet($name) {
     # Worksheet objects. Feel free to implement this in any way the suits your
     # language.
     #
-    my @init_data = (
-        $fh,
-        $name,
-        $index,
+    my %init_data = (
+        fh => $fh,
+        name => $name,
+        index =>$index,
 
-        $!activesheet,
-        $!firstsheet,
+        activesheet => $!activesheet,
+        firstsheet => $!firstsheet,
 
-        $!str_total,
-        $!str_unique,
-        %!str_table,
+        str_total => $!str_total,
+        str_unique => $!str_unique,
+        str_table => %!str_table,
 
-        $!date_1904,
-        @!palette,
-        $!optimization,
-        $!tempdir,
-        $!excel2003_style,
+        date_1904 => $!date_1904,
+        palette => @!palette,
+        optimization => $!optimization,
+        tempdir => $!tempdir,
+        excel2003_style => $!excel2003_style,
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( @init_data );
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( %init_data );
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;
 
@@ -460,12 +455,13 @@ method add_worksheet($name) {
 # Check for valid worksheet names. We check the length, if it contains any
 # invalid characters and if the name is unique in the workbook.
 #
-method check_sheetname($name = '', $chart = 0) {
+method check_sheetname($name is copy = '', $chart = 0) {
 
+    $name //= '';
     my $invalid_char = token { <[\[\]:*?/\\]> };
 
     # Increment the Sheet/Chart number used for default sheet names below.
-    if ( $chart ) {
+    if $chart {
         $!chartname_count++;
     }
     else {
@@ -473,9 +469,9 @@ method check_sheetname($name = '', $chart = 0) {
     }
 
     # Supply default Sheet/Chart name if none has been defined.
-    if $name eq "" {
+    if $name eq '' {
 
-        if ( $chart ) {
+        if $chart {
             $name = $!chart_name ~ $!chartname_count;
         }
         else {

@@ -8,10 +8,10 @@
 # reverse ('(c)'), March 2001, John McNamara, jmcnamara@cpan.org
 #
 
-use Excel::Writer::XLSX;
+use Excel::Writer::XLSX::Workbook;
 
 # Create a new workbook called simple.xls and add a worksheet
-my $workbook  = Excel::Writer::XLSX.new( filename => 'a_simple.xlsx' );
+my $workbook  = Excel::Writer::XLSX::Workbook.new( filename => 'a_simple.xlsx' );
 my $worksheet = $workbook.add_worksheet();
 
 # The general syntax is write($row, $column, $token). Note that row and
