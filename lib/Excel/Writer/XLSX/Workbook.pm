@@ -354,7 +354,7 @@ method add_worksheet($name? is copy) {
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( %init_data );
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init_data.Map );
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;
 
@@ -508,23 +508,23 @@ method check_sheetname($name is copy = '', $chart = 0) {
 #
 # Add a new format to the Excel workbook.
 #
-method add_format(*@options) {
+method add_format(*%options) {
 
-    my @init_data =
-      ( %!xf_format_indices, %!dxf_format_indices );
+    my %init_data =
+      ( |%!xf_format_indices, |%!dxf_format_indices );
 
     # Change default format style for Excel2003/XLS format.
     if $!excel2003_style {
-        @init_data.append: ( font => 'Arial', size => 10, theme => -1 );
+        %init_data.append: ( font => 'Arial', size => 10, theme => -1 );
     }
 
     # Add the default format properties.
-    @init_data.push: { %!default_format_properties};
+    %init_data.push: { %!default_format_properties};
 
     # Add the user defined properties.
-    @init_data.push: @options;
+    %init_data.push: %options;
 
-    my $format = Excel::Writer::XLSX::Format.new( @init_data );
+    my $format = Excel::Writer::XLSX::Format.new( |%init_data );
 
     @!formats.push: $format;    # Store format reference
 
