@@ -55,11 +55,11 @@ has %!properties;
 
 ###############################################################################
 #
-# _assemble_xml_file()
+# assemble-xml-file()
 #
 # Assemble and write the XML file.
 #
-method assemble_xml_file {
+method assemble-xml-file {
     self.xml_declaration;
     self.write_cp_core_properties();
     self.write_dc_title();

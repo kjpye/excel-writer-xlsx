@@ -1,4 +1,4 @@
-package TestFunctions;
+unit package TestFunctions;
 
 ###############################################################################
 #
@@ -7,56 +7,54 @@ package TestFunctions;
 # reverse ('(c)'), September 2010, John McNamara, jmcnamara@cpan.org
 #
 
-use 5.008002;
-use Exporter;
-use strict;
-use warnings;
-use Test::More;
+use v6;
+#use Exporter;
+#use Test::More;
 use Excel::Writer::XLSX;
 
 
-our @ISA         = qw(Exporter);
-our @EXPORT      = ();
-our %EXPORT_TAGS = ();
-our @EXPORT_OK   = qw(
-  _expected_to_aref
-  _expected_vml_to_aref
-  _got_to_aref
-  _is_deep_diff
-  _new_object
-  _new_worksheet
-  _new_workbook
-  _new_style
-  _compare_xlsx_files
-);
+#our @ISA         = qw(Exporter);
+#our @EXPORT      = ();
+#our %EXPORT_TAGS = ();
+#our @EXPORT_OK   = qw(
+#  _expected_to_aref
+#  _expected_vml_to_aref
+#  _got_to_aref
+#  _is_deep_diff
+#  _new_object
+#  _new_worksheet
+#  _new_workbook
+#  _new_style
+#  _compare_xlsx_files
+#);
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 
 ###############################################################################
 #
 # Turn the embedded XML in the __DATA__ section of the calling test program
 # into an array ref for comparison testing. Also performs some minor string
-# formatting to make comparison easier with _got_to_aref().
+# formatting to make comparison easier with got-to-aref().
 #
 # The XML data in the testcases is taken from Excel 2007 files with formatting
 # via "xmllint --format".
 #
-sub _expected_to_aref {
+sub expected-to-aref is export {
 
     my @data;
 
     # Ignore warning for files that don't have a 'main::DATA'.
-    no warnings 'once';
+#    no warnings 'once';
 
-    while ( <main::DATA> ) {
-        chomp;
+    while <main::DATA> {
+        #chomp;
         next unless /\S/;    # Skip blank lines.
-        s{^\s+}{};           # Remove leading whitespace from XML.
+        s/^\s+//;           # Remove leading whitespace from XML.
         push @data, $_;
     }
 
-    return \@data;
+    return @data;
 }
 
 
@@ -65,56 +63,48 @@ sub _expected_to_aref {
 # Turn the embedded VML in the __DATA__ section of the calling test program
 # into an array ref for comparison testing.
 #
-sub _expected_vml_to_aref {
+sub expected-vml-to-aref is export {
 
     # Ignore warning for files that don't have a 'main::DATA'.
-    no warnings 'once';
+    #no warnings 'once';
 
-    my $vml_str = do { local $/; <main::DATA> };
+    my $vml-str = main::DATA.IO.slurp;
 
-    my @vml = _vml_str_to_array( $vml_str );
-
-    return \@vml;
+    vml-str-to-array( $vml-str );
 }
 
 
 ###############################################################################
 #
 # Convert an XML string returned by the XMLWriter subclasses into an
-# array ref for comparison testing with _expected_to_aref().
+# array ref for comparison testing with expected-to-aref().
 #
-sub _got_to_aref {
-
-    my $xml_str = shift;
+sub got-to-aref($xml-str) is export {
 
     # Remove the newlines after the XML declaration and any others.
-    $xml_str =~ s/[\r\n]//g;
+    $xml-str ~~ s:g/\n//;
 
     # Split the XML into chunks at element boundaries.
-    my @data = split /(?<=>)(?=<)/, $xml_str;
-
-    return \@data;
+    #$xml-str.split: /(?<=>)(?=<)/;
+    $xml-str.split: /<after \>><before \<>/;
 }
 
 ###############################################################################
 #
-# _xml_str_to_array()
+# xml-str-to-array()
 #
 # Convert an XML string into an array for comparison testing.
 #
-sub _xml_str_to_array {
+sub xml-str-to-array ($xml-str) is export {
 
-    my $xml_str = shift;
-    my @xml     = @{ _got_to_aref( $xml_str ) };
+    got-to-aref( $xml-str );
 
     #s{ />$}{/>} for @xml;
-
-    return @xml;
 }
 
 ###############################################################################
 #
-# _vml_str_to_array()
+# vml-str-to-array()
 #
 # Convert an Excel generated VML string into an array for comparison testing.
 #
@@ -123,39 +113,38 @@ sub _xml_str_to_array {
 #
 # Excel::Writer::XLSX produced VML can be parsed as ordinary XML.
 #
-sub _vml_str_to_array {
+sub vml-str-to-array($vml-str) is export {
 
-    my $vml_str = shift;
-    my @vml = split /[\r\n]+/, $vml_str;
+    my @vml = $vml-str.split: /[\r\n]+/; # FIX
 
-    $vml_str = '';
+    $vml-str = '';
 
-    for ( @vml ) {
+    for @vml {
 
-        chomp;
+        .chomp;
         next unless /\S/;    # Skip blank lines.
 
         s/^\s+//;            # Remove leading whitespace.
         s/\s+$//;            # Remove trailing whitespace.
-        s/\'/"/g;            # Convert VMLs attribute quotes.
+        s:g/\'/"/;            # Convert VMLs attribute quotes.
 
-        $_ .= " "  if /"$/;  # Add space between attributes.
-        $_ .= "\n" if />$/;  # Add newline after element end.
+        $_ ~= " "  if /\"$/;  # Add space between attributes.
+        $_ ~= "\n" if /\>$/;  # Add newline after element end.
 
-        s/></>\n</g;         # Split multiple elements.
+        s:g/'><'/>\n</;         # Split multiple elements.
 
-        chomp if $_ eq "<x:Anchor>\n";    # Put all of Anchor on one line.
+        .chomp if $_ eq "<x:Anchor>\n";    # Put all of Anchor on one line.
 
-        $vml_str .= $_;
+        $vml-str ~= $_;
     }
 
-    return ( split "\n", $vml_str );
+    $vml-str.split: "\n";
 }
 
 
 ###############################################################################
 #
-# _compare_xlsx_files()
+# compare-xlsx-files()
 #
 # Compare two XLSX files by extracting the XML files from each archive and
 # comparing them.
@@ -167,146 +156,138 @@ sub _vml_str_to_array {
 # contained in the zip archive into arrays of XML elements to make identifying
 # differences easier.
 #
-# This function returns 3 elements suitable for _is_deep_diff() comparison:
-#    return ( $got_aref, $expected_aref, $caption)
+# This function returns 3 elements suitable for is-deep-diff() comparison:
+#    return ( $got-aref, $expected-aref, $caption)
 #
-sub _compare_xlsx_files {
+sub compare-xlsx-files($got-filename, $exp-filename, $ignore-members, $ignore-elements) is export {
 
-    my $got_filename    = shift;
-    my $exp_filename    = shift;
-    my $ignore_members  = shift;
-    my $ignore_elements = shift;
-    my $got_zip         = Archive::Zip->new();
-    my $exp_zip         = Archive::Zip->new();
-    my @got_xml;
-    my @exp_xml;
+    my $got-zip         = Archive::Zip.new();
+    my $exp-zip         = Archive::Zip.new();
+    my @got-xml;
+    my @exp-xml;
 
     # Suppress Archive::Zip error reporting. We will handle errors.
     Archive::Zip::setErrorHandler( sub { } );
 
     # Test the $got file exists.
-    if ( $got_zip->read( $got_filename ) != 0 ) {
-        my $error = "Excel::Write::XML generated file not found.";
-        return ( [$error], [$got_filename], " _compare_xlsx_files(). Files." );
+    if $got-zip.read( $got-filename ) != 0 {
+        my $error = 'Excel::Write::XML generated file not found.';
+        return ( [$error], [$got-filename], " compare-xlsx-files(). Files." );
     }
 
     # Test the $exp file exists.
-    if ( $exp_zip->read( $exp_filename ) != 0 ) {
+    if $exp-zip.read( $exp-filename ) != 0 {
         my $error = "Excel generated comparison file not found.";
-        return ( [$error], [$exp_filename], " _compare_xlsx_files(). Files." );
+        return ( [$error], [$exp-filename], " compare-xlsx-files(). Files." );
     }
 
     # The zip "members" are the files in the XLSX container.
-    my @got_members = sort $got_zip->memberNames();
-    my @exp_members = sort $exp_zip->memberNames();
+    my @got-members = $got-zip.memberNames().sort;
+    my @exp-members = $exp-zip.memberNames().sort;
 
     # Ignore some test specific filenames.
-    if ( defined $ignore_members && @$ignore_members ) {
-        my $ignore_regex = join '|', @$ignore_members;
+    if $ignore-members.defined && @($ignore-members) {
+        my @ignore-members = @$ignore-members;
 
-        @got_members = grep { !/$ignore_regex/ } @got_members;
-        @exp_members = grep { !/$ignore_regex/ } @exp_members;
+        @got-members = @got-members.grep({!/@ignore-members/});
+        @exp-members = @exp-members.grep({!/@ignore-members/});
     }
 
     # Check that each XLSX container has the same file members.
-    if ( !_arrays_equal( \@got_members, \@exp_members ) ) {
-        return ( \@got_members, \@exp_members,
-            ' _compare_xlsx_files(): Members.' );
+    if !arrays-equal( @got-members, @exp-members ) {
+        return ( @got-members, @exp-members,
+            ' compare-xlsx-files(): Members.' );
     }
 
     # Compare each file in the XLSX containers.
-    for my $filename ( @exp_members ) {
-        my $got_xml_str = $got_zip->contents( $filename );
-        my $exp_xml_str = $exp_zip->contents( $filename );
+    for @exp-members -> $filename {
+        my $got-xml-str = $got-zip.contents( $filename );
+        my $exp-xml-str = $exp-zip.contents( $filename );
 
         # Remove dates and user specific data from the core.xml data.
-        if ( $filename eq 'docProps/core.xml' ) {
-            $exp_xml_str =~ s/ ?John//g;
-            $exp_xml_str =~ s/\d\d\d\d-\d\d-\d\dT\d\d\:\d\d:\d\dZ//g;
-            $got_xml_str =~ s/\d\d\d\d-\d\d-\d\dT\d\d\:\d\d:\d\dZ//g;
+        if $filename eq 'docProps/core.xml' {
+            $exp-xml-str ~~ s:g/' '? John//;
+            $exp-xml-str ~~ s:g/\d\d\d\d\-\d\d\-\d\dT\d\d\:\d\d:\d\dZ//;
+            $got-xml-str ~~ s:g/\d\d\d\d\-\d\d\-\d\dT\d\d\:\d\d:\d\dZ//;
         }
 
         # Remove workbookView dimensions which are almost always different.
-        if ( $filename eq 'xl/workbook.xml' ) {
-            $exp_xml_str =~ s{<workbookView[^>]*>}{<workbookView/>};
-            $got_xml_str =~ s{<workbookView[^>]*>}{<workbookView/>};
+        if $filename eq 'xl/workbook.xml' {
+            $exp-xml-str ~~ s{\<workbookView<-[^]>*\>} = '<workbookView/>';
+            $got-xml-str ~~ s{\<workbookView<-[>]>*\>} = '<workbookView/>';
         }
 
         # Remove the calcPr elements which may have different Excel version ids.
-        if ( $filename eq 'xl/workbook.xml' ) {
-            $exp_xml_str =~ s{<calcPr[^>]*>}{<calcPr/>};
-            $got_xml_str =~ s{<calcPr[^>]*>}{<calcPr/>};
+        if $filename eq 'xl/workbook.xml' {
+            $exp-xml-str ~~ s{\<calcPr<-[>]>*\>} = '<calcPr/>';
+            $got-xml-str ~~ s{\<calcPr<-[>]>*\>} = '<calcPr/>';
         }
 
         # Remove printer specific settings from Worksheet pageSetup elements.
-        if ( $filename =~ m(xl/worksheets/sheet\d.xml) ) {
-            $exp_xml_str =~ s/horizontalDpi="200" //;
-            $exp_xml_str =~ s/verticalDpi="200" //;
-            $exp_xml_str =~ s/(<pageSetup[^>]*) r:id="rId1"/$1/;
+        if $filename ~~ /xl\/worksheets\/sheet\d\.xml/ {
+            $exp-xml-str ~~ s/'horizontalDpi="200" '//;
+            $exp-xml-str ~~ s/'verticalDpi="200" '//;
+            $exp-xml-str ~~ s/(\<pageSetup<-[>]>*) ' ' r\:id\=\"rId1\"/$0/;
         }
 
         # Remove Chart pageMargin dimensions which are almost always different.
-        if ( $filename =~ m(xl/charts/chart\d.xml) ) {
-            $exp_xml_str =~ s{<c:pageMargins[^>]*>}{<c:pageMargins/>};
-            $got_xml_str =~ s{<c:pageMargins[^>]*>}{<c:pageMargins/>};
+        if $filename ~~ /xl\/charts\/chart\d\.xml/ {
+# TODO
+#            $exp-xml-str ~~ s{\<c\:pageMargins<-[>]>*>} = '<c:pageMargins/>';
+#            $got-xml-str ~~ s{\<c\:pageMargins<-[>]>*>} = '<c:pageMargins/>';
         }
 
-        if ( $filename =~ /.vml$/ ) {
-            @got_xml = _xml_str_to_array( $got_xml_str );
-            @exp_xml = _vml_str_to_array( $exp_xml_str );
+        if $filename.ends-with: '.vml' {
+            @got-xml = xml-str-to-array( $got-xml-str );
+            @exp-xml = vml-str-to-array( $exp-xml-str );
         }
         else {
-            @got_xml = _xml_str_to_array( $got_xml_str );
-            @exp_xml = _xml_str_to_array( $exp_xml_str );
+            @got-xml = xml-str-to-array( $got-xml-str );
+            @exp-xml = xml-str-to-array( $exp-xml-str );
         }
 
         # Ignore test specific XML elements for defined filenames.
-        if ( defined $ignore_elements && exists $ignore_elements->{$filename} )
+        if $ignore-elements.defined && $ignore-elements{$filename}.exists
         {
-            my @ignore_elements = @{ $ignore_elements->{$filename} };
+            my @ignore-elements = @( $ignore-elements{$filename} );
 
-            if ( @ignore_elements ) {
-                my $ignore_regex = join '|', @ignore_elements;
-                @got_xml = grep { !/$ignore_regex/ } @got_xml;
-                @exp_xml = grep { !/$ignore_regex/ } @exp_xml;
+            if +@ignore-elements {
+                @got-xml = @got-xml.grep( { !/@ignore-elements/ } );
+                @exp-xml = @exp-xml.grep( { !/@ignore-elements/ } );
             }
         }
 
         # Reorder the XML elements in the XLSX relationship files.
-        if ( $filename eq '[Content_Types].xml' || $filename =~ /.rels$/ ) {
-            @got_xml = _sort_rel_file_data( @got_xml );
-            @exp_xml = _sort_rel_file_data( @exp_xml );
+        if $filename eq '[Content_Types].xml' || $filename ~~ /.rels$/ {
+            @got-xml = sort-rel-file-data( |@got-xml );
+            @exp-xml = sort-rel-file-data( |@exp-xml );
         }
 
         # Comparison of the XML elements in each file.
-        if ( !_arrays_equal( \@got_xml, \@exp_xml ) ) {
-            return ( \@got_xml, \@exp_xml,
-                " _compare_xlsx_files(): $filename" );
+        if !arrays-equal( @got-xml, @exp-xml ) {
+            return @got-xml, @exp-xml, " comparexlsxfiles(): $filename";
         }
     }
 
     # Files were the same. Return values that will evaluate to a test pass.
-    return ( ['ok'], ['ok'], ' _compare_xlsx_files()' );
+    return ['ok'], ['ok'], ' compare-xlsx-files()';
 }
 
 
 ###############################################################################
 #
-# _arrays_equal()
+# arrays-equal()
 #
 # Compare two array refs for equality.
 #
-sub _arrays_equal {
+sub arrays-equal($exp, $got) is export {
 
-    my $exp = shift;
-    my $got = shift;
-
-    if ( @$exp != @$got ) {
+    if +$exp != +$got {
         return 0;
     }
 
-    for my $i ( 0 .. @$exp - 1 ) {
-        if ( $exp->[$i] ne $got->[$i] ) {
+    for ^+$exp -> $i {
+        if $exp[$i] ne $got[$i] {
             return 0;
         }
     }
@@ -317,45 +298,40 @@ sub _arrays_equal {
 
 ###############################################################################
 #
-# _sort_rel_file_data()
+# sort-rel-file-data()
 #
 # Re-order the relationship elements in an array of XLSX XML rel (relationship)
 # data. This is necessary for comparison since Excel can produce the elements
 # in a semi-random order.
 #
-sub _sort_rel_file_data {
-
-    my @xml_elements = @_;
-    my $header       = shift @xml_elements;
-    my $tail         = pop @xml_elements;
+sub sort-rel-file-data($header, $tail, *@xml-elements) is export {
 
     # Sort the relationship elements.
-    @xml_elements = sort @xml_elements;
+    @xml-elements .= sort;
 
-    return $header, @xml_elements, $tail;
+    $header, @xml-elements, $tail;
 }
 
 
 ###############################################################################
 #
-# Use Test::Differences::eq_or_diff() where available or else fall back to
-# using Test::More::is_deeply().
+# Use Test::Differences::eq-or-diff() where available or else fall back to
+# using Test::More::is-deeply().
 #
-sub _is_deep_diff {
-    my ( $got, $expected, $caption, ) = @_;
-
-    eval {
-        require Test::Differences;
-        Test::Differences->import();
-    };
-
-    if ( !$@ ) {
-        eq_or_diff( $got, $expected, $caption, { context => 1 } );
-    }
-    else {
-        is_deeply( $got, $expected, $caption );
-    }
-
+sub is-deep-diff($got, $expected, $caption) is export {
+#
+#    eval {
+#        require Test::Differences;
+#        Test::Differences->import();
+#    };
+#
+#    if ( !$@ ) {
+#        eq-or-diff( $got, $expected, $caption, { context => 1 } );
+#    }
+#    else {
+       #is-deeply( $got, $expected, $caption );
+#    }
+#
 }
 
 
@@ -365,41 +341,41 @@ sub _is_deep_diff {
 # the output to the supplied scalar ref for testing. Calls to the objects XML
 # writing subs will add the output to the scalar.
 #
-sub _new_object {
-
-    my $got_ref = shift;
-    my $class   = shift;
-
-    open my $got_fh, '>', $got_ref or die "Failed to open filehandle: $!";
-
-    my $object = $class->new( $got_fh );
-
-    return $object;
-}
+#TODO
+#sub new-object($got-ref, $class) {
+#
+#    open my $gotfh, '>', $got-ref or die "Failed to open filehandle: $!";
+#
+#    my $object = $class->new( $got-fh );
+#
+#    return $object;
+#}
 
 
 ###############################################################################
 #
 # Create a new Worksheet object and bind the output to the supplied scalar ref.
 #
-sub _new_worksheet {
-
-    my $got_ref = shift;
-
-    return _new_object( $got_ref, 'Excel::Writer::XLSX::Worksheet' );
-}
+#TODO
+#sub new-worksheet {
+#
+#    my $got-ref = shift;
+#
+#    return new-object( $got-ref, 'Excel::Writer::XLSX::Worksheet' );
+#}
 
 
 ###############################################################################
 #
 # Create a new Style object and bind the output to the supplied scalar ref.
 #
-sub _new_style {
-
-    my $got_ref = shift;
-
-    return _new_object( $got_ref, 'Excel::Writer::XLSX::Package::Styles' );
-}
+#TODO
+#sub new-style {
+#
+#    my $got-ref = shift;
+#
+#    return new-object( $got-ref, 'Excel::Writer::XLSX::Package::Styles' );
+#}
 
 
 ###############################################################################
@@ -408,23 +384,17 @@ sub _new_style {
 # This is slightly different than the previous cases since the constructor
 # requires a filename/filehandle.
 #
-sub _new_workbook {
+#TODO
+sub new-workbook($got-ref) is export {
 
-    my $got_ref = shift;
+    my $got-fh;
+    my $tmp-fh;
+    #open my $got-fh, '>', $got-ref or die "Failed to open filehandle: $!";
+    #open my $tmp-fh, '>', \my $tmp or die "Failed to open filehandle: $!";
 
-    open my $got_fh, '>', $got_ref or die "Failed to open filehandle: $!";
-    open my $tmp_fh, '>', \my $tmp or die "Failed to open filehandle: $!";
+    my $workbook = Excel::Writer::XLSX.new(fh => $tmp-fh);
 
-    my $workbook = Excel::Writer::XLSX->new( $tmp_fh );
-
-    $workbook->{_fh} = $got_fh;
+    #TODO: $workbook.fh = $got-fh;
 
     return $workbook;
 }
-
-
-1;
-
-
-__END__
-

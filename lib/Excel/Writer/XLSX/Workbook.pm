@@ -36,59 +36,59 @@ unit class Excel::Writer::XLSX::Workbook is Excel::Writer::XLSX::Package::XMLwri
 
 has $!filename;
 has $!tempdir;
-has $!date_1904          = 0;
+has $!date-1904          = 0;
 has $!activesheet        = 0;
 has $!firstsheet         = 0;
 has $!selected           = 0;
 has $!fileclosed         = 0;
 has $!filehandle;
-has $!internal_fh        = 0;
-has $!sheet_name         = 'Sheet';
-has $!chart_name         = 'Chart';
-has $!sheetname_count    = 0;
-has $!chartname_count    = 0;
+has $!internal-fh        = 0;
+has $!sheet-name         = 'Sheet';
+has $!chart-name         = 'Chart';
+has $!sheetname-count    = 0;
+has $!chartname-count    = 0;
 has @!worksheets         = [];
 has @!charts             = [];
 has @!drawings           = [];
 has %!sheetnames         = {};
 has @!formats            = [];
-has @!xf_formats         = [];
-has %!xf_format_indices  = {};
-has @!dxf_formats        = [];
-has %!dxf_format_indices = {};
+has @!xf-formats         = [];
+has %!xf-format-indices  = {};
+has @!dxf-formats        = [];
+has %!dxf-format-indices = {};
 has @!palette            = [];
-has $!font_count         = 0;
-has $!num_format_count   = 0;
-has @!defined_names      = [];
-has @!named_ranges       = [];
-has @!custom_colors      = [];
-has %!doc_properties     = {};
-has @!custom_properties  = [];
+has $!font-count         = 0;
+has $!num-format-count   = 0;
+has @!defined-names      = [];
+has @!named-ranges       = [];
+has @!custom-colors      = [];
+has %!doc-properties     = {};
+has @!custom-properties  = [];
 has @!createtime         = [ now ];
-has $!num_vml_files      = 0;
-has $!num_comment_files  = 0;
+has $!num-vml-files      = 0;
+has $!num-comment-files  = 0;
 has $!optimization       = 0;
-has $!x_window           = 240;
-has $!y_window           = 15;
-has $!window_width       = 16095;
-has $!window_height      = 9660;
-has $!tab_ratio          = 500;
-has $!excel2003_style    = 0;
+has $!x-window           = 240;
+has $!y-window           = 15;
+has $!window-width       = 16095;
+has $!window-height      = 9660;
+has $!tab-ratio          = 500;
+has $!excel2003-style    = 0;
 
-has %!default_format_properties = {};
+has %!default-format-properties = {};
 
 # Structures for the shared strings data.
-has $!str_total  = 0;
-has $!str_unique = 0;
-has %!str_table  = {};
-has $!str_array  = [];
+has $!str-total  = 0;
+has $!str-unique = 0;
+has %!str-table  = {};
+has $!str-array  = [];
 
 # Formula calculation default settings.
-has $!calc_id      = 124519;
-has $!calc_mode    = 'auto';
-has $!calc_on_load = 1;
+has $!calc-id      = 124519;
+has $!calc-mode    = 'auto';
+has $!calc-on-load = 1;
 
-has $!vba_project;
+has $!vba-project;
 has @!shapes;
 
 ###############################################################################
@@ -103,35 +103,35 @@ method TWEAK (*@args) {
 #NYI     my $options = $_[1] || {};
 
 #NYI     if ( exists $options->{tempdir} ) {
-#NYI         $self->{_tempdir} = $options->{tempdir};
+#NYI         $self->{tempdir} = $options->{tempdir};
 #NYI     }
 
-#NYI     if ( exists $options->{date_1904} ) {
-#NYI         $self->{_date_1904} = $options->{date_1904};
+#NYI     if ( exists $options->{date-1904} ) {
+#NYI         $self->{date-1904} = $options->{date-1904};
 #NYI     }
 
 #NYI     if ( exists $options->{optimization} ) {
-#NYI         $self->{_optimization} = $options->{optimization};
+#NYI         $self->{optimization} = $options->{optimization};
 #NYI     }
 
-#NYI     if ( exists $options->{default_format_properties} ) {
-#NYI         $self->{_default_format_properties} =
-#NYI           $options->{default_format_properties};
+#NYI     if ( exists $options->{default-format-properties} ) {
+#NYI         $self->{_default-format-properties} =
+#NYI           $options->{default-format-properties};
 #NYI     }
 
-#NYI     if ( exists $options->{excel2003_style} ) {
-#NYI         $self->{_excel2003_style} = 1;
+#NYI     if ( exists $options->{excel2003-style} ) {
+#NYI         $self->{_excel2003-style} = 1;
 #NYI     }
 
 
 #NYI     bless $self, $class;
 
 #NYI     # Add the default cell format.
-#NYI     if ( $self->{_excel2003_style} ) {
-#NYI         $self->add_format( xf_index => 0, font_family => 0 );
+#NYI     if ( $self->{_excel2003-style} ) {
+#NYI         $self->add-format( xf-index => 0, font-family => 0 );
 #NYI     }
 #NYI     else {
-#NYI         $self->add_format( xf_index => 0 );
+#NYI         $self->add-format( xf-index => 0 );
 #NYI     }
 
 #NYI     # Check for a filename unless it is an existing filehandle
@@ -145,14 +145,14 @@ method TWEAK (*@args) {
 #NYI     if ( ref $self->{_filename} ) {
 
 #NYI         $self->{_filehandle}  = $self->{_filename};
-#NYI         $self->{_internal_fh} = 0;
+#NYI         $self->{_internal-fh} = 0;
 #NYI     }
 #NYI     elsif ( $self->{_filename} eq '-' ) {
 
 #NYI         # Support special filename/filehandle '-' for backward compatibility.
 #NYI         binmode STDOUT;
 #NYI         $self->{_filehandle}  = \*STDOUT;
-#NYI         $self->{_internal_fh} = 0;
+#NYI         $self->{_internal-fh} = 0;
 #NYI     }
 #NYI     else {
 #NYI         my $fh = IO::File->new( $self->{_filename}, 'w' );
@@ -160,12 +160,12 @@ method TWEAK (*@args) {
 #NYI         return undef unless defined $fh;
 
 #NYI         $self->{_filehandle}  = $fh;
-#NYI         $self->{_internal_fh} = 1;
+#NYI         $self->{_internal-fh} = 1;
 #NYI     }
 
 
 #NYI     # Set colour palette.
-#NYI     $self->set_color_palette();
+#NYI     $self->set-color-palette();
 
 #NYI     return $self;
 }
@@ -173,46 +173,46 @@ method TWEAK (*@args) {
 
 ###############################################################################
 #
-# assemble_xml_file()
+# assemble-xml-file()
 #
 # Assemble and write the XML file.
 #
-method assemble_xml_file {
+method assemble-xml-file {
 
     # Prepare format object for passing to Style.pm.
-    self.prepare_format_properties();
+    self.prepare-format-properties();
 
-    self.xml_declaration;
+    self.xml-declaration;
 
     # Write the root workbook element.
-    self.write_workbook();
+    self.write-workbook();
 
     # Write the XLSX file version.
-    self.write_file_version();
+    self.write-file-version();
 
     # Write the workbook properties.
-    self.write_workbook_pr();
+    self.write-workbook-pr();
 
     # Write the workbook view properties.
-    self.write_book_views();
+    self.write-book-views();
 
     # Write the worksheet names and ids.
-    self.write_sheets();
+    self.write-sheets();
 
     # Write the workbook defined names.
-    self.write_defined_names();
+    self.write-defined-names();
 
     # Write the workbook calculation properties.
-    self.write_calc_pr();
+    self.write-calc-pr();
 
     # Write the workbook extension storage.
-    # self.write_ext_lst();
+    # self.write-ext-lst();
 
     # Close the workbook tag.
-    self.xml_end_tag( 'workbook' );
+    self.xml-end-tag( 'workbook' );
 
     # Close the XML writer filehandle.
-    self.xml_get_fh().close();
+    self.xml-get-fh().close();
 }
 
 
@@ -231,10 +231,10 @@ method close {
     return Nil unless $!filehandle;
 
     $!fileclosed = 1;
-    self.store_workbook;
+    self.store-workbook;
 
     # Return the file close value.
-    if $!internal_fh {
+    if $!internal-fh {
         return $!filehandle.close();
     }
     else {
@@ -285,11 +285,11 @@ method DESTROY {
 
 ###############################################################################
 #
-# get_worksheet_by_name(name)
+# get-worksheet-by-name(name)
 #
 # Return a worksheet object in the workbook using the sheetname.
 #
-method get_worksheet_by_name($sheetname) {
+method get-worksheet-by-name($sheetname) {
 
     return Nil unless $sheetname.defined;
 
@@ -316,16 +316,16 @@ method get_worksheet_by_name($sheetname) {
 
 ###############################################################################
 #
-# add_worksheet($name)
+# add-worksheet($name)
 #
 # Add a new worksheet to the Excel workbook.
 #
 # Returns: reference to a worksheet object
 #
-method add_worksheet($name? is copy) {
+method add-worksheet($name? is copy) {
 
     my $index = @!worksheets.elems;
-    $name  = self.check_sheetname( $name );
+    $name  = self.check-sheetname( $name );
     my $fh;
 
     # Porters take note, the following scheme of passing references to Workbook
@@ -334,7 +334,7 @@ method add_worksheet($name? is copy) {
     # Worksheet objects. Feel free to implement this in any way the suits your
     # language.
     #
-    my %init_data = (
+    my %init-data = (
         fh => $fh,
         name => $name,
         index =>$index,
@@ -342,19 +342,19 @@ method add_worksheet($name? is copy) {
         activesheet => $!activesheet,
         firstsheet => $!firstsheet,
 
-        str_total => $!str_total,
-        str_unique => $!str_unique,
-        str_table => %!str_table,
+        str-total => $!str-total,
+        str-unique => $!str-unique,
+        str-table => %!str-table,
 
-        date_1904 => $!date_1904,
+        date-1904 => $!date-1904,
         palette => @!palette,
         optimization => $!optimization,
         tempdir => $!tempdir,
-        excel2003_style => $!excel2003_style,
+        excel2003-style => $!excel2003-style,
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init_data.Map );
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init-data.Map );
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;
 
@@ -364,11 +364,11 @@ method add_worksheet($name? is copy) {
 
 #NYI ###############################################################################
 #NYI #
-#NYI # add_chart( %args )
+#NYI # add-chart( %args )
 #NYI #
 #NYI # Create a chart for embedding or as a new sheet.
 #NYI #
-#NYI sub add_chart {
+#NYI sub add-chart {
 
 #NYI     my $self  = shift;
 #NYI     my %arg   = @_;
@@ -379,7 +379,7 @@ method add_worksheet($name? is copy) {
 #NYI     # Type must be specified so we can create the required chart instance.
 #NYI     my $type = $arg{type};
 #NYI     if ( !defined $type ) {
-#NYI         fail "Must define chart type in add_chart()";
+#NYI         fail "Must define chart type in add-chart()";
 #NYI     }
 
 #NYI     # Ensure that the chart defaults to non embedded.
@@ -387,11 +387,11 @@ method add_worksheet($name? is copy) {
 
 #NYI     # Check the worksheet name for non-embedded charts.
 #NYI     if ( !$embedded ) {
-#NYI         $name = $self->_check_sheetname( $arg{name}, 1 );
+#NYI         $name = $self->_check-sheetname( $arg{name}, 1 );
 #NYI     }
 
 
-#NYI     my @init_data = (
+#NYI     my @init-data = (
 
 #NYI         $fh,
 #NYI         $name,
@@ -400,11 +400,11 @@ method add_worksheet($name? is copy) {
 #NYI         \$self->{_activesheet},
 #NYI         \$self->{_firstsheet},
 
-#NYI         \$self->{_str_total},
-#NYI         \$self->{_str_unique},
-#NYI         \$self->{_str_table},
+#NYI         \$self->{_str-total},
+#NYI         \$self->{_str-unique},
+#NYI         \$self->{_str-table},
 
-#NYI         $self->{_date_1904},
+#NYI         $self->{_date-1904},
 #NYI         $self->{_palette},
 #NYI         $self->{_optimization},
 #NYI     );
@@ -416,7 +416,7 @@ method add_worksheet($name? is copy) {
 #NYI     if ( !$embedded ) {
 
 #NYI         my $drawing    = Excel::Writer::XLSX::Drawing->new();
-#NYI         my $chartsheet = Excel::Writer::XLSX::Chartsheet->new( @init_data );
+#NYI         my $chartsheet = Excel::Writer::XLSX::Chartsheet->new( @init-data );
 
 #NYI         $chart->{_palette} = $self->{_palette};
 
@@ -433,13 +433,13 @@ method add_worksheet($name? is copy) {
 #NYI     else {
 
 #NYI         # Set the embedded chart name if present.
-#NYI         $chart->{_chart_name} = $arg{name} if $arg{name};
+#NYI         $chart->{_chart-name} = $arg{name} if $arg{name};
 
-#NYI         # Set index to 0 so that the activate() and set_first_sheet() methods
+#NYI         # Set index to 0 so that the activate() and set-first-sheet() methods
 #NYI         # point back to the first worksheet if used for embedded charts.
 #NYI         $chart->{_index}   = 0;
 #NYI         $chart->{_palette} = $self->{_palette};
-#NYI         $chart->_set_embedded_config_data();
+#NYI         $chart->_set-embedded-config-data();
 #NYI         push @{ $self->{_charts} }, $chart;
 
 #NYI         return $chart;
@@ -450,32 +450,32 @@ method add_worksheet($name? is copy) {
 
 ###############################################################################
 #
-# _check_sheetname( $name )
+# _check-sheetname( $name )
 #
 # Check for valid worksheet names. We check the length, if it contains any
 # invalid characters and if the name is unique in the workbook.
 #
-method check_sheetname($name is copy = '', $chart = 0) {
+method check-sheetname($name is copy = '', $chart = 0) {
 
     $name //= '';
-    my $invalid_char = token { <[\[\]:*?/\\]> };
+    my $invalid-char = token { <[\[\]:*?/\\]> };
 
     # Increment the Sheet/Chart number used for default sheet names below.
     if $chart {
-        $!chartname_count++;
+        $!chartname-count++;
     }
     else {
-        $!sheetname_count++;
+        $!sheetname-count++;
     }
 
     # Supply default Sheet/Chart name if none has been defined.
     if $name eq '' {
 
         if $chart {
-            $name = $!chart_name ~ $!chartname_count;
+            $name = $!chart-name ~ $!chartname-count;
         }
         else {
-            $name = $!sheet_name ~ $!sheetname_count;
+            $name = $!sheet-name ~ $!sheetname-count;
         }
     }
 
@@ -483,17 +483,17 @@ method check_sheetname($name is copy = '', $chart = 0) {
     fail "Sheetname $name must be <= 31 chars" if $name.chars > 31;
 
     # Check that sheetname doesn't contain any invalid characters
-    if $name ~~ $invalid_char {
+    if $name ~~ $invalid-char {
         fail 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
     }
 
     # Check that the worksheet name doesn't already exist since this is a fatal
     # error in Excel 97. The check must also exclude case insensitive matches.
     for @!worksheets -> $worksheet {
-        my $name_a = $name;
-        my $name_b = $worksheet.name;
+        my $name-a = $name;
+        my $name-b = $worksheet.name;
 
-        if ( fc( $name_a ) eq fc( $name_b ) ) {
+        if ( fc( $name-a ) eq fc( $name-b ) ) {
             fail "Worksheet name '$name', with case ignored, is already used.";
         }
     }
@@ -504,27 +504,27 @@ method check_sheetname($name is copy = '', $chart = 0) {
 
 ###############################################################################
 #
-# add_format(%properties)
+# add-format(%properties)
 #
 # Add a new format to the Excel workbook.
 #
-method add_format(*%options) {
+method add-format(*%options) {
 
-    my %init_data =
-      ( |%!xf_format_indices, |%!dxf_format_indices );
+    my %init-data =
+      ( |%!xf-format-indices, |%!dxf-format-indices );
 
     # Change default format style for Excel2003/XLS format.
-    if $!excel2003_style {
-        %init_data.append: ( font => 'Arial', size => 10, theme => -1 );
+    if $!excel2003-style {
+        %init-data.append: ( font => 'Arial', size => 10, theme => -1 );
     }
 
     # Add the default format properties.
-    %init_data.push: { %!default_format_properties};
+    %init-data.push: { %!default-format-properties};
 
     # Add the user defined properties.
-    %init_data.push: %options;
+    %init-data.push: %options;
 
-    my $format = Excel::Writer::XLSX::Format.new( |%init_data );
+    my $format = Excel::Writer::XLSX::Format.new( |%init-data );
 
     @!formats.push: $format;    # Store format reference
 
@@ -534,11 +534,11 @@ method add_format(*%options) {
 
 ###############################################################################
 #
-# add_shape(%properties)
+# add-shape(%properties)
 #
 # Add a new shape to the Excel workbook.
 #
-method add_shape(*@options) {
+method add-shape(*@options) {
 
     my $fh;
     my $shape = Excel::Writer::XLSX::Shape.new( $fh, @options );
@@ -553,34 +553,34 @@ method add_shape(*@options) {
 
 ###############################################################################
 #
-# set_1904()
+# set-1904()
 #
 # Set the date system: 0 = 1900 (the default), 1 = 1904
 #
-method set_1904($value = 1) {
+method set-1904($value = 1) {
 
-    $!date_1904 = $value;
+    $!date-1904 = $value;
 }
 
 
 ###############################################################################
 #
-# get_1904()
+# get-1904()
 #
 # Return the date system: 0 = 1900, 1 = 1904
 #
-method get_1904 {
-  $!date_1904;
+method get-1904 {
+  $!date-1904;
 }
 
 
 ###############################################################################
 #
-# set_custom_color()
+# set-custom-color()
 #
 # Change the RGB components of the elements in the colour palette.
 #
-method set_custom_color($index, $red, $green?, $blue?) {
+method set-custom-color($index, $red, $green?, $blue?) {
 
     # Match a HTML #xxyyzz style parameter
     if $red.defined and $red ~~ /^ '#' (\w\w) (\w\w) (\w\w)/ {
@@ -611,7 +611,7 @@ method set_custom_color($index, $red, $green?, $blue?) {
     $aref[$index] = @rgb;
 
     # Store the custom colors for the style.xml file.
-    push @!custom_colors, sprintf "FF%02X%02X%02X", @rgb;
+    push @!custom-colors, sprintf "FF%02X%02X%02X", @rgb;
 
     return $index + 8;
 }
@@ -619,11 +619,11 @@ method set_custom_color($index, $red, $green?, $blue?) {
 
 ###############################################################################
 #
-# set_color_palette()
+# set-color-palette()
 #
 # Sets the colour palette to the Excel defaults.
 #
-method set_color_palette {
+method set-color-palette {
 
     @!palette = [
         [ 0x00, 0x00, 0x00, 0x00 ],    # 8
@@ -690,11 +690,11 @@ method set_color_palette {
 
 #NYI ###############################################################################
 #NYI #
-#NYI # set_tempdir()
+#NYI # set-tempdir()
 #NYI #
 #NYI # Change the default temp directory.
 #NYI #
-#NYI sub set_tempdir {
+#NYI sub set-tempdir {
 
 #NYI     my $self = shift;
 #NYI     my $dir  = shift;
@@ -708,19 +708,19 @@ method set_color_palette {
 
 #NYI ###############################################################################
 #NYI #
-#NYI # define_name()
+#NYI # define-name()
 #NYI #
 #NYI # Create a defined name in Excel. We handle global/workbook level names and
 #NYI # local/worksheet names.
 #NYI #
-#NYI sub define_name {
+#NYI sub define-name {
 
 #NYI     my $self        = shift;
 #NYI     my $name        = shift;
 #NYI     my $formula     = shift;
-#NYI     my $sheet_index = undef;
+#NYI     my $sheet-index = undef;
 #NYI     my $sheetname   = '';
-#NYI     my $full_name   = $name;
+#NYI     my $full-name   = $name;
 
 #NYI     # Remove the = sign from the formula if it exists.
 #NYI     $formula =~ s/^=//;
@@ -729,74 +729,74 @@ method set_color_palette {
 #NYI     if ( $name =~ /^(.*)!(.*)$/ ) {
 #NYI         $sheetname   = $1;
 #NYI         $name        = $2;
-#NYI         $sheet_index = $self->_get_sheet_index( $sheetname );
+#NYI         $sheet-index = $self->_get-sheet-index( $sheetname );
 #NYI     }
 #NYI     else {
-#NYI         $sheet_index = -1;    # Use -1 to indicate global names.
+#NYI         $sheet-index = -1;    # Use -1 to indicate global names.
 #NYI     }
 
 #NYI     # Warn if the sheet index wasn't found.
-#NYI     if ( !defined $sheet_index ) {
-#NYI         warn "Unknown sheet name $sheetname in defined_name()";
+#NYI     if ( !defined $sheet-index ) {
+#NYI         warn "Unknown sheet name $sheetname in defined-name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name contains invalid chars as defined by Excel help.
 #NYI     if ( $name !~ m/^[\w\\][\w\\.]*$/ || $name =~ m/^\d/ ) {
-#NYI         warn "Invalid character in name '$name' used in defined_name()";
+#NYI         warn "Invalid character in name '$name' used in defined-name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name looks like a cell name.
 #NYI     if ( $name =~ m/^[a-zA-Z][a-zA-Z]?[a-dA-D]?[0-9]+$/ ) {
-#NYI         warn "Invalid name '$name' looks like a cell name in defined_name()";
+#NYI         warn "Invalid name '$name' looks like a cell name in defined-name()";
 #NYI         return -1;
 #NYI     }
 
 #NYI     # Warn if the name looks like a R1C1.
 #NYI     if ( $name =~ m/^[rcRC]$/ || $name =~ m/^[rcRC]\d+[rcRC]\d+$/ ) {
-#NYI         warn "Invalid name '$name' like a RC cell ref in defined_name()";
+#NYI         warn "Invalid name '$name' like a RC cell ref in defined-name()";
 #NYI         return -1;
 #NYI     }
 
-#NYI     push @{ $self->{_defined_names} }, [ $name, $sheet_index, $formula ];
+#NYI     push @{ $self->{_defined-names} }, [ $name, $sheet-index, $formula ];
 #NYI }
 
 
 ###############################################################################
 #
-# set_size()
+# set-size()
 #
 # Set the workbook size.
 #
-method set_size($width, $height) {
+method set-size($width, $height) {
 
     if !$width {
-        $!window_width = 16095;
+        $!window-width = 16095;
     }
     else {
         # Convert to twips at 96 dpi.
-        $!window_width = int( $width * 1440 / 96 );
+        $!window-width = int( $width * 1440 / 96 );
     }
 
     if !$height {
-        $!window_height = 9660;
+        $!window-height = 9660;
     }
     else {
         # Convert to twips at 96 dpi.
-        $!window_height = int( $height * 1440 / 96 );
+        $!window-height = int( $height * 1440 / 96 );
     }
 }
 
 
 ###############################################################################
 #
-# set_properties()
+# set-properties()
 #
 # Set the document properties such as Title, Author etc. These are written to
 # property sets in the OLE container.
 #
-method set_properties(*%param) {
+method set-properties(*%param) {
 
     # Ignore if no args were passed.
     return -1 unless %param;
@@ -808,19 +808,19 @@ method set_properties(*%param) {
         author         => 1,
         keywords       => 1,
         comments       => 1,
-        last_author    => 1,
+        last-author    => 1,
         created        => 1,
         category       => 1,
         manager        => 1,
         company        => 1,
         status         => 1,
-        hyperlink_base => 1,
+        hyperlink-base => 1,
     );
 
     # Check for valid input parameters.
     for %param.keys -> $parameter {
         if ( not %valid{$parameter}.defined ) {
-            warn "Unknown parameter '$parameter' in set_properties()";
+            warn "Unknown parameter '$parameter' in set-properties()";
             return -1;
         }
     }
@@ -831,30 +831,30 @@ method set_properties(*%param) {
     }
 
 
-    %!doc_properties = %param;
+    %!doc-properties = %param;
 }
 
 
 ###############################################################################
 #
-# set_custom_property()
+# set-custom-property()
 #
 # Set a user defined custom document property.
 #
-method set_custom_property($name, $value, $type?) {
+method set-custom-property($name, $value, $type?) {
 
     # Valid types.
-    my %valid_type = (
+    my %valid-type = (
         'text'       => 1,
         'date'       => 1,
         'number'     => 1,
-        'number_int' => 1,
+        'number-int' => 1,
         'bool'       => 1,
     );
 
     if ! $name.defined || ! $value.defined {
         warn "The name and value parameters must be defined "
-          ~ "in set_custom_property()";
+          ~ "in set-custom-property()";
 
         return -1;
     }
@@ -862,7 +862,7 @@ method set_custom_property($name, $value, $type?) {
     # Determine the type for strings and numbers if it hasn't been specified.
     if !$type {
         if $value ~~ /^\d+$/ {
-            $type = 'number_int';
+            $type = 'number-int';
         }
         elsif $value ~~
             /^
@@ -887,98 +887,98 @@ method set_custom_property($name, $value, $type?) {
     }
 
     # Check for valid validation types.
-    if ! %valid_type{$type}.exists {
-        warn "Unknown custom type '$type' in set_custom_property()";
+    if ! %valid-type{$type}.exists {
+        warn "Unknown custom type '$type' in set-custom-property()";
         return -1;
     }
 
     #  Check for strings longer than Excel's limit of 255 chars.
     if $type eq 'text' and $value.chars > 255 {
         warn "Length of text custom value '$value' exceeds "
-          ~ "Excel's limit of 255 in set_custom_property()";
+          ~ "Excel's limit of 255 in set-custom-property()";
         return -1;
     }
     if $name.chars > 255 {
         warn "Length of custom name '$name' exceeds "
-          ~ "Excel's limit of 255 in set_custom_property()";
+          ~ "Excel's limit of 255 in set-custom-property()";
         return -1;
     }
 
-    push @!custom_properties, [ $name, $value, $type ];
+    push @!custom-properties, [ $name, $value, $type ];
 }
 
 
 
 #NYI ###############################################################################
 #NYI #
-#NYI # add_vba_project()
+#NYI # add-vba-project()
 #NYI #
 #NYI # Add a vbaProject binary to the XLSX file.
 #NYI #
-#NYI sub add_vba_project {
+#NYI sub add-vba-project {
 
 #NYI     my $self        = shift;
-#NYI     my $vba_project = shift;
+#NYI     my $vba-project = shift;
 
-#NYI     fail "No vbaProject.bin specified in add_vba_project()"
-#NYI       if not $vba_project;
+#NYI     fail "No vbaProject.bin specified in add-vba-project()"
+#NYI       if not $vba-project;
 
-#NYI     fail "Couldn't locate $vba_project in add_vba_project(): $!"
-#NYI       unless -e $vba_project;
+#NYI     fail "Couldn't locate $vba-project in add-vba-project(): $!"
+#NYI       unless -e $vba-project;
 
-#NYI     $self->{_vba_project} = $vba_project;
+#NYI     $self->{_vba-project} = $vba-project;
 #NYI }
 
 
 #NYI ###############################################################################
 #NYI #
-#NYI # set_vba_name()
+#NYI # set-vba-name()
 #NYI #
 #NYI # Set the VBA name for the workbook.
 #NYI #
-#NYI sub set_vba_name {
+#NYI sub set-vba-name {
 
 #NYI     my $self         = shift;
-#NYI     my $vba_codemame = shift;
+#NYI     my $vba-codemame = shift;
 
-#NYI     if ( $vba_codemame ) {
-#NYI         $self->{_vba_codename} = $vba_codemame;
+#NYI     if ( $vba-codemame ) {
+#NYI         $self->{_vba-codename} = $vba-codemame;
 #NYI     }
 #NYI     else {
-#NYI         $self->{_vba_codename} = 'ThisWorkbook';
+#NYI         $self->{_vba-codename} = 'ThisWorkbook';
 #NYI     }
 #NYI }
 
 
 ###############################################################################
 #
-# set_calc_mode()
+# set-calc-mode()
 #
 # Set the Excel calcuation mode for the workbook.
 #
-method set_calc_mode($mode = 'auto', $calc-id?) {
+method set-calc-mode($mode = 'auto', $calc-id?) {
 
-    $!calc_mode = $mode;
+    $!calc-mode = $mode;
 
     if $mode eq 'manual' {
-        $!calc_mode    = 'manual';
-        $!calc_on_load = 0;
+        $!calc-mode    = 'manual';
+        $!calc-on-load = 0;
     }
-    elsif $mode eq 'auto_except_tables' {
-        $!calc_mode = 'autoNoTable';
+    elsif $mode eq 'auto-except-tables' {
+        $!calc-mode = 'autoNoTable';
     }
 
-    $!calc_id = $calc-id if $calc-id.defined;
+    $!calc-id = $calc-id if $calc-id.defined;
 }
 
 
 ###############################################################################
 #
-# _store_workbook()
+# _store-workbook()
 #
 # Assemble worksheets into a workbook.
 #
-method store_workbook {
+method store-workbook {
 
     my $tempdir  = File::Temp.newdir( tempdir => $!tempdir );
     my $packager = Excel::Writer::XLSX::Package::Packager.new();
@@ -986,7 +986,7 @@ method store_workbook {
 
 
     # Add a default worksheet if none have been added.
-    self.add_worksheet() if not @!worksheets;
+    self.add-worksheet() if not @!worksheets;
 
     # Ensure that at least one worksheet has been selected.
     if ( $!activesheet == 0 ) {
@@ -1000,27 +1000,27 @@ method store_workbook {
     }
 
     # Convert the SST strings data structure.
-    self.prepare_sst_string_data();
+    self.prepare-sst-string-data();
 
     # Prepare the worksheet VML elements such as comments and buttons.
-    self.prepare_vml_objects();
+    self.prepare-vml-objects();
 
     # Set the defined names for the worksheets such as Print Titles.
-    self.prepare_defined_names();
+    self.prepare-defined-names();
 
     # Prepare the drawings, charts and images.
-    self.prepare_drawings();
+    self.prepare-drawings();
 
     # Add cached data to charts.
-    self.add_chart_data();
+    self.add-chart-data();
 
     # Prepare the worksheet tables.
-    self.prepare_tables();
+    self.prepare-tables();
 
     # Package the workbook.
-    $packager.add_workbook();
-    $packager.set_package_dir( $tempdir );
-    $packager.create_package();
+    $packager.add-workbook();
+    $packager.set-package-dir( $tempdir );
+    $packager.create-package();
 
     # Free up the Packager object.
     $packager = Nil;
@@ -1028,17 +1028,17 @@ method store_workbook {
     # Add the files to the zip archive. Due to issues with Archive::Zip in
     # taint mode we can't use addTree() so we have to build the file list
     # with File::Find and pass each one to addFile().
-    my $xlsx_files = File::Find::find( dir => $tempdir, type => 'file' );
+    my $xlsx-files = File::Find::find( dir => $tempdir, type => 'file' );
 
     # Store the xlsx component files with the temp dir name removed.
-    for $xlsx_files -> $filename {
-        my $short_name = $filename;
-        $short_name ~~ s/^$tempdir '/'?//;
-        $zip.addFile( $filename, $short_name );
+    for $xlsx-files -> $filename {
+        my $short-name = $filename;
+        $short-name ~~ s/^$tempdir '/'?//;
+        $zip.addFile( $filename, $short-name );
     }
 
 
-    if $!internal_fh {
+    if $!internal-fh {
 
         if $zip.writeToFileHandle( $!filehandle ) != 0 {
             warn 'Error writing zip container for xlsx file.';
@@ -1050,17 +1050,17 @@ method store_workbook {
         # This won't work for arbitrary user defined filehandles so we use
         # a temp file based filehandle to create the zip archive and then
         # stream that to the filehandle.
-        my $tmp_fh = tempfile( tempdir => $!tempdir );
-        my $is_seekable = 1;
+        my $tmp-fh = tempfile( tempdir => $!tempdir );
+        my $is-seekable = 1;
 
-        if $zip.writeToFileHandle( $tmp_fh, $is_seekable ) != 0 {
+        if $zip.writeToFileHandle( $tmp-fh, $is-seekable ) != 0 {
             warn 'Error writing zip container for xlsx file.';
         }
 
         my $buffer;
-        $tmp_fh.seek: 0, 0;
+        $tmp-fh.seek: 0, 0;
 
-        while $tmp_fh.read: $buffer, 4_096 {
+        while $tmp-fh.read: $buffer, 4_096 {
             # local $\ = undef;    # Protect print from -l on commandline.
             $!filehandle.print: $buffer;
         }
@@ -1070,52 +1070,52 @@ method store_workbook {
 
 ###############################################################################
 #
-# _prepare_sst_string_data()
+# _prepare-sst-string-data()
 #
 # Convert the SST string data from a hash to an array.
 #
-#NYI sub _prepare_sst_string_data {
+#NYI sub _prepare-sst-string-data {
 
 #NYI     my $self = shift;
 
 #NYI     my @strings;
-#NYI     $#strings = $self->{_str_unique} - 1;    # Pre-extend array
+#NYI     $#strings = $self->{_str-unique} - 1;    # Pre-extend array
 
-#NYI     while ( my $key = each %{ $self->{_str_table} } ) {
-#NYI         $strings[ $self->{_str_table}->{$key} ] = $key;
+#NYI     while ( my $key = each %{ $self->{_str-table} } ) {
+#NYI         $strings[ $self->{_str-table}->{$key} ] = $key;
 #NYI     }
 
 #NYI     # The SST data could be very large, free some memory (maybe).
-#NYI     $self->{_str_table} = undef;
-#NYI     $self->{_str_array} = \@strings;
+#NYI     $self->{_str-table} = undef;
+#NYI     $self->{_str-array} = \@strings;
 
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_format_properties()
+# _prepare-format-properties()
 #
 # Prepare all of the format properties prior to passing them to Styles.pm.
 #
-#NYI sub _prepare_format_properties {
+#NYI sub _prepare-format-properties {
 
 #NYI     my $self = shift;
 
 #NYI     # Separate format objects into XF and DXF formats.
-#NYI     $self->_prepare_formats();
+#NYI     $self->_prepare-formats();
 
 #NYI     # Set the font index for the format objects.
-#NYI     $self->_prepare_fonts();
+#NYI     $self->_prepare-fonts();
 
 #NYI     # Set the number format index for the format objects.
-#NYI     $self->_prepare_num_formats();
+#NYI     $self->_prepare-num-formats();
 
 #NYI     # Set the border index for the format objects.
-#NYI     $self->_prepare_borders();
+#NYI     $self->_prepare-borders();
 
 #NYI     # Set the fill index for the format objects.
-#NYI     $self->_prepare_fills();
+#NYI     $self->_prepare-fills();
 
 
 #NYI }
@@ -1123,25 +1123,25 @@ method store_workbook {
 
 ###############################################################################
 #
-# _prepare_formats()
+# _prepare-formats()
 #
 # Iterate through the XF Format objects and separate them into XF and DXF
 # formats.
 #
-#NYI sub _prepare_formats {
+#NYI sub _prepare-formats {
 
 #NYI     my $self = shift;
 
 #NYI     for my $format ( @{ $self->{_formats} } ) {
-#NYI         my $xf_index  = $format->{_xf_index};
-#NYI         my $dxf_index = $format->{_dxf_index};
+#NYI         my $xf-index  = $format->{_xf-index};
+#NYI         my $dxf-index = $format->{_dxf-index};
 
-#NYI         if ( defined $xf_index ) {
-#NYI             $self->{_xf_formats}->[$xf_index] = $format;
+#NYI         if ( defined $xf-index ) {
+#NYI             $self->{_xf-formats}->[$xf-index] = $format;
 #NYI         }
 
-#NYI         if ( defined $dxf_index ) {
-#NYI             $self->{_dxf_formats}->[$dxf_index] = $format;
+#NYI         if ( defined $dxf-index ) {
+#NYI             $self->{_dxf-formats}->[$dxf-index] = $format;
 #NYI         }
 #NYI     }
 #NYI }
@@ -1149,57 +1149,57 @@ method store_workbook {
 
 ###############################################################################
 #
-# _set_default_xf_indices()
+# _set-default-xf-indices()
 #
 # Set the default index for each format. This is mainly used for testing.
 #
-#NYI sub _set_default_xf_indices {
+#NYI sub _set-default-xf-indices {
 
 #NYI     my $self = shift;
 
 #NYI     for my $format ( @{ $self->{_formats} } ) {
-#NYI         $format->get_xf_index();
+#NYI         $format->get-xf-index();
 #NYI     }
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_fonts()
+# _prepare-fonts()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # font elements.
 #
-#NYI sub _prepare_fonts {
+#NYI sub _prepare-fonts {
 
 #NYI     my $self = shift;
 
 #NYI     my %fonts;
 #NYI     my $index = 0;
 
-#NYI     for my $format ( @{ $self->{_xf_formats} } ) {
-#NYI         my $key = $format->get_font_key();
+#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
+#NYI         my $key = $format->get-font-key();
 
 #NYI         if ( exists $fonts{$key} ) {
 
 #NYI             # Font has already been used.
-#NYI             $format->{_font_index} = $fonts{$key};
-#NYI             $format->{_has_font}   = 0;
+#NYI             $format->{_font-index} = $fonts{$key};
+#NYI             $format->{_has-font}   = 0;
 #NYI         }
 #NYI         else {
 
 #NYI             # This is a new font.
 #NYI             $fonts{$key}           = $index;
-#NYI             $format->{_font_index} = $index;
-#NYI             $format->{_has_font}   = 1;
+#NYI             $format->{_font-index} = $index;
+#NYI             $format->{_has-font}   = 1;
 #NYI             $index++;
 #NYI         }
 #NYI     }
 
-#NYI     $self->{_font_count} = $index;
+#NYI     $self->{_font-count} = $index;
 
 #NYI     # For the DXF formats we only need to check if the properties have changed.
-#NYI     for my $format ( @{ $self->{_dxf_formats} } ) {
+#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
 
 #NYI         # The only font properties that can change for a DXF format are: color,
 #NYI         # bold, italic, underline and strikethrough.
@@ -1207,9 +1207,9 @@ method store_workbook {
 #NYI             || $format->{_bold}
 #NYI             || $format->{_italic}
 #NYI             || $format->{_underline}
-#NYI             || $format->{_font_strikeout} )
+#NYI             || $format->{_font-strikeout} )
 #NYI         {
-#NYI             $format->{_has_dxf_font} = 1;
+#NYI             $format->{_has-dxf-font} = 1;
 #NYI         }
 #NYI     }
 #NYI }
@@ -1217,100 +1217,100 @@ method store_workbook {
 
 ###############################################################################
 #
-# _prepare_num_formats()
+# _prepare-num-formats()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # number format elements.
 #
 # User defined records start from index 0xA4.
 #
-#NYI sub _prepare_num_formats {
+#NYI sub _prepare-num-formats {
 
 #NYI     my $self = shift;
 
-#NYI     my %num_formats;
+#NYI     my %num-formats;
 #NYI     my $index            = 164;
-#NYI     my $num_format_count = 0;
+#NYI     my $num-format-count = 0;
 
-#NYI     for my $format ( @{ $self->{_xf_formats} }, @{ $self->{_dxf_formats} } ) {
-#NYI         my $num_format = $format->{_num_format};
+#NYI     for my $format ( @{ $self->{_xf-formats} }, @{ $self->{_dxf-formats} } ) {
+#NYI         my $num-format = $format->{_num-format};
 
-#NYI         # Check if $num_format is an index to a built-in number format.
+#NYI         # Check if $num-format is an index to a built-in number format.
 #NYI         # Also check for a string of zeros, which is a valid number format
 #NYI         # string but would evaluate to zero.
 #NYI         #
-#NYI         if ( $num_format =~ m/^\d+$/ && $num_format !~ m/^0+\d/ ) {
+#NYI         if ( $num-format =~ m/^\d+$/ && $num-format !~ m/^0+\d/ ) {
 
 #NYI             # Index to a built-in number format.
-#NYI             $format->{_num_format_index} = $num_format;
+#NYI             $format->{_num-format-index} = $num-format;
 #NYI             next;
 #NYI         }
 
 
-#NYI         if ( exists( $num_formats{$num_format} ) ) {
+#NYI         if ( exists( $num-formats{$num-format} ) ) {
 
 #NYI             # Number format has already been used.
-#NYI             $format->{_num_format_index} = $num_formats{$num_format};
+#NYI             $format->{_num-format-index} = $num-formats{$num-format};
 #NYI         }
 #NYI         else {
 
 #NYI             # Add a new number format.
-#NYI             $num_formats{$num_format} = $index;
-#NYI             $format->{_num_format_index} = $index;
+#NYI             $num-formats{$num-format} = $index;
+#NYI             $format->{_num-format-index} = $index;
 #NYI             $index++;
 
 #NYI             # Only increase font count for XF formats (not for DXF formats).
-#NYI             if ( $format->{_xf_index} ) {
-#NYI                 $num_format_count++;
+#NYI             if ( $format->{_xf-index} ) {
+#NYI                 $num-format-count++;
 #NYI             }
 #NYI         }
 #NYI     }
 
-#NYI     $self->{_num_format_count} = $num_format_count;
+#NYI     $self->{_num-format-count} = $num-format-count;
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_borders()
+# _prepare-borders()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # border elements.
 #
-#NYI sub _prepare_borders {
+#NYI sub _prepare-borders {
 
 #NYI     my $self = shift;
 
 #NYI     my %borders;
 #NYI     my $index = 0;
 
-#NYI     for my $format ( @{ $self->{_xf_formats} } ) {
-#NYI         my $key = $format->get_border_key();
+#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
+#NYI         my $key = $format->get-border-key();
 
 #NYI         if ( exists $borders{$key} ) {
 
 #NYI             # Border has already been used.
-#NYI             $format->{_border_index} = $borders{$key};
-#NYI             $format->{_has_border}   = 0;
+#NYI             $format->{_border-index} = $borders{$key};
+#NYI             $format->{_has-border}   = 0;
 #NYI         }
 #NYI         else {
 
 #NYI             # This is a new border.
 #NYI             $borders{$key}           = $index;
-#NYI             $format->{_border_index} = $index;
-#NYI             $format->{_has_border}   = 1;
+#NYI             $format->{_border-index} = $index;
+#NYI             $format->{_has-border}   = 1;
 #NYI             $index++;
 #NYI         }
 #NYI     }
 
-#NYI     $self->{_border_count} = $index;
+#NYI     $self->{_border-count} = $index;
 
 #NYI     # For the DXF formats we only need to check if the properties have changed.
-#NYI     for my $format ( @{ $self->{_dxf_formats} } ) {
-#NYI         my $key = $format->get_border_key();
+#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
+#NYI         my $key = $format->get-border-key();
 
 #NYI         if ( $key =~ m/[^0:]/ ) {
-#NYI             $format->{_has_dxf_border} = 1;
+#NYI             $format->{_has-dxf-border} = 1;
 #NYI         }
 #NYI     }
 
@@ -1319,7 +1319,7 @@ method store_workbook {
 
 ###############################################################################
 #
-# _prepare_fills()
+# _prepare-fills()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # fill elements.
@@ -1327,7 +1327,7 @@ method store_workbook {
 # The user defined fill properties start from 2 since there are 2 default
 # fills: patternType="none" and patternType="gray125".
 #
-#NYI sub _prepare_fills {
+#NYI sub _prepare-fills {
 
 #NYI     my $self = shift;
 
@@ -1340,19 +1340,19 @@ method store_workbook {
 
 
 #NYI     # Store the DXF colours separately since them may be reversed below.
-#NYI     for my $format ( @{ $self->{_dxf_formats} } ) {
+#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
 #NYI         if (   $format->{_pattern}
-#NYI             || $format->{_bg_color}
-#NYI             || $format->{_fg_color} )
+#NYI             || $format->{_bg-color}
+#NYI             || $format->{_fg-color} )
 #NYI         {
-#NYI             $format->{_has_dxf_fill} = 1;
-#NYI             $format->{_dxf_bg_color} = $format->{_bg_color};
-#NYI             $format->{_dxf_fg_color} = $format->{_fg_color};
+#NYI             $format->{_has-dxf-fill} = 1;
+#NYI             $format->{_dxf-bg-color} = $format->{_bg-color};
+#NYI             $format->{_dxf-fg-color} = $format->{_fg-color};
 #NYI         }
 #NYI     }
 
 
-#NYI     for my $format ( @{ $self->{_xf_formats} } ) {
+#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
 
 #NYI         # The following logical statements jointly take care of special cases
 #NYI         # in relation to cell colours and patterns:
@@ -1363,51 +1363,51 @@ method store_workbook {
 #NYI         #    defaults.
 #NYI         #
 #NYI         if (   $format->{_pattern} == 1
-#NYI             && $format->{_bg_color} ne '0'
-#NYI             && $format->{_fg_color} ne '0' )
+#NYI             && $format->{_bg-color} ne '0'
+#NYI             && $format->{_fg-color} ne '0' )
 #NYI         {
-#NYI             my $tmp = $format->{_fg_color};
-#NYI             $format->{_fg_color} = $format->{_bg_color};
-#NYI             $format->{_bg_color} = $tmp;
+#NYI             my $tmp = $format->{_fg-color};
+#NYI             $format->{_fg-color} = $format->{_bg-color};
+#NYI             $format->{_bg-color} = $tmp;
 #NYI         }
 
 #NYI         if (   $format->{_pattern} <= 1
-#NYI             && $format->{_bg_color} ne '0'
-#NYI             && $format->{_fg_color} eq '0' )
+#NYI             && $format->{_bg-color} ne '0'
+#NYI             && $format->{_fg-color} eq '0' )
 #NYI         {
-#NYI             $format->{_fg_color} = $format->{_bg_color};
-#NYI             $format->{_bg_color} = 0;
+#NYI             $format->{_fg-color} = $format->{_bg-color};
+#NYI             $format->{_bg-color} = 0;
 #NYI             $format->{_pattern}  = 1;
 #NYI         }
 
 #NYI         if (   $format->{_pattern} <= 1
-#NYI             && $format->{_bg_color} eq '0'
-#NYI             && $format->{_fg_color} ne '0' )
+#NYI             && $format->{_bg-color} eq '0'
+#NYI             && $format->{_fg-color} ne '0' )
 #NYI         {
-#NYI             $format->{_bg_color} = 0;
+#NYI             $format->{_bg-color} = 0;
 #NYI             $format->{_pattern}  = 1;
 #NYI         }
 
 
-#NYI         my $key = $format->get_fill_key();
+#NYI         my $key = $format->get-fill-key();
 
 #NYI         if ( exists $fills{$key} ) {
 
 #NYI             # Fill has already been used.
-#NYI             $format->{_fill_index} = $fills{$key};
-#NYI             $format->{_has_fill}   = 0;
+#NYI             $format->{_fill-index} = $fills{$key};
+#NYI             $format->{_has-fill}   = 0;
 #NYI         }
 #NYI         else {
 
 #NYI             # This is a new fill.
 #NYI             $fills{$key}           = $index;
-#NYI             $format->{_fill_index} = $index;
-#NYI             $format->{_has_fill}   = 1;
+#NYI             $format->{_fill-index} = $index;
+#NYI             $format->{_has-fill}   = 1;
 #NYI             $index++;
 #NYI         }
 #NYI     }
 
-#NYI     $self->{_fill_count} = $index;
+#NYI     $self->{_fill-count} = $index;
 
 
 #NYI }
@@ -1415,7 +1415,7 @@ method store_workbook {
 
 ###############################################################################
 #
-# _prepare_defined_names()
+# _prepare-defined-names()
 #
 # Iterate through the worksheets and store any defined names in addition to
 # any user defined names. Stores the defined names for the Workbook.xml and
@@ -2287,7 +2287,7 @@ method store_workbook {
 #
 method set_optimization($level = 1) {
 
-    fail "set_optimization() must be called before add_worksheet()"
+    fail "set_optimization() must be called before add-worksheet()"
       if @!worksheets.elems == 0;
 
     $!optimization = $level;

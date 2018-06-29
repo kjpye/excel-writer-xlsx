@@ -5,12 +5,14 @@
 # reverse ('(c)'), September 2010, John McNamara, jmcnamara@cpan.org
 #
 
-use lib 't/lib';
-use TestFunctions qw(_expected_to_aref _got_to_aref _is_deep_diff _new_workbook);
-use strict;
-use warnings;
+use v6;
 
-use Test::More tests => 1;
+use lib 't/lib';
+use TestFunctions;
+#use TestFunctions qw(expected-to-aref got-to-aref is-deep-diff new-workbook);
+
+#use Test::More tests => 1;
+use Test;
 
 
 ###############################################################################
@@ -25,20 +27,20 @@ my $workbook;
 
 ###############################################################################
 #
-# Test the _assemble_xml_file() method.
+# Test the assemble_xml_file() method.
 #
-$caption = " \tWorkbook: _assemble_xml_file()";
+$caption = " \tWorkbook: assemble-xml-file()";
 
-$workbook = _new_workbook(\$got);
-$workbook->add_worksheet();
-$workbook->_assemble_xml_file();
+$workbook = new-workbook($got);
+$workbook.add-worksheet();
+$workbook.assemble-xml-file();
 
-$expected = _expected_to_aref();
-$got      = _got_to_aref( $got );
+$expected = expected-to-aref();
+$got      = got-to-aref( $got );
 
-_is_deep_diff( $got, $expected, $caption );
+is-deep-diff( $got, $expected, $caption );
 
-__DATA__
+my $data = Q:to/END/;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <fileVersion appName="xl" lastEdited="4" lowestEdited="4" rupBuild="4505"/>
@@ -51,4 +53,4 @@ __DATA__
   </sheets>
   <calcPr calcId="124519" fullCalcOnLoad="1"/>
 </workbook>
-
+END

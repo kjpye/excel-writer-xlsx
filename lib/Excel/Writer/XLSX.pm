@@ -21,9 +21,10 @@ unit class Excel::Writer::XLSX is Excel::Writer::XLSX::Workbook;
 #
 # new()
 #
-method new(*@args) {
-    return Excel::Writer::XLSX::Workbook.new( @args );
-}
+#TODO
+#method new(*@args) {
+#    return Excel::Writer::XLSX::Workbook.new( @args );
+#}
 
 =begin pod
 
