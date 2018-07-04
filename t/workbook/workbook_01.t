@@ -24,22 +24,6 @@ my $got;
 my $caption;
 my $workbook;
 
-
-###############################################################################
-#
-# Test the assemble_xml_file() method.
-#
-$caption = " \tWorkbook: assemble-xml-file()";
-
-$workbook = new-workbook($got);
-$workbook.add-worksheet();
-$workbook.assemble-xml-file();
-
-$expected = expected-to-aref();
-$got      = got-to-aref( $got );
-
-is-deep-diff( $got, $expected, $caption );
-
 my $data = Q:to/END/;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -54,3 +38,19 @@ my $data = Q:to/END/;
   <calcPr calcId="124519" fullCalcOnLoad="1"/>
 </workbook>
 END
+
+
+###############################################################################
+#
+# Test the assemble_xml_file() method.
+#
+$caption = " \tWorkbook: assemble-xml-file()";
+
+$workbook = new-workbook($data);
+$workbook.add-worksheet();
+$workbook.assemble-xml-file();
+
+$expected = expected-to-aref();
+$got      = got-to-aref( $got );
+
+is-deep-diff( $got, $expected, $caption );

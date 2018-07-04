@@ -389,12 +389,12 @@ sub new-workbook($got-ref) is export {
 
     my $got-fh;
     my $tmp-fh;
-    #open my $got-fh, '>', $got-ref or die "Failed to open filehandle: $!";
-    #open my $tmp-fh, '>', \my $tmp or die "Failed to open filehandle: $!";
+    $got-fh = $gotref.IO.open, :w or die "Failed to open filehandle: $!";
+    $tmp-fh = $tmp.IO.open, :w or die "Failed to open filehandle: $!";
 
     my $workbook = Excel::Writer::XLSX.new(fh => $tmp-fh);
 
-    #TODO: $workbook.fh = $got-fh;
+    $workbook.fh: $got-fh;
 
     return $workbook;
 }

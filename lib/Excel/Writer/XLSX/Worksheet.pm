@@ -28,8 +28,8 @@ use Excel::Writer::XLSX::Utility;
     my $colmax = 16_384;
     my $strmax = 32767;
 
-    has $!name;
-    has $!index;
+    has $.name;
+    has $.index;
     has $!activesheet;
     has $!firstsheet;
     has $!str_total;
@@ -55,7 +55,7 @@ use Excel::Writer::XLSX::Utility;
 
     has %!colinfo    = {};
     has @!selections = [];
-    has $!hidden     = 0;
+    has $.hidden     = 0;
     has $!active     = 0;
     has $!tab_color  = 0;
 

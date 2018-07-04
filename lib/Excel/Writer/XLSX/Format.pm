@@ -17,76 +17,76 @@ use v6.c;
 #NYI our $VERSION = '0.96';
 #NYI our $AUTOLOAD;
 
-has @!xf_format_indices;
-has @!dxf_format_indices;
-has @!xf_index;
-has @!dxf_index;
+has @!xf-format-indices;
+has @!dxf-format-indices;
+has @!xf-index;
+has @!dxf-index;
 
-has $!num_format       = 0;
-has $!num_format_index = 0;
-has $!font_index       = 0;
-has $!has_font         = 0;
-has $!has_dxf_font     = 0;
-has $!font             = 'Calibri';
-has $!size             = 11;
-has $!bold             = 0;
-has $!italic           = 0;
-has $!color            = 0x0;
-has $!underline        = 0;
-has $!font_strikeout   = 0;
-has $!font_outline     = 0;
-has $!font_shadow      = 0;
-has $!font_script      = 0;
-has $!font_family      = 2;
-has $!font_charset     = 0;
-has $!font_scheme      = 'minor';
-has $!font_condense    = 0;
-has $!font_extend      = 0;
-has $!theme            = 0;
-has $!hyperlink        = 0;
-has $!xf_id            = 0;
+has $.num-format       = 0;
+has $.num-format-index = 0;
+has $.font-index       = 0;
+has $.has-font         = 0;
+has $.has-dxf-font     = 0;
+has $.font             = 'Calibri';
+has $.size             = 11;
+has $.bold             = 0;
+has $.italic           = 0;
+has $.color            = 0x0;
+has $.underline        = 0;
+has $.font-strikeout   = 0;
+has $.font-outline     = 0;
+has $.font-shadow      = 0;
+has $.font-script      = 0;
+has $.font-family      = 2;
+has $.font-charset     = 0;
+has $.font-scheme      = 'minor';
+has $.font-condense    = 0;
+has $.font-extend      = 0;
+has $.theme            = 0;
+has $.hyperlink        = 0;
+has $.xf-id            = 0;
 
 has $!hidden = 0;
 has $!locked = 1;
 
-has $!text_h_align  = 0;
-has $!text_wrap     = 0;
-has $!text_v_align  = 0;
-has $!text_justlast = 0;
+has $!text-h-align  = 0;
+has $!text-wrap     = 0;
+has $!text-v-align  = 0;
+has $!text-justlast = 0;
 has $!rotation      = 0;
 
-has $!fg_color     = 0x00;
-has $!bg_color     = 0x00;
+has $!fg-color     = 0x00;
+has $!bg-color     = 0x00;
 has $!pattern      = 0;
-has $!has_fill     = 0;
-has $!has_dxf_fill = 0;
-has $!fill_index   = 0;
-has $!fill_count   = 0;
+has $!has-fill     = 0;
+has $!has-dxf-fill = 0;
+has $!fill-index   = 0;
+has $!fill-count   = 0;
 
-has $!border_index   = 0;
-has $!has_border     = 0;
-has $!has_dxf_border = 0;
-has $!border_count   = 0;
+has $!border-index   = 0;
+has $!has-border     = 0;
+has $!has-dxf-border = 0;
+has $!border-count   = 0;
 
 has $!bottom       = 0;
-has $!bottom_color = 0x0;
-has $!diag_border  = 0;
-has $!diag_color   = 0x0;
-has $!diag_type    = 0;
+has $!bottom-color = 0x0;
+has $!diag-border  = 0;
+has $!diag-color   = 0x0;
+has $!diag-type    = 0;
 has $!left         = 0;
-has $!left_color   = 0x0;
+has $!left-color   = 0x0;
 has $!right        = 0;
-has $!right_color  = 0x0;
+has $!right-color  = 0x0;
 has $!top          = 0;
-has $!top_color    = 0x0;
+has $!top-color    = 0x0;
 
 has $!indent        = 0;
 has $!shrink        = 0;
-has $!merge_range   = 0;
-has $!reading_order = 0;
-has $!just_distrib  = 0;
-has $!color_indexed = 0;
-has $!font_only     = 0;
+has $!merge-range   = 0;
+has $!reading-order = 0;
+has $!just-distrib  = 0;
+has $!color-indexed = 0;
+has $!font-only     = 0;
 
 # Added because they're used, but not previously defined
 has $!palette;
@@ -108,8 +108,8 @@ has $!type;
 
 #NYI     bless $self, $class;
 
-#NYI     # Set properties passed to Workbook::add_format()
-#NYI     $self->set_format_properties(@_) if @_;
+#NYI     # Set properties passed to Workbook::add-format()
+#NYI     $self->set-format-properties(@_) if @_;
 
 #NYI     return $self;
 #NYI }
@@ -126,42 +126,42 @@ method copy($other) {
     #TODO return unless $other.^WHAT eq (Excel::Writer::XLSX::Format);
 
     # Store properties that we don't want over-ridden.
-    my @xf_index           = @!xf_index;
-    my @dxf_index          = @!dxf_index;
-    my @xf_format_indices  = @!xf_format_indices;
-    my @dxf_format_indices = @!dxf_format_indices;
+    my @xf-index           = @!xf-index;
+    my @dxf-index          = @!dxf-index;
+    my @xf-format-indices  = @!xf-format-indices;
+    my @dxf-format-indices = @!dxf-format-indices;
     my $palette            = $!palette;
 
     # Copy properties.
     #TODO %$self             = %$other;
 
     # Restore original properties.
-    @!xf_index           = @xf_index;
-    @!dxf_index          = @dxf_index;
-    @!xf_format_indices  = @xf_format_indices;
-    @!dxf_format_indices = @dxf_format_indices;
+    @!xf-index           = @xf-index;
+    @!dxf-index          = @dxf-index;
+    @!xf-format-indices  = @xf-format-indices;
+    @!dxf-format-indices = @dxf-format-indices;
     $!palette            = $palette;
 }
 
 
 ###############################################################################
 #
-# get_align_properties()
+# get-align-properties()
 #
 # Return properties for an Style xf <alignment> sub-element.
 #
-method get_align_properties {
+method get-align-properties {
     my @align;    # Attributes to return
 
     # Check if any alignment options in the format have been changed.
     my $changed =
-      (      $!text_h_align != 0
-          || $!text_v_align != 0
+      (      $!text-h-align != 0
+          || $!text-v-align != 0
           || $!indent != 0
           || $!rotation != 0
-          || $!text_wrap != 0
+          || $!text-wrap != 0
           || $!shrink != 0
-          || $!reading_order != 0 ) ?? 1 !! 0;
+          || $!reading-order != 0 ) ?? 1 !! 0;
 
     return unless $changed;
 
@@ -169,48 +169,48 @@ method get_align_properties {
     # is defined for any other alignment or no alignment has been set then
     # default to left alignment.
     if   $!indent
-      && $!text_h_align != 1
-      && $!text_h_align != 3
-      && $!text_h_align != 7
+      && $!text-h-align != 1
+      && $!text-h-align != 3
+      && $!text-h-align != 7
     {
-        $!text_h_align = 1;
+        $!text-h-align = 1;
     }
 
     # Check for properties that are mutually exclusive.
-    $!shrink       = 0 if $!text_wrap;
-    $!shrink       = 0 if $!text_h_align == 4;    # Fill
-    $!shrink       = 0 if $!text_h_align == 5;    # Justify
-    $!shrink       = 0 if $!text_h_align == 7;    # Distributed
-    $!just_distrib = 0 if $!text_h_align != 7;    # Distributed
-    $!just_distrib = 0 if $!indent;
+    $!shrink       = 0 if $!text-wrap;
+    $!shrink       = 0 if $!text-h-align == 4;    # Fill
+    $!shrink       = 0 if $!text-h-align == 5;    # Justify
+    $!shrink       = 0 if $!text-h-align == 7;    # Distributed
+    $!just-distrib = 0 if $!text-h-align != 7;    # Distributed
+    $!just-distrib = 0 if $!indent;
 
     my $continuous = 'centerContinuous';
 
-    @align.push: 'horizontal', 'left'        if $!text_h_align == 1;
-    @align.push: 'horizontal', 'center'      if $!text_h_align == 2;
-    @align.push: 'horizontal', 'right'       if $!text_h_align == 3;
-    @align.push: 'horizontal', 'fill'        if $!text_h_align == 4;
-    @align.push: 'horizontal', 'justify'     if $!text_h_align == 5;
-    @align.push: 'horizontal', $continuous   if $!text_h_align == 6;
-    @align.push: 'horizontal', 'distributed' if $!text_h_align == 7;
+    @align.push: 'horizontal', 'left'        if $!text-h-align == 1;
+    @align.push: 'horizontal', 'center'      if $!text-h-align == 2;
+    @align.push: 'horizontal', 'right'       if $!text-h-align == 3;
+    @align.push: 'horizontal', 'fill'        if $!text-h-align == 4;
+    @align.push: 'horizontal', 'justify'     if $!text-h-align == 5;
+    @align.push: 'horizontal', $continuous   if $!text-h-align == 6;
+    @align.push: 'horizontal', 'distributed' if $!text-h-align == 7;
 
-    @align.push: 'justifyLastLine', 1 if $!just_distrib;
+    @align.push: 'justifyLastLine', 1 if $!just-distrib;
 
     # Property 'vertical' => 'bottom' is a default. It sets applyAlignment
     # without an alignment sub-element.
-    @align.push: 'vertical', 'top'         if $!text_v_align == 1;
-    @align.push: 'vertical', 'center'      if $!text_v_align == 2;
-    @align.push: 'vertical', 'justify'     if $!text_v_align == 4;
-    @align.push: 'vertical', 'distributed' if $!text_v_align == 5;
+    @align.push: 'vertical', 'top'         if $!text-v-align == 1;
+    @align.push: 'vertical', 'center'      if $!text-v-align == 2;
+    @align.push: 'vertical', 'justify'     if $!text-v-align == 4;
+    @align.push: 'vertical', 'distributed' if $!text-v-align == 5;
 
     @align.push: 'indent',       $!indent   if $!indent;
     @align.push: 'textRotation', $!rotation if $!rotation;
 
-    @align.push: 'wrapText',     1 if $!text_wrap;
+    @align.push: 'wrapText',     1 if $!text-wrap;
     @align.push: 'shrinkToFit',  1 if $!shrink;
 
-    @align.push: 'readingOrder', 1 if $!reading_order == 1;
-    @align.push: 'readingOrder', 2 if $!reading_order == 2;
+    @align.push: 'readingOrder', 1 if $!reading-order == 1;
+    @align.push: 'readingOrder', 2 if $!reading-order == 2;
 
     return $changed, @align;
 }
@@ -218,11 +218,11 @@ method get_align_properties {
 
 ###############################################################################
 #
-# get_protection_properties()
+# get-protection-properties()
 #
 # Return properties for an Excel XML <Protection> element.
 #
-method get_protection_properties {
+method get-protection-properties {
     my @attribs;
 
     push @attribs, 'locked', 0 if ! $!locked;
@@ -234,16 +234,16 @@ method get_protection_properties {
 
 ###############################################################################
 #
-# get_format_key()
+# get-format-key()
 #
 # Returns a unique hash key for the Format object.
 #
-method get_format_key {
+method get-format-key {
     my $key = join ':',
       (
-        self.get_font_key(), self.get_border_key,
-        self.get_fill_key(), self.get_alignment_key(),
-        $!num_format,  $!locked,
+        self.get-font-key(), self.get-border-key,
+        self.get-fill-key(), self.get-alignment-key(),
+        $!num-format,  $!locked,
         $!hidden
       );
 
@@ -252,20 +252,20 @@ method get_format_key {
 
 ###############################################################################
 #
-# get_font_key()
+# get-font-key()
 #
 # Returns a unique hash key for a font. Used by Workbook.
 #
-method get_font_key {
+method get-font-key {
     my $key = join ':', (
         $!bold,
         $!color,
-        $!font_charset,
-        $!font_family,
-        $!font_outline,
-        $!font_script,
-        $!font_shadow,
-        $!font_strikeout,
+        $!font-charset,
+        $!font-family,
+        $!font-outline,
+        $!font-script,
+        $!font-shadow,
+        $!font-strikeout,
         $!font,
         $!italic,
         $!size,
@@ -280,23 +280,23 @@ method get_font_key {
 
 ###############################################################################
 #
-# get_border_key()
+# get-border-key()
 #
 # Returns a unique hash key for a border style. Used by Workbook.
 #
-method get_border_key {
+method get-border-key {
     my $key = join ':', (
         $!bottom,
-        $!bottom_color,
-        $!diag_border,
-        $!diag_color,
-        $!diag_type,
+        $!bottom-color,
+        $!diag-border,
+        $!diag-color,
+        $!diag-type,
         $!left,
-        $!left_color,
+        $!left-color,
         $!right,
-        $!right_color,
+        $!right-color,
         $!top,
-        $!top_color,
+        $!top-color,
 
     );
 
@@ -306,15 +306,15 @@ method get_border_key {
 
 ###############################################################################
 #
-# get_fill_key()
+# get-fill-key()
 #
 # Returns a unique hash key for a fill style. Used by Workbook.
 #
-method get_fill_key {
+method get-fill-key {
     my $key = join ':', (
         $!pattern,
-        $!bg_color,
-        $!fg_color,
+        $!bg-color,
+        $!fg-color,
 
     );
 
@@ -324,19 +324,19 @@ method get_fill_key {
 
 ###############################################################################
 #
-# get_alignment_key()
+# get-alignment-key()
 #
 # Returns a unique hash key for alignment formats.
 #
-method get_alignment_key {
+method get-alignment-key {
     my $key = join ':', (
-        $!text_h_align,
-        $!text_v_align,
+        $!text-h-align,
+        $!text-v-align,
         $!indent,
         $!rotation,
-        $!text_wrap,
+        $!text-wrap,
         $!shrink,
-        $!reading_order,
+        $!reading-order,
 
     );
 
@@ -346,25 +346,25 @@ method get_alignment_key {
 
 ###############################################################################
 #
-# get_xf_index()
+# get-xf-index()
 #
 # Returns the index used by Worksheet->_XF()
 #
-method get_xf_index {
-    if @!xf_index.defined {
-        return @!xf_index;
+method get-xf-index {
+    if @!xf-index.defined {
+        return @!xf-index;
     }
     else {
-        my $key  = self.get_format_key();
-        my %indices_href = @!xf_format_indices;
+        my $key  = self.get-format-key();
+        my %indices-href = @!xf-format-indices;
 
-        if %indices_href{$key}.exists {
-            return %indices_href{$key};
+        if %indices-href{$key}.exists {
+            return %indices-href{$key};
         }
         else {
-            my $index = 1 + %indices_href.keys.elems;
-            %indices_href{$key} = $index;
-            @!xf_index = $index;
+            my $index = 1 + %indices-href.keys.elems;
+            %indices-href{$key} = $index;
+            @!xf-index = $index;
             return $index;
         }
     }
@@ -373,25 +373,25 @@ method get_xf_index {
 
 ###############################################################################
 #
-# get_dxf_index()
+# get-dxf-index()
 #
 # Returns the index used by Worksheet->_XF()
 #
-method get_dxf_index {
-    if @!dxf_index.defined {
-        return @!dxf_index;
+method get-dxf-index {
+    if @!dxf-index.defined {
+        return @!dxf-index;
     }
     else {
-        my $key  = self.get_format_key();
-        my %indices_href = @!dxf_format_indices;
+        my $key  = self.get-format-key();
+        my %indices-href = @!dxf-format-indices;
 
-        if %indices_href{$key}.exists {
-            return %indices_href{$key};
+        if %indices-href{$key}.exists {
+            return %indices-href{$key};
         }
         else {
-            my $index = %indices_href.keys.elems;
-            %indices_href{$key} = $index;
-            @!dxf_index = $index;
+            my $index = %indices-href.keys.elems;
+            %indices-href{$key} = $index;
+            @!dxf-index = $index;
             return $index;
         }
     }
@@ -400,13 +400,13 @@ method get_dxf_index {
 
 ###############################################################################
 #
-# _get_color()
+# get-color()
 #
-# Used in conjunction with the set_xxx_color methods to convert a color
+# Used in conjunction with the set-xxx-color methods to convert a color
 # string into a number. Color range is 0..63 but we will restrict it
 # to 8..63 to comply with Gnumeric. Colors 0..7 are repeated in 8..15.
 #
-method get_color($color?) {
+method get-color($color?) {
 
     my %colors = (
         aqua    => 0x0F,
@@ -457,11 +457,11 @@ method get_color($color?) {
 
 ###############################################################################
 #
-# set_type()
+# set-type()
 #
 # Set the XF object type as 0 = cell XF or 0xFFF5 = style XF.
 #
-method set_type($type) {
+method set-type($type) {
     if ($type.defined and $type eq 0) {
         $!type = 0x0000;
     }
@@ -473,123 +473,123 @@ method set_type($type) {
 
 ###############################################################################
 #
-# set_align()
+# set-align()
 #
 # Set cell alignment.
 #
-method set_align($location) {
+method set-align($location) {
     return if not $location.defined;    # No default
     return if $location ~~ /\d/;       # Ignore numbers
 
     $location .= lc;
 
-    self.set_text_h_align( 1 ) if $location eq 'left';
-    self.set_text_h_align( 2 ) if $location eq 'centre';
-    self.set_text_h_align( 2 ) if $location eq 'center';
-    self.set_text_h_align( 3 ) if $location eq 'right';
-    self.set_text_h_align( 4 ) if $location eq 'fill';
-    self.set_text_h_align( 5 ) if $location eq 'justify';
-    self.set_text_h_align( 6 ) if $location eq 'center_across';
-    self.set_text_h_align( 6 ) if $location eq 'centre_across';
-    self.set_text_h_align( 6 ) if $location eq 'merge';              # Legacy.
-    self.set_text_h_align( 7 ) if $location eq 'distributed';
-    self.set_text_h_align( 7 ) if $location eq 'equal_space';        # S::PE.
-    self.set_text_h_align( 7 ) if $location eq 'justify_distributed';
+    self.set-text-h-align( 1 ) if $location eq 'left';
+    self.set-text-h-align( 2 ) if $location eq 'centre';
+    self.set-text-h-align( 2 ) if $location eq 'center';
+    self.set-text-h-align( 3 ) if $location eq 'right';
+    self.set-text-h-align( 4 ) if $location eq 'fill';
+    self.set-text-h-align( 5 ) if $location eq 'justify';
+    self.set-text-h-align( 6 ) if $location eq 'center-across';
+    self.set-text-h-align( 6 ) if $location eq 'centre-across';
+    self.set-text-h-align( 6 ) if $location eq 'merge';              # Legacy.
+    self.set-text-h-align( 7 ) if $location eq 'distributed';
+    self.set-text-h-align( 7 ) if $location eq 'equal-space';        # S::PE.
+    self.set-text-h-align( 7 ) if $location eq 'justify-distributed';
 
-    $!just_distrib = 1 if $location eq 'justify_distributed';
+    $!just-distrib = 1 if $location eq 'justify-distributed';
 
-    self.set_text_v_align( 1 ) if $location eq 'top';
-    self.set_text_v_align( 2 ) if $location eq 'vcentre';
-    self.set_text_v_align( 2 ) if $location eq 'vcenter';
-    self.set_text_v_align( 3 ) if $location eq 'bottom';
-    self.set_text_v_align( 4 ) if $location eq 'vjustify';
-    self.set_text_v_align( 5 ) if $location eq 'vdistributed';
-    self.set_text_v_align( 5 ) if $location eq 'vequal_space';    # S::PE.
+    self.set-text-v-align( 1 ) if $location eq 'top';
+    self.set-text-v-align( 2 ) if $location eq 'vcentre';
+    self.set-text-v-align( 2 ) if $location eq 'vcenter';
+    self.set-text-v-align( 3 ) if $location eq 'bottom';
+    self.set-text-v-align( 4 ) if $location eq 'vjustify';
+    self.set-text-v-align( 5 ) if $location eq 'vdistributed';
+    self.set-text-v-align( 5 ) if $location eq 'vequal-space';    # S::PE.
 }
 
 
 ###############################################################################
 #
-# set_valign()
+# set-valign()
 #
-# Set vertical cell alignment. This is required by the set_properties() method
+# Set vertical cell alignment. This is required by the set-properties() method
 # to differentiate between the vertical and horizontal properties.
 #
-method set_valign(*@args) {
-    self.set_align( @args );
+method set-valign(*@args) {
+    self.set-align( @args );
 }
 
 
 ###############################################################################
 #
-# set_center_across()
+# set-center-across()
 #
 # Implements the Excel5 style "merge".
 #
-method set_center_across {
-    self.set_text_h_align( 6 );
+method set-center-across {
+    self.set-text-h-align( 6 );
 }
 
 
 ###############################################################################
 #
-# set_merge()
+# set-merge()
 #
 # This was the way to implement a merge in Excel5. However it should have been
-# called "center_across" and not "merge".
-# This is now deprecated. Use set_center_across() or better merge_range().
+# called "center-across" and not "merge".
+# This is now deprecated. Use set-center-across() or better merge-range().
 #
 #
-method set_merge {
-    self.set_text_h_align( 6 );
+method set-merge {
+    self.set-text-h-align( 6 );
 }
 
 
 ###############################################################################
 #
-# set_bold()
+# set-bold()
 #
 #
-method set_bold($bold = 1) {
+method set-bold($bold = 1) {
     $!bold = $bold;
 }
 
 
 ###############################################################################
 #
-# set_border($style)
+# set-border($style)
 #
 # Set cells borders to the same style
 #
-method set_border($style) {
-    self.set_bottom( $style );
-    self.set_top(    $style );
-    self.set_left(   $style );
-    self.set_right(  $style );
+method set-border($style) {
+    self.set-bottom( $style );
+    self.set-top(    $style );
+    self.set-left(   $style );
+    self.set-right(  $style );
 }
 
 
 ###############################################################################
 #
-# set_border_color($color)
+# set-border-color($color)
 #
 # Set cells border to the same color
 #
-method set_border_color($color) {
-    self.set_bottom_color( $color );
-    self.set_top_color( $color );
-    self.set_left_color( $color );
-    self.set_right_color( $color );
+method set-border-color($color) {
+    self.set-bottom-color( $color );
+    self.set-top-color( $color );
+    self.set-left-color( $color );
+    self.set-right-color( $color );
 }
 
 
 ###############################################################################
 #
-# set_rotation($angle)
+# set-rotation($angle)
 #
 # Set the rotation angle of the text. An alignment property.
 #
-method set_rotation($rotation) {
+method set-rotation($rotation) {
     # Argument should be a number
     return if $rotation !~~ /^
 			        (<[+-]>?) <before \d|\.\d>
@@ -618,26 +618,26 @@ method set_rotation($rotation) {
 
 ###############################################################################
 #
-# set_hyperlink()
+# set-hyperlink()
 #
 # Set the properties for the hyperlink style.
 #
-method set_hyperlink {
+method set-hyperlink {
     $!hyperlink = 1;
-    $!xf_id     = 1;
+    $!xf-id     = 1;
 
-    self.set_underline( 1 );
-    self.set_theme( 10 );
+    self.set-underline( 1 );
+    self.set-theme( 10 );
 }
 
 
 ###############################################################################
 #
-# set_format_properties()
+# set-format-properties()
 #
 # Convert hashes of properties to method calls.
 #
-method set_format_properties(*%properties) { # Merge multiple hashes into one
+method set-format-properties(*%properties) { # Merge multiple hashes into one
 
     for %properties.kv -> $key, $value {
 
@@ -645,15 +645,15 @@ method set_format_properties(*%properties) { # Merge multiple hashes into one
         $key ~~ s/^\-//;
 # TODO
 #        # Create a sub to set the property.
-#        my $sub = \&{"set_$key"};
+#        my $sub = \&{"set-$key"};
 #        $sub->( $self, $value );
     }
 }
 
-# Renamed rarely used set_properties() to set_format_properties() to avoid
+# Renamed rarely used set-properties() to set-format-properties() to avoid
 # confusion with Workbook method of the same name. The following acts as an
 # alias for any code that uses the old name.
-#TODO *set_properties = *set_format_properties;
+#TODO *set-properties = *set-format-properties;
 
 
 ###############################################################################
@@ -669,10 +669,10 @@ method set_format_properties(*%properties) { # Merge multiple hashes into one
 #NYI     # Ignore calls to DESTROY
 #NYI     return if $AUTOLOAD =~ /::DESTROY$/;
 
-#NYI     # Check for a valid method names, i.e. "set_xxx_yyy".
+#NYI     # Check for a valid method names, i.e. "set-xxx-yyy".
 #NYI     $AUTOLOAD =~ /.*::set(\w+)/ or die "Unknown method: $AUTOLOAD\n";
 
-#NYI     # Match the attribute, i.e. "_xxx_yyy".
+#NYI     # Match the attribute, i.e. "-xxx-yyy".
 #NYI     my $attribute = $1;
 
 #NYI     # Check that the attribute exists
@@ -682,8 +682,8 @@ method set_format_properties(*%properties) { # Merge multiple hashes into one
 #NYI     my $value;
 
 
-#NYI     # There are two types of set methods: set_property() and
-#NYI     # set_property_color(). When a method is AUTOLOADED we store a new anonymous
+#NYI     # There are two types of set methods: set-property() and
+#NYI     # set-property-color(). When a method is AUTOLOADED we store a new anonymous
 #NYI     # sub in the appropriate slot in the symbol table. The speeds up subsequent
 #NYI     # calls to the same method.
 #NYI     #
@@ -691,13 +691,13 @@ method set_format_properties(*%properties) { # Merge multiple hashes into one
 
 #NYI     if ( $AUTOLOAD =~ /.*::set\w+color$/ ) {
 
-#NYI         # For "set_property_color" methods
-#NYI         $value = _get_color( $_[0] );
+#NYI         # For "set-property-color" methods
+#NYI         $value = get-color( $_[0] );
 
 #NYI         *{$AUTOLOAD} = sub {
 #NYI             my $self = shift;
 
-#NYI             $self->{$attribute} = _get_color( $_[0] );
+#NYI             $self->{$attribute} = get=color( $_[0] );
 #NYI         };
 #NYI     }
 #NYI     else {

@@ -36,7 +36,7 @@ unit class Excel::Writer::XLSX::Workbook is Excel::Writer::XLSX::Package::XMLwri
 
 has $!filename;
 has $!tempdir;
-has $!date-1904          = 0;
+has $!date1904          = 0;
 has $!activesheet        = 0;
 has $!firstsheet         = 0;
 has $!selected           = 0;
@@ -74,6 +74,7 @@ has $!window-width       = 16095;
 has $!window-height      = 9660;
 has $!tab-ratio          = 500;
 has $!excel2003-style    = 0;
+has $!vba-codename;
 
 has %!default-format-properties = {};
 
@@ -106,8 +107,8 @@ method TWEAK (*@args) {
 #NYI         $self->{tempdir} = $options->{tempdir};
 #NYI     }
 
-#NYI     if ( exists $options->{date-1904} ) {
-#NYI         $self->{date-1904} = $options->{date-1904};
+#NYI     if ( exists $options->{date1904} ) {
+#NYI         $self->{date1904} = $options->{date1904};
 #NYI     }
 
 #NYI     if ( exists $options->{optimization} ) {
@@ -115,19 +116,19 @@ method TWEAK (*@args) {
 #NYI     }
 
 #NYI     if ( exists $options->{default-format-properties} ) {
-#NYI         $self->{_default-format-properties} =
+#NYI         $self->{default-format-properties} =
 #NYI           $options->{default-format-properties};
 #NYI     }
 
 #NYI     if ( exists $options->{excel2003-style} ) {
-#NYI         $self->{_excel2003-style} = 1;
+#NYI         $self->{excel2003-style} = 1;
 #NYI     }
 
 
 #NYI     bless $self, $class;
 
 #NYI     # Add the default cell format.
-#NYI     if ( $self->{_excel2003-style} ) {
+#NYI     if ( $self->{excel2003-style} ) {
 #NYI         $self->add-format( xf-index => 0, font-family => 0 );
 #NYI     }
 #NYI     else {
@@ -135,32 +136,32 @@ method TWEAK (*@args) {
 #NYI     }
 
 #NYI     # Check for a filename unless it is an existing filehandle
-#NYI     if ( not ref $self->{_filename} and $self->{_filename} eq '' ) {
+#NYI     if ( not ref $self->{filename} and $self->{filename} eq '' ) {
 #NYI         warn 'Filename required by Excel::Writer::XLSX->new()';
 #NYI         return Nil;
 #NYI     }
 
 
 #NYI     # If filename is a reference we assume that it is a valid filehandle.
-#NYI     if ( ref $self->{_filename} ) {
+#NYI     if ( ref $self->{filename} ) {
 
-#NYI         $self->{_filehandle}  = $self->{_filename};
-#NYI         $self->{_internal-fh} = 0;
+#NYI         $self->{filehandle}  = $self->{filename};
+#NYI         $self->{internal-fh} = 0;
 #NYI     }
-#NYI     elsif ( $self->{_filename} eq '-' ) {
+#NYI     elsif ( $self->{filename} eq '-' ) {
 
 #NYI         # Support special filename/filehandle '-' for backward compatibility.
 #NYI         binmode STDOUT;
-#NYI         $self->{_filehandle}  = \*STDOUT;
-#NYI         $self->{_internal-fh} = 0;
+#NYI         $self->{filehandle}  = \*STDOUT;
+#NYI         $self->{internal-fh} = 0;
 #NYI     }
 #NYI     else {
-#NYI         my $fh = IO::File->new( $self->{_filename}, 'w' );
+#NYI         my $fh = IO::File->new( $self->{filename}, 'w' );
 
 #NYI         return undef unless defined $fh;
 
-#NYI         $self->{_filehandle}  = $fh;
-#NYI         $self->{_internal-fh} = 1;
+#NYI         $self->{filehandle}  = $fh;
+#NYI         $self->{internal-fh} = 1;
 #NYI     }
 
 
@@ -182,7 +183,7 @@ method assemble-xml-file {
     # Prepare format object for passing to Style.pm.
     self.prepare-format-properties();
 
-    self.xml-declaration;
+#TODO    self.xml-declaration();
 
     # Write the root workbook element.
     self.write-workbook();
@@ -212,7 +213,7 @@ method assemble-xml-file {
     self.xml-end-tag( 'workbook' );
 
     # Close the XML writer filehandle.
-    self.xml-get-fh().close();
+    self.fh().close();
 }
 
 
@@ -262,7 +263,7 @@ method DESTROY {
 #NYI #
 #NYI # sheets(slice,...)
 #NYI #
-#NYI # An accessor for the _worksheets[] array
+#NYI # An accessor for the worksheets[] array
 #NYI #
 #NYI # Returns: an optionally sliced list of the worksheet objects in a workbook.
 #NYI #
@@ -273,12 +274,12 @@ method DESTROY {
 #NYI     if ( @_ ) {
 
 #NYI         # Return a slice of the array
-#NYI         return @{ $self->{_worksheets} }[@_];
+#NYI         return @{ $self->{worksheets} }[@_];
 #NYI     }
 #NYI     else {
 
 #NYI         # Return the entire list
-#NYI         return @{ $self->{_worksheets} };
+#NYI         return @{ $self->{worksheets} };
 #NYI     }
 #NYI }
 
@@ -301,7 +302,7 @@ method get-worksheet-by-name($sheetname) {
 #NYI #
 #NYI # worksheets()
 #NYI #
-#NYI # An accessor for the _worksheets[] array.
+#NYI # An accessor for the worksheets[] array.
 #NYI # This method is now deprecated. Use the sheets() method instead.
 #NYI #
 #NYI # Returns: an array reference
@@ -310,7 +311,7 @@ method get-worksheet-by-name($sheetname) {
 
 #NYI     my $self = shift;
 
-#NYI     return $self->{_worksheets};
+#NYI     return $self->{worksheets};
 #NYI }
 
 
@@ -329,7 +330,7 @@ method add-worksheet($name? is copy) {
     my $fh;
 
     # Porters take note, the following scheme of passing references to Workbook
-    # data (in the \$self->{_foo} cases) instead of a reference to the Workbook
+    # data (in the \$self->{foo} cases) instead of a reference to the Workbook
     # itself is a workaround to avoid circular references between Workbook and
     # Worksheet objects. Feel free to implement this in any way the suits your
     # language.
@@ -346,7 +347,7 @@ method add-worksheet($name? is copy) {
         str-unique => $!str-unique,
         str-table => %!str-table,
 
-        date-1904 => $!date-1904,
+        date1904 => $!date1904,
         palette => @!palette,
         optimization => $!optimization,
         tempdir => $!tempdir,
@@ -373,7 +374,7 @@ method add-worksheet($name? is copy) {
 #NYI     my $self  = shift;
 #NYI     my %arg   = @_;
 #NYI     my $name  = '';
-#NYI     my $index = @{ $self->{_worksheets} };
+#NYI     my $index = @{ $self->{worksheets} };
 #NYI     my $fh    = undef;
 
 #NYI     # Type must be specified so we can create the required chart instance.
@@ -387,7 +388,7 @@ method add-worksheet($name? is copy) {
 
 #NYI     # Check the worksheet name for non-embedded charts.
 #NYI     if ( !$embedded ) {
-#NYI         $name = $self->_check-sheetname( $arg{name}, 1 );
+#NYI         $name = $self->check-sheetname( $arg{name}, 1 );
 #NYI     }
 
 
@@ -397,16 +398,16 @@ method add-worksheet($name? is copy) {
 #NYI         $name,
 #NYI         $index,
 
-#NYI         \$self->{_activesheet},
-#NYI         \$self->{_firstsheet},
+#NYI         \$self->{activesheet},
+#NYI         \$self->{firstsheet},
 
-#NYI         \$self->{_str-total},
-#NYI         \$self->{_str-unique},
-#NYI         \$self->{_str-table},
+#NYI         \$self->{str-total},
+#NYI         \$self->{str-unique},
+#NYI         \$self->{str-table},
 
-#NYI         $self->{_date-1904},
-#NYI         $self->{_palette},
-#NYI         $self->{_optimization},
+#NYI         $self->{date1904},
+#NYI         $self->{palette},
+#NYI         $self->{optimization},
 #NYI     );
 
 
@@ -418,29 +419,29 @@ method add-worksheet($name? is copy) {
 #NYI         my $drawing    = Excel::Writer::XLSX::Drawing->new();
 #NYI         my $chartsheet = Excel::Writer::XLSX::Chartsheet->new( @init-data );
 
-#NYI         $chart->{_palette} = $self->{_palette};
+#NYI         $chart->{palette} = $self->{palette};
 
-#NYI         $chartsheet->{_chart}   = $chart;
-#NYI         $chartsheet->{_drawing} = $drawing;
+#NYI         $chartsheet->{chart}   = $chart;
+#NYI         $chartsheet->{drawing} = $drawing;
 
-#NYI         $self->{_worksheets}->[$index] = $chartsheet;
-#NYI         $self->{_sheetnames}->{$name} = $chartsheet;
+#NYI         $self->{worksheets}->[$index] = $chartsheet;
+#NYI         $self->{sheetnames}->{$name} = $chartsheet;
 
-#NYI         push @{ $self->{_charts} }, $chart;
+#NYI         push @{ $self->{charts} }, $chart;
 
 #NYI         return $chartsheet;
 #NYI     }
 #NYI     else {
 
 #NYI         # Set the embedded chart name if present.
-#NYI         $chart->{_chart-name} = $arg{name} if $arg{name};
+#NYI         $chart->{chart-name} = $arg{name} if $arg{name};
 
 #NYI         # Set index to 0 so that the activate() and set-first-sheet() methods
 #NYI         # point back to the first worksheet if used for embedded charts.
-#NYI         $chart->{_index}   = 0;
-#NYI         $chart->{_palette} = $self->{_palette};
-#NYI         $chart->_set-embedded-config-data();
-#NYI         push @{ $self->{_charts} }, $chart;
+#NYI         $chart->{index}   = 0;
+#NYI         $chart->{palette} = $self->{palette};
+#NYI         $chart->set-embedded-config-data();
+#NYI         push @{ $self->{charts} }, $chart;
 
 #NYI         return $chart;
 #NYI     }
@@ -450,7 +451,7 @@ method add-worksheet($name? is copy) {
 
 ###############################################################################
 #
-# _check-sheetname( $name )
+# check-sheetname( $name )
 #
 # Check for valid worksheet names. We check the length, if it contains any
 # invalid characters and if the name is unique in the workbook.
@@ -553,24 +554,24 @@ method add-shape(*@options) {
 
 ###############################################################################
 #
-# set-1904()
+# set1904()
 #
 # Set the date system: 0 = 1900 (the default), 1 = 1904
 #
-method set-1904($value = 1) {
+method set1904($value = 1) {
 
-    $!date-1904 = $value;
+    $!date1904 = $value;
 }
 
 
 ###############################################################################
 #
-# get-1904()
+# get1904()
 #
 # Return the date system: 0 = 1900, 1 = 1904
 #
-method get-1904 {
-  $!date-1904;
+method get1904 {
+  $!date1904;
 }
 
 
@@ -701,7 +702,7 @@ method set-color-palette {
 
 #NYI     fail "$dir is not a valid directory" if defined $dir and not -d $dir;
 
-#NYI     $self->{_tempdir} = $dir;
+#NYI     $self->{tempdir} = $dir;
 
 #NYI }
 
@@ -729,7 +730,7 @@ method set-color-palette {
 #NYI     if ( $name =~ /^(.*)!(.*)$/ ) {
 #NYI         $sheetname   = $1;
 #NYI         $name        = $2;
-#NYI         $sheet-index = $self->_get-sheet-index( $sheetname );
+#NYI         $sheet-index = $self->get-sheet-index( $sheetname );
 #NYI     }
 #NYI     else {
 #NYI         $sheet-index = -1;    # Use -1 to indicate global names.
@@ -759,7 +760,7 @@ method set-color-palette {
 #NYI         return -1;
 #NYI     }
 
-#NYI     push @{ $self->{_defined-names} }, [ $name, $sheet-index, $formula ];
+#NYI     push @{ $self->{defined-names} }, [ $name, $sheet-index, $formula ];
 #NYI }
 
 
@@ -926,7 +927,7 @@ method set-custom-property($name, $value, $type?) {
 #NYI     fail "Couldn't locate $vba-project in add-vba-project(): $!"
 #NYI       unless -e $vba-project;
 
-#NYI     $self->{_vba-project} = $vba-project;
+#NYI     $self->{vba-project} = $vba-project;
 #NYI }
 
 
@@ -942,10 +943,10 @@ method set-custom-property($name, $value, $type?) {
 #NYI     my $vba-codemame = shift;
 
 #NYI     if ( $vba-codemame ) {
-#NYI         $self->{_vba-codename} = $vba-codemame;
+#NYI         $self->{vba-codename} = $vba-codemame;
 #NYI     }
 #NYI     else {
-#NYI         $self->{_vba-codename} = 'ThisWorkbook';
+#NYI         $self->{vba-codename} = 'ThisWorkbook';
 #NYI     }
 #NYI }
 
@@ -974,7 +975,7 @@ method set-calc-mode($mode = 'auto', $calc-id?) {
 
 ###############################################################################
 #
-# _store-workbook()
+# store-workbook()
 #
 # Assemble worksheets into a workbook.
 #
@@ -1070,94 +1071,90 @@ method store-workbook {
 
 ###############################################################################
 #
-# _prepare-sst-string-data()
+# prepare-sst-string-data()
 #
 # Convert the SST string data from a hash to an array.
 #
-#NYI sub _prepare-sst-string-data {
+#NYI sub prepare-sst-string-data {
 
 #NYI     my $self = shift;
 
 #NYI     my @strings;
-#NYI     $#strings = $self->{_str-unique} - 1;    # Pre-extend array
+#NYI     $#strings = $self->{str-unique} - 1;    # Pre-extend array
 
-#NYI     while ( my $key = each %{ $self->{_str-table} } ) {
-#NYI         $strings[ $self->{_str-table}->{$key} ] = $key;
+#NYI     while ( my $key = each %{ $self->{str-table} } ) {
+#NYI         $strings[ $self->{str-table}->{$key} ] = $key;
 #NYI     }
 
 #NYI     # The SST data could be very large, free some memory (maybe).
-#NYI     $self->{_str-table} = undef;
-#NYI     $self->{_str-array} = \@strings;
+#NYI     $self->{str-table} = undef;
+#NYI     $self->{str-array} = \@strings;
 
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare-format-properties()
+# prepare-format-properties()
 #
 # Prepare all of the format properties prior to passing them to Styles.pm.
 #
-#NYI sub _prepare-format-properties {
+method prepare-format-properties {
 
-#NYI     my $self = shift;
+    # Separate format objects into XF and DXF formats.
+    self.prepare-formats();
 
-#NYI     # Separate format objects into XF and DXF formats.
-#NYI     $self->_prepare-formats();
+    # Set the font index for the format objects.
+    self.prepare-fonts();
 
-#NYI     # Set the font index for the format objects.
-#NYI     $self->_prepare-fonts();
+    # Set the number format index for the format objects.
+    self.prepare-num-formats();
 
-#NYI     # Set the number format index for the format objects.
-#NYI     $self->_prepare-num-formats();
+    # Set the border index for the format objects.
+    self.prepare-borders();
 
-#NYI     # Set the border index for the format objects.
-#NYI     $self->_prepare-borders();
-
-#NYI     # Set the fill index for the format objects.
-#NYI     $self->_prepare-fills();
+    # Set the fill index for the format objects.
+    self.prepare-fills();
 
 
-#NYI }
+}
 
 
 ###############################################################################
 #
-# _prepare-formats()
+# prepare-formats()
 #
 # Iterate through the XF Format objects and separate them into XF and DXF
 # formats.
 #
-#NYI sub _prepare-formats {
+method prepare-formats {
 
-#NYI     my $self = shift;
+    for @!formats -> $format {
+        my $xf-index  = $format<xf-index>;
+        my $dxf-index = $format<dxf-index>;
 
-#NYI     for my $format ( @{ $self->{_formats} } ) {
-#NYI         my $xf-index  = $format->{_xf-index};
-#NYI         my $dxf-index = $format->{_dxf-index};
+        if $xf-index.defined {
+            @!xf-formats[$xf-index] = $format;
+        }
 
-#NYI         if ( defined $xf-index ) {
-#NYI             $self->{_xf-formats}->[$xf-index] = $format;
-#NYI         }
-
-#NYI         if ( defined $dxf-index ) {
-#NYI             $self->{_dxf-formats}->[$dxf-index] = $format;
-#NYI         }
-#NYI     }
-#NYI }
+        if $dxf-index.defined {
+            @!dxf-formats[$dxf-index] = $format;
+        }
+    }
+}
 
 
 ###############################################################################
 #
-# _set-default-xf-indices()
+# set-default-xf-indices()
 #
 # Set the default index for each format. This is mainly used for testing.
 #
-#NYI sub _set-default-xf-indices {
+#NYI sub set-default-xf-indices {
 
 #NYI     my $self = shift;
 
-#NYI     for my $format ( @{ $self->{_formats} } ) {
+#NYI     for my $format ( @{ $self->{formats} } ) {
 #NYI         $format->get-xf-index();
 #NYI     }
 #NYI }
@@ -1165,161 +1162,155 @@ method store-workbook {
 
 ###############################################################################
 #
-# _prepare-fonts()
+# prepare-fonts()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # font elements.
 #
-#NYI sub _prepare-fonts {
+method prepare-fonts {
 
-#NYI     my $self = shift;
+    my %fonts;
+    my $index = 0;
 
-#NYI     my %fonts;
-#NYI     my $index = 0;
+    for @!xf-formats -> $format {
+        my $key = $format.get-font-key();
 
-#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
-#NYI         my $key = $format->get-font-key();
+        if %fonts{$key}.exists {
 
-#NYI         if ( exists $fonts{$key} ) {
+            # Font has already been used.
+            $format.font-index: %fonts{$key};
+            $format.has-font:   0;
+        }
+        else {
 
-#NYI             # Font has already been used.
-#NYI             $format->{_font-index} = $fonts{$key};
-#NYI             $format->{_has-font}   = 0;
-#NYI         }
-#NYI         else {
+            # This is a new font.
+            %fonts{$key}        = $index;
+            $format.font-index:   $index;
+            $format.has-font:     1;
+            $index++;
+        }
+    }
 
-#NYI             # This is a new font.
-#NYI             $fonts{$key}           = $index;
-#NYI             $format->{_font-index} = $index;
-#NYI             $format->{_has-font}   = 1;
-#NYI             $index++;
-#NYI         }
-#NYI     }
+    $!font-count = $index;
 
-#NYI     $self->{_font-count} = $index;
+    # For the DXF formats we only need to check if the properties have changed.
+    for @!dxf-formats -> $format {
 
-#NYI     # For the DXF formats we only need to check if the properties have changed.
-#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
-
-#NYI         # The only font properties that can change for a DXF format are: color,
-#NYI         # bold, italic, underline and strikethrough.
-#NYI         if (   $format->{_color}
-#NYI             || $format->{_bold}
-#NYI             || $format->{_italic}
-#NYI             || $format->{_underline}
-#NYI             || $format->{_font-strikeout} )
-#NYI         {
-#NYI             $format->{_has-dxf-font} = 1;
-#NYI         }
-#NYI     }
-#NYI }
+        # The only font properties that can change for a DXF format are: color,
+        # bold, italic, underline and strikethrough.
+        if    $format.color
+           || $format.bold
+           || $format.italic
+           || $format.underline
+           || $format.font-strikeout
+        {
+            $format.has-dxf-font: 1;
+        }
+    }
+}
 
 
 ###############################################################################
 #
-# _prepare-num-formats()
+# prepare-num-formats()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # number format elements.
 #
 # User defined records start from index 0xA4.
 #
-#NYI sub _prepare-num-formats {
+method prepare-num-formats {
 
-#NYI     my $self = shift;
+    my %num-formats;
+    my $index            = 164;
+    my $num-format-count = 0;
 
-#NYI     my %num-formats;
-#NYI     my $index            = 164;
-#NYI     my $num-format-count = 0;
+    for |@!xf-formats, |@!dxf-formats -> $format {
+        my $num-format = $format.num-format;
 
-#NYI     for my $format ( @{ $self->{_xf-formats} }, @{ $self->{_dxf-formats} } ) {
-#NYI         my $num-format = $format->{_num-format};
+        # Check if $num-format is an index to a built-in number format.
+        # Also check for a string of zeros, which is a valid number format
+        # string but would evaluate to zero.
+        #
+        if $num-format ~~ m/^\d+$/ && $num-format !~~ m/^0+\d/ {
 
-#NYI         # Check if $num-format is an index to a built-in number format.
-#NYI         # Also check for a string of zeros, which is a valid number format
-#NYI         # string but would evaluate to zero.
-#NYI         #
-#NYI         if ( $num-format =~ m/^\d+$/ && $num-format !~ m/^0+\d/ ) {
-
-#NYI             # Index to a built-in number format.
-#NYI             $format->{_num-format-index} = $num-format;
-#NYI             next;
-#NYI         }
+            # Index to a built-in number format.
+            $format.num-format-index: $num-format;
+            next;
+        }
 
 
-#NYI         if ( exists( $num-formats{$num-format} ) ) {
+        if %num-formats{$num-format}.exists {
 
-#NYI             # Number format has already been used.
-#NYI             $format->{_num-format-index} = $num-formats{$num-format};
-#NYI         }
-#NYI         else {
+            # Number format has already been used.
+            $format.num-format-index: %num-formats{$num-format};
+        }
+        else {
 
-#NYI             # Add a new number format.
-#NYI             $num-formats{$num-format} = $index;
-#NYI             $format->{_num-format-index} = $index;
-#NYI             $index++;
+            # Add a new number format.
+            %num-formats{$num-format} = $index;
+            $format.num-format-index:   $index;
+            $index++;
 
-#NYI             # Only increase font count for XF formats (not for DXF formats).
-#NYI             if ( $format->{_xf-index} ) {
-#NYI                 $num-format-count++;
-#NYI             }
-#NYI         }
-#NYI     }
+            # Only increase font count for XF formats (not for DXF formats).
+            if $format.xf-index {
+                $num-format-count++;
+            }
+        }
+    }
 
-#NYI     $self->{_num-format-count} = $num-format-count;
-#NYI }
+    $!num-format-count = $num-format-count;
+}
 
 
 ###############################################################################
 #
-# _prepare-borders()
+# prepare-borders()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # border elements.
 #
-#NYI sub _prepare-borders {
+method prepare-borders {
 
-#NYI     my $self = shift;
+    my %borders;
+    my $index = 0;
 
-#NYI     my %borders;
-#NYI     my $index = 0;
+    for @!xf-formats -> $format {
+        my $key = $format.get-border-key();
 
-#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
-#NYI         my $key = $format->get-border-key();
+        if %borders{$key}.exists {
 
-#NYI         if ( exists $borders{$key} ) {
+            # Border has already been used.
+            $format.border-index: %borders{$key};
+            $format.has-border:   0;
+        }
+        else {
 
-#NYI             # Border has already been used.
-#NYI             $format->{_border-index} = $borders{$key};
-#NYI             $format->{_has-border}   = 0;
-#NYI         }
-#NYI         else {
+            # This is a new border.
+            %borders{$key}       = $index;
+            $format.border-index:  $index;
+            $format.has-border:    1;
+            $index++;
+        }
+    }
 
-#NYI             # This is a new border.
-#NYI             $borders{$key}           = $index;
-#NYI             $format->{_border-index} = $index;
-#NYI             $format->{_has-border}   = 1;
-#NYI             $index++;
-#NYI         }
-#NYI     }
+ #TODO   $!border-count = $index;
 
-#NYI     $self->{_border-count} = $index;
+    # For the DXF formats we only need to check if the properties have changed.
+    for @!dxf-formats -> $format {
+        my $key = $format.get-border-key();
 
-#NYI     # For the DXF formats we only need to check if the properties have changed.
-#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
-#NYI         my $key = $format->get-border-key();
+        if $key ~~ m/<-[0:]>/ {
+            $format.has-dxf-border: 1;
+        }
+    }
 
-#NYI         if ( $key =~ m/[^0:]/ ) {
-#NYI             $format->{_has-dxf-border} = 1;
-#NYI         }
-#NYI     }
-
-#NYI }
+}
 
 
 ###############################################################################
 #
-# _prepare-fills()
+# prepare-fills()
 #
 # Iterate through the XF Format objects and give them an index to non-default
 # fill elements.
@@ -1327,164 +1318,160 @@ method store-workbook {
 # The user defined fill properties start from 2 since there are 2 default
 # fills: patternType="none" and patternType="gray125".
 #
-#NYI sub _prepare-fills {
+method prepare-fills {
 
-#NYI     my $self = shift;
+    my %fills;
+    my $index = 2;    # Start from 2. See above.
 
-#NYI     my %fills;
-#NYI     my $index = 2;    # Start from 2. See above.
-
-#NYI     # Add the default fills.
-#NYI     $fills{'0:0:0'}  = 0;
-#NYI     $fills{'17:0:0'} = 1;
+    # Add the default fills.
+    %fills{'0:0:0'}  = 0;
+    %fills{'17:0:0'} = 1;
 
 
-#NYI     # Store the DXF colours separately since them may be reversed below.
-#NYI     for my $format ( @{ $self->{_dxf-formats} } ) {
-#NYI         if (   $format->{_pattern}
-#NYI             || $format->{_bg-color}
-#NYI             || $format->{_fg-color} )
-#NYI         {
-#NYI             $format->{_has-dxf-fill} = 1;
-#NYI             $format->{_dxf-bg-color} = $format->{_bg-color};
-#NYI             $format->{_dxf-fg-color} = $format->{_fg-color};
-#NYI         }
-#NYI     }
+    # Store the DXF colours separately since them may be reversed below.
+    for @!dxf-formats -> $format {
+        if    $format.pattern
+           || $format.bg-color
+           || $format.fg-color
+        {
+            $format.has-dxf-fill: 1;
+            $format.dxf-bg-color: $format.bg-color;
+            $format.dxf-fg-color: $format.fg-color;
+        }
+    }
 
 
-#NYI     for my $format ( @{ $self->{_xf-formats} } ) {
+    for @!xf-formats -> $format {
 
-#NYI         # The following logical statements jointly take care of special cases
-#NYI         # in relation to cell colours and patterns:
-#NYI         # 1. For a solid fill (_pattern == 1) Excel reverses the role of
-#NYI         #    foreground and background colours, and
-#NYI         # 2. If the user specifies a foreground or background colour without
-#NYI         #    a pattern they probably wanted a solid fill, so we fill in the
-#NYI         #    defaults.
-#NYI         #
-#NYI         if (   $format->{_pattern} == 1
-#NYI             && $format->{_bg-color} ne '0'
-#NYI             && $format->{_fg-color} ne '0' )
-#NYI         {
-#NYI             my $tmp = $format->{_fg-color};
-#NYI             $format->{_fg-color} = $format->{_bg-color};
-#NYI             $format->{_bg-color} = $tmp;
-#NYI         }
+        # The following logical statements jointly take care of special cases
+        # in relation to cell colours and patterns:
+        # 1. For a solid fill (pattern == 1) Excel reverses the role of
+        #    foreground and background colours, and
+        # 2. If the user specifies a foreground or background colour without
+        #    a pattern they probably wanted a solid fill, so we fill in the
+        #    defaults.
+        #
+        if    $format.pattern  == 1
+           && $format.bg-color ne '0'
+           && $format.fg-color ne '0'
+        {
+            my $tmp = $format.fg-color;
+            $format.fg-color: $format.bg-color;
+            $format.bg-color: $tmp;
+        }
 
-#NYI         if (   $format->{_pattern} <= 1
-#NYI             && $format->{_bg-color} ne '0'
-#NYI             && $format->{_fg-color} eq '0' )
-#NYI         {
-#NYI             $format->{_fg-color} = $format->{_bg-color};
-#NYI             $format->{_bg-color} = 0;
-#NYI             $format->{_pattern}  = 1;
-#NYI         }
+        if    $format.pattern  <= 1
+           && $format.bg-color ne '0'
+           && $format.fg-color eq '0'
+        {
+            $format.fg-color: $format.bg-color;
+            $format.bg-color: 0;
+            $format.pattern:  1;
+        }
 
-#NYI         if (   $format->{_pattern} <= 1
-#NYI             && $format->{_bg-color} eq '0'
-#NYI             && $format->{_fg-color} ne '0' )
-#NYI         {
-#NYI             $format->{_bg-color} = 0;
-#NYI             $format->{_pattern}  = 1;
-#NYI         }
-
-
-#NYI         my $key = $format->get-fill-key();
-
-#NYI         if ( exists $fills{$key} ) {
-
-#NYI             # Fill has already been used.
-#NYI             $format->{_fill-index} = $fills{$key};
-#NYI             $format->{_has-fill}   = 0;
-#NYI         }
-#NYI         else {
-
-#NYI             # This is a new fill.
-#NYI             $fills{$key}           = $index;
-#NYI             $format->{_fill-index} = $index;
-#NYI             $format->{_has-fill}   = 1;
-#NYI             $index++;
-#NYI         }
-#NYI     }
-
-#NYI     $self->{_fill-count} = $index;
+        if    $format.pattern  <= 1
+           && $format.bg-color eq '0'
+           && $format.fg-color ne '0'
+        {
+            $format.bg-color: 0;
+            $format.pattern:  1;
+        }
 
 
-#NYI }
+        my $key = $format.get-fill-key();
+
+        if %fills{$key}.exists {
+
+            # Fill has already been used.
+            $format.fill-index: %fills{$key};
+            $format.has-fill:   0;
+        }
+        else {
+
+            # This is a new fill.
+            %fills{$key}        = $index;
+            $format.fill-index:   $index;
+            $format.has-fill:     1;
+            $index++;
+        }
+    }
+
+#TODO    $!fill-count = $index;
+}
 
 
 ###############################################################################
 #
-# _prepare-defined-names()
+# prepare-defined-names()
 #
 # Iterate through the worksheets and store any defined names in addition to
 # any user defined names. Stores the defined names for the Workbook.xml and
 # the named ranges for App.xml.
 #
-#NYI sub _prepare_defined_names {
+#NYI sub prepare-defined-names {
 
 #NYI     my $self = shift;
 
-#NYI     my @defined_names = @{ $self->{_defined_names} };
+#NYI     my @defined-names = @{ $self->{defined-names} };
 
-#NYI     for my $sheet ( @{ $self->{_worksheets} } ) {
+#NYI     for my $sheet ( @{ $self->{worksheets} } ) {
 
 #NYI         # Check for Print Area settings.
-#NYI         if ( $sheet->{_autofilter} ) {
+#NYI         if ( $sheet->{autofilter} ) {
 
-#NYI             my $range  = $sheet->{_autofilter};
+#NYI             my $range  = $sheet->{autofilter};
 #NYI             my $hidden = 1;
 
 #NYI             # Store the defined names.
-#NYI             push @defined_names,
-#NYI               [ '_xlnm._FilterDatabase', $sheet->{_index}, $range, $hidden ];
+#NYI             push @defined-names,
+#NYI               [ '_xlnm._FilterDatabase', $sheet->{index}, $range, $hidden ];
 
 #NYI         }
 
 #NYI         # Check for Print Area settings.
-#NYI         if ( $sheet->{_print_area} ) {
+#NYI         if ( $sheet->{print-area} ) {
 
-#NYI             my $range = $sheet->{_print_area};
+#NYI             my $range = $sheet->{print-area};
 
 #NYI             # Store the defined names.
-#NYI             push @defined_names,
-#NYI               [ '_xlnm.Print_Area', $sheet->{_index}, $range ];
+#NYI             push @defined-names,
+#NYI               [ '_xlnm.Print_Area', $sheet->{index}, $range ];
 #NYI         }
 
 #NYI         # Check for repeat rows/cols. aka, Print Titles.
-#NYI         if ( $sheet->{_repeat_cols} || $sheet->{_repeat_rows} ) {
+#NYI         if ( $sheet->{repeat-cols} || $sheet->{repeat-rows} ) {
 #NYI             my $range = '';
 
-#NYI             if ( $sheet->{_repeat_cols} && $sheet->{_repeat_rows} ) {
-#NYI                 $range = $sheet->{_repeat_cols} . ',' . $sheet->{_repeat_rows};
+#NYI             if ( $sheet->{repeat-cols} && $sheet->{repeat-rows} ) {
+#NYI                 $range = $sheet->{repeat-cols} . ',' . $sheet->{repeat-rows};
 #NYI             }
 #NYI             else {
-#NYI                 $range = $sheet->{_repeat_cols} . $sheet->{_repeat_rows};
+#NYI                 $range = $sheet->{repeat-cols} . $sheet->{repeat-rows};
 #NYI             }
 
 #NYI             # Store the defined names.
-#NYI             push @defined_names,
-#NYI               [ '_xlnm.Print_Titles', $sheet->{_index}, $range ];
+#NYI             push @defined-names,
+#NYI               [ '_xlnm.Print_Titles', $sheet->{index}, $range ];
 #NYI         }
 
 #NYI     }
 
-#NYI     @defined_names          = _sort_defined_names( @defined_names );
-#NYI     $self->{_defined_names} = \@defined_names;
-#NYI     $self->{_named_ranges}  = _extract_named_ranges( @defined_names );
+#NYI     @defined-names          = sort-defined-names( @defined-names );
+#NYI     $self->{defined-names} = \@defined-names;
+#NYI     $self->{named-ranges}  = extract-named-ranges( @defined-names );
 #NYI }
 
 
 ###############################################################################
 #
-# _sort_defined_names()
+# sort-defined-names()
 #
 # Sort internal and user defined names in the same order as used by Excel.
 # This may not be strictly necessary but unsorted elements caused a lot of
 # issues in the Spreadsheet::WriteExcel binary version. Also makes
 # comparison testing easier.
 #
-#NYI sub _sort_defined_names {
+#NYI sub sort-defined-names {
 
 #NYI     my @names = @_;
 
@@ -1492,15 +1479,15 @@ method store-workbook {
 
 #NYI     @names = sort {
 #NYI         # Primary sort based on the defined name.
-#NYI         _normalise_defined_name( $a->[0] )
+#NYI         -normalise-defined-name( $a->[0] )
 #NYI         cmp
-#NYI         _normalise_defined_name( $b->[0] )
+#NYI         -normalise-defined-name( $b->[0] )
 
 #NYI         ||
 #NYI         # Secondary sort based on the sheet name.
-#NYI         _normalise_sheet_name( $a->[2] )
+#NYI         -normalise-sheet-name( $a->[2] )
 #NYI         cmp
-#NYI         _normalise_sheet_name( $b->[2] )
+#NYI         normalise-sheet-name( $b->[2] )
 
 #NYI     } @names;
 #NYI     #>>>
@@ -1509,8 +1496,8 @@ method store-workbook {
 #NYI }
 
 # Used in the above sort routine to normalise the defined names. Removes any
-# leading '_xmln.' from internal names and lowercases the strings.
-#NYI sub _normalise_defined_name {
+# leading 'xmln.' from internal names and lowercases the strings.
+#NYI sub normalise-defined-name {
 #NYI     my $name = shift;
 
 #NYI     $name =~ s/^_xlnm.//;
@@ -1521,7 +1508,7 @@ method store-workbook {
 
 # Used in the above sort routine to normalise the worksheet names for the
 # secondary sort. Removes leading quote and lowercases the strings.
-#NYI sub _normalise_sheet_name {
+#NYI sub normalise-sheet-name {
 #NYI     my $name = shift;
 
 #NYI     $name =~ s/^'//;
@@ -1533,307 +1520,307 @@ method store-workbook {
 
 ###############################################################################
 #
-# _extract_named_ranges()
+# extract-named-ranges()
 #
 # Extract the named ranges from the sorted list of defined names. These are
 # used in the App.xml file.
 #
-#NYI sub _extract_named_ranges {
+#NYI sub extract-named-ranges {
 
-#NYI     my @defined_names = @_;
-#NYI     my @named_ranges;
+#NYI     my @defined-names = @_;
+#NYI     my @named-ranges;
 
 #NYI     NAME:
-#NYI     for my $defined_name ( @defined_names ) {
+#NYI     for my $defined-name ( @defined-names ) {
 
-#NYI         my $name  = $defined_name->[0];
-#NYI         my $index = $defined_name->[1];
-#NYI         my $range = $defined_name->[2];
+#NYI         my $name  = $defined-name->[0];
+#NYI         my $index = $defined-name->[1];
+#NYI         my $range = $defined-name->[2];
 
 #NYI         # Skip autoFilter ranges.
 #NYI         next NAME if $name eq '_xlnm._FilterDatabase';
 
 #NYI         # We are only interested in defined names with ranges.
 #NYI         if ( $range =~ /^([^!]+)!/ ) {
-#NYI             my $sheet_name = $1;
+#NYI             my $sheet-name = $1;
 
 #NYI             # Match Print_Area and Print_Titles xlnm types.
 #NYI             if ( $name =~ /^_xlnm\.(.*)$/ ) {
-#NYI                 my $xlnm_type = $1;
-#NYI                 $name = $sheet_name . '!' . $xlnm_type;
+#NYI                 my $xlnm-type = $1;
+#NYI                 $name = $sheet-name . '!' . $xlnm-type;
 #NYI             }
 #NYI             elsif ( $index != -1 ) {
-#NYI                 $name = $sheet_name . '!' . $name;
+#NYI                 $name = $sheet-name . '!' . $name;
 #NYI             }
 
-#NYI             push @named_ranges, $name;
+#NYI             push @named-ranges, $name;
 #NYI         }
 #NYI     }
 
-#NYI     return \@named_ranges;
+#NYI     return \@named-ranges;
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_drawings()
+# prepare-drawings()
 #
 # Iterate through the worksheets and set up any chart or image drawings.
 #
-#NYI sub _prepare_drawings {
+#NYI sub prepare-drawings {
 
 #NYI     my $self         = shift;
-#NYI     my $chart_ref_id = 0;
-#NYI     my $image_ref_id = 0;
-#NYI     my $drawing_id   = 0;
+#NYI     my $chart-ref-id = 0;
+#NYI     my $image-ref-id = 0;
+#NYI     my $drawing-id   = 0;
 
-#NYI     for my $sheet ( @{ $self->{_worksheets} } ) {
+#NYI     for my $sheet ( @{ $self->{worksheets} } ) {
 
-#NYI         my $chart_count = scalar @{ $sheet->{_charts} };
-#NYI         my $image_count = scalar @{ $sheet->{_images} };
-#NYI         my $shape_count = scalar @{ $sheet->{_shapes} };
+#NYI         my $chart-count = scalar @{ $sheet->{charts} };
+#NYI         my $image-count = scalar @{ $sheet->{images} };
+#NYI         my $shape-count = scalar @{ $sheet->{shapes} };
 
-#NYI         my $header_image_count = scalar @{ $sheet->{_header_images} };
-#NYI         my $footer_image_count = scalar @{ $sheet->{_footer_images} };
-#NYI         my $has_drawing        = 0;
+#NYI         my $header-image-count = scalar @{ $sheet->{header-images} };
+#NYI         my $footer-image-count = scalar @{ $sheet->{footer-images} };
+#NYI         my $has-drawing        = 0;
 
 
 #NYI         # Check that some image or drawing needs to be processed.
-#NYI         if (   !$chart_count
-#NYI             && !$image_count
-#NYI             && !$shape_count
-#NYI             && !$header_image_count
-#NYI             && !$footer_image_count )
+#NYI         if (   !$chart-count
+#NYI             && !$image-count
+#NYI             && !$shape-count
+#NYI             && !$header-image-count
+#NYI             && !$footer-image-count )
 #NYI         {
 #NYI             next;
 #NYI         }
 
-#NYI         # Don't increase the drawing_id header/footer images.
-#NYI         if ( $chart_count || $image_count || $shape_count ) {
-#NYI             $drawing_id++;
-#NYI             $has_drawing = 1;
+#NYI         # Don't increase the drawing-id header/footer images.
+#NYI         if ( $chart-count || $image-count || $shape-count ) {
+#NYI             $drawing-id++;
+#NYI             $has-drawing = 1;
 #NYI         }
 
 #NYI         # Prepare the worksheet charts.
-#NYI         for my $index ( 0 .. $chart_count - 1 ) {
-#NYI             $chart_ref_id++;
-#NYI             $sheet->_prepare_chart( $index, $chart_ref_id, $drawing_id );
+#NYI         for my $index ( 0 .. $chart-count - 1 ) {
+#NYI             $chart-ref-id++;
+#NYI             $sheet->prepare-chart( $index, $chart-ref-id, $drawing-id );
 #NYI         }
 
 #NYI         # Prepare the worksheet images.
-#NYI         for my $index ( 0 .. $image_count - 1 ) {
+#NYI         for my $index ( 0 .. $image-count - 1 ) {
 
-#NYI             my $filename = $sheet->{_images}->[$index]->[2];
+#NYI             my $filename = $sheet->{images}->[$index]->[2];
 
-#NYI             my ( $type, $width, $height, $name, $x_dpi, $y_dpi ) =
-#NYI               $self->_get_image_properties( $filename );
+#NYI             my ( $type, $width, $height, $name, $x-dpi, $y-dpi ) =
+#NYI               $self->get-image-properties( $filename );
 
-#NYI             $image_ref_id++;
+#NYI             $image-ref-id++;
 
-#NYI             $sheet->_prepare_image(
-#NYI                 $index, $image_ref_id, $drawing_id,
+#NYI             $sheet->prepare-image(
+#NYI                 $index, $image-ref-id, $drawing-id,
 #NYI                 $width, $height,       $name,
-#NYI                 $type,  $x_dpi,        $y_dpi
+#NYI                 $type,  $x-dpi,        $y-dpi
 #NYI             );
 #NYI         }
 
 #NYI         # Prepare the worksheet shapes.
-#NYI         for my $index ( 0 .. $shape_count - 1 ) {
-#NYI             $sheet->_prepare_shape( $index, $drawing_id );
+#NYI         for ^$shape-count -> $index {
+#NYI             $sheet->prepare-shape( $index, $drawing-id );
 #NYI         }
 
 #NYI         # Prepare the header images.
-#NYI         for my $index ( 0 .. $header_image_count - 1 ) {
+#NYI         for my $index ( 0 .. $header-image-count - 1 ) {
 
-#NYI             my $filename = $sheet->{_header_images}->[$index]->[0];
-#NYI             my $position = $sheet->{_header_images}->[$index]->[1];
+#NYI             my $filename = $sheet->{header-images}->[$index]->[0];
+#NYI             my $position = $sheet->{header-images}->[$index]->[1];
 
-#NYI             my ( $type, $width, $height, $name, $x_dpi, $y_dpi ) =
-#NYI               $self->_get_image_properties( $filename );
+#NYI             my ( $type, $width, $height, $name, $x-dpi, $y-dpi ) =
+#NYI               $self->get-image-properties( $filename );
 
-#NYI             $image_ref_id++;
+#NYI             $image-ref-id++;
 
-#NYI             $sheet->_prepare_header_image( $image_ref_id, $width, $height,
-#NYI                 $name, $type, $position, $x_dpi, $y_dpi );
+#NYI             $sheet->prepare-header-image( $image-ref-id, $width, $height,
+#NYI                 $name, $type, $position, $x-dpi, $y-dpi );
 #NYI         }
 
 #NYI         # Prepare the footer images.
-#NYI         for my $index ( 0 .. $footer_image_count - 1 ) {
+#NYI         for my $index ( 0 .. $footer-image-count - 1 ) {
 
-#NYI             my $filename = $sheet->{_footer_images}->[$index]->[0];
-#NYI             my $position = $sheet->{_footer_images}->[$index]->[1];
+#NYI             my $filename = $sheet->{footer-images}->[$index]->[0];
+#NYI             my $position = $sheet->{footer-images}->[$index]->[1];
 
-#NYI             my ( $type, $width, $height, $name, $x_dpi, $y_dpi ) =
-#NYI               $self->_get_image_properties( $filename );
+#NYI             my ( $type, $width, $height, $name, $x-dpi, $y-dpi ) =
+#NYI               $self->get-image-properties( $filename );
 
-#NYI             $image_ref_id++;
+#NYI             $image-ref-id++;
 
-#NYI             $sheet->_prepare_header_image( $image_ref_id, $width, $height,
-#NYI                 $name, $type, $position, $x_dpi, $y_dpi );
+#NYI             $sheet->prepare-header-image( $image-ref-id, $width, $height,
+#NYI                 $name, $type, $position, $x-dpi, $y-dpi );
 #NYI         }
 
 
-#NYI         if ( $has_drawing ) {
-#NYI             my $drawing = $sheet->{_drawing};
-#NYI             push @{ $self->{_drawings} }, $drawing;
+#NYI         if ( $has-drawing ) {
+#NYI             my $drawing = $sheet->{drawing};
+#NYI             push @{ $self->{drawings} }, $drawing;
 #NYI         }
 #NYI     }
 
 
 #NYI     # Remove charts that were created but not inserted into worksheets.
-#NYI     my @chart_data;
+#NYI     my @chart-data;
 
-#NYI     for my $chart ( @{ $self->{_charts} } ) {
-#NYI         if ( $chart->{_id} != -1 ) {
-#NYI             push @chart_data, $chart;
+#NYI     for my $chart ( @{ $self->{charts} } ) {
+#NYI         if ( $chart->{id} != -1 ) {
+#NYI             push @chart-data, $chart;
 #NYI         }
 #NYI     }
 
 #NYI     # Sort the workbook charts references into the order that the were
 #NYI     # written from the worksheets above.
-#NYI     @chart_data = sort { $a->{_id} <=> $b->{_id} } @chart_data;
+#NYI     @chart-data = sort { $a->{id} <=> $b->{id} } @chart-data;
 
-#NYI     $self->{_charts} = \@chart_data;
-#NYI     $self->{_drawing_count} = $drawing_id;
+#NYI     $self->{charts} = \@chart-data;
+#NYI     $self->{drawing-count} = $drawing-id;
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_vml_objects()
+# prepare-vml-objects()
 #
 # Iterate through the worksheets and set up the VML objects.
 #
-#NYI sub _prepare_vml_objects {
+#NYI sub prepare-vml-objects {
 
 #NYI     my $self           = shift;
-#NYI     my $comment_id     = 0;
-#NYI     my $vml_drawing_id = 0;
-#NYI     my $vml_data_id    = 1;
-#NYI     my $vml_header_id  = 0;
-#NYI     my $vml_shape_id   = 1024;
-#NYI     my $vml_files      = 0;
-#NYI     my $comment_files  = 0;
-#NYI     my $has_button     = 0;
+#NYI     my $comment-id     = 0;
+#NYI     my $vml-drawing-id = 0;
+#NYI     my $vml-data-id    = 1;
+#NYI     my $vml-header-id  = 0;
+#NYI     my $vml-shape-id   = 1024;
+#NYI     my $vml-files      = 0;
+#NYI     my $comment-files  = 0;
+#NYI     my $has-button     = 0;
 
-#NYI     for my $sheet ( @{ $self->{_worksheets} } ) {
+#NYI     for my $sheet ( @{ $self->{worksheets} } ) {
 
-#NYI         next if !$sheet->{_has_vml} and !$sheet->{_has_header_vml};
-#NYI         $vml_files = 1;
+#NYI         next if !$sheet->{has-vml} and !$sheet->{has-header-vml};
+#NYI         $vml-files = 1;
 
 
-#NYI         if ( $sheet->{_has_vml} ) {
+#NYI         if ( $sheet->{has-vml} ) {
 
-#NYI             $comment_files++ if $sheet->{_has_comments};
-#NYI             $comment_id++    if $sheet->{_has_comments};
-#NYI             $vml_drawing_id++;
+#NYI             $comment-files++ if $sheet->{has-comments};
+#NYI             $comment-id++    if $sheet->{has-comments};
+#NYI             $vml-drawing-id++;
 
 #NYI             my $count =
-#NYI               $sheet->_prepare_vml_objects( $vml_data_id, $vml_shape_id,
-#NYI                 $vml_drawing_id, $comment_id );
+#NYI               $sheet->prepare-vml-objects( $vml-data-id, $vml-shape-id,
+#NYI                 $vml-drawing-id, $comment-id );
 
 #NYI             # Each VML file should start with a shape id incremented by 1024.
-#NYI             $vml_data_id  += 1 * int(    ( 1024 + $count ) / 1024 );
-#NYI             $vml_shape_id += 1024 * int( ( 1024 + $count ) / 1024 );
+#NYI             $vml-data-id  += 1 * int(    ( 1024 + $count ) / 1024 );
+#NYI             $vml-shape-id += 1024 * int( ( 1024 + $count ) / 1024 );
 
 #NYI         }
 
-#NYI         if ( $sheet->{_has_header_vml} ) {
-#NYI             $vml_header_id++;
-#NYI             $vml_drawing_id++;
-#NYI             $sheet->_prepare_header_vml_objects( $vml_header_id,
-#NYI                 $vml_drawing_id );
+#NYI         if ( $sheet->{has-header-vml} ) {
+#NYI             $vml-header-id++;
+#NYI             $vml-drawing-id++;
+#NYI             $sheet->prepare-header-vml-objects( $vml-header-id,
+#NYI                 $vml-drawing-id );
 #NYI         }
 
-#NYI         # Set the sheet vba_codename if it has a button and the workbook
+#NYI         # Set the sheet vba-codename if it has a button and the workbook
 #NYI         # has a vbaProject binary.
-#NYI         if ( $sheet->{_buttons_array} ) {
-#NYI             $has_button = 1;
+#NYI         if ( $sheet->{buttons-array} ) {
+#NYI             $has-button = 1;
 
-#NYI             if ( $self->{_vba_project} && !$sheet->{_vba_codename} ) {
-#NYI                 $sheet->set_vba_name();
+#NYI             if ( $self->{vba-project} && !$sheet->{vba-codename} ) {
+#NYI                 $sheet->set-vba-name();
 #NYI             }
 #NYI         }
 
 #NYI     }
 
-#NYI     $self->{_num_vml_files}     = $vml_files;
-#NYI     $self->{_num_comment_files} = $comment_files;
+#NYI     $self->{num-vml-files}     = $vml-files;
+#NYI     $self->{num-comment-files} = $comment-files;
 
 #NYI     # Add a font format for cell comments.
-#NYI     if ( $comment_files > 0 ) {
+#NYI     if ( $comment-files > 0 ) {
 #NYI         my $format = Excel::Writer::XLSX::Format->new(
-#NYI             \$self->{_xf_format_indices},
-#NYI             \$self->{_dxf_format_indices},
+#NYI             \$self->{xf-format-indices},
+#NYI             \$self->{dxf-format-indices},
 #NYI             font          => 'Tahoma',
 #NYI             size          => 8,
-#NYI             color_indexed => 81,
-#NYI             font_only     => 1,
+#NYI             color-indexed => 81,
+#NYI             font-only     => 1,
 #NYI         );
 
-#NYI         $format->get_xf_index();
+#NYI         $format->get-xf-index();
 
-#NYI         push @{ $self->{_formats} }, $format;
+#NYI         push @{ $self->{formats} }, $format;
 #NYI     }
 
-#NYI     # Set the workbook vba_codename if one of the sheets has a button and
+#NYI     # Set the workbook vba-codename if one of the sheets has a button and
 #NYI     # the workbook has a vbaProject binary.
-#NYI     if ( $has_button && $self->{_vba_project} && !$self->{_vba_codename} ) {
-#NYI         $self->set_vba_name();
+#NYI     if ( $has-button && $self->{vba-project} && !$self->{vba-codename} ) {
+#NYI         $self->set-vba-name();
 #NYI     }
 #NYI }
 
 
 ###############################################################################
 #
-# _prepare_tables()
+# prepare-tables()
 #
 # Set the table ids for the worksheet tables.
 #
-#NYI sub _prepare_tables {
+#NYI sub prepare-tables {
 
 #NYI     my $self     = shift;
-#NYI     my $table_id = 0;
+#NYI     my $table-id = 0;
 #NYI     my $seen     = {};
 
-#NYI     for my $sheet ( @{ $self->{_worksheets} } ) {
+#NYI     for my $sheet ( @{ $self->{worksheets} } ) {
 
-#NYI         my $table_count = scalar @{ $sheet->{_tables} };
+#NYI         my $table-count = scalar @{ $sheet->{tables} };
 
-#NYI         next unless $table_count;
+#NYI         next unless $table-count;
 
-#NYI         $sheet->_prepare_tables( $table_id + 1, $seen );
+#NYI         $sheet->prepare-tables( $table-id + 1, $seen );
 
-#NYI         $table_id += $table_count;
+#NYI         $table-id += $table-count;
 #NYI     }
 #NYI }
 
 
 ###############################################################################
 #
-# _add_chart_data()
+# add-chart-data()
 #
 # Add "cached" data to charts to provide the numCache and strCache data for
 # series and title/axis ranges.
 #
-#NYI sub _add_chart_data {
+#NYI sub add-chart-data {
 
 #NYI     my $self = shift;
 #NYI     my %worksheets;
-#NYI     my %seen_ranges;
+#NYI     my %seen-ranges;
 #NYI     my @charts;
 
 #NYI     # Map worksheet names to worksheet objects.
-#NYI     for my $worksheet ( @{ $self->{_worksheets} } ) {
-#NYI         $worksheets{ $worksheet->{_name} } = $worksheet;
+#NYI     for my $worksheet ( @{ $self->{worksheets} } ) {
+#NYI         $worksheets{ $worksheet->{name} } = $worksheet;
 #NYI     }
 
 #NYI     # Build an array of the worksheet charts including any combined charts.
-#NYI     for my $chart ( @{ $self->{_charts} } ) {
+#NYI     for my $chart ( @{ $self->{charts} } ) {
 #NYI         push @charts, $chart;
 
-#NYI         if ($chart->{_combined}) {
-#NYI             push @charts, $chart->{_combined};
+#NYI         if ($chart->{combined}) {
+#NYI             push @charts, $chart->{combined};
 #NYI         }
 #NYI     }
 
@@ -1842,27 +1829,27 @@ method store-workbook {
 #NYI     for my $chart ( @charts ) {
 
 #NYI         RANGE:
-#NYI         while ( my ( $range, $id ) = each %{ $chart->{_formula_ids} } ) {
+#NYI         while ( my ( $range, $id ) = each %{ $chart->{formula-ids} } ) {
 
 #NYI             # Skip if the series has user defined data.
-#NYI             if ( defined $chart->{_formula_data}->[$id] ) {
-#NYI                 if (   !exists $seen_ranges{$range}
-#NYI                     || !defined $seen_ranges{$range} )
+#NYI             if ( defined $chart->{formula-data}->[$id] ) {
+#NYI                 if (   !exists $seen-ranges{$range}
+#NYI                     || !defined $seen-ranges{$range} )
 #NYI                 {
-#NYI                     my $data = $chart->{_formula_data}->[$id];
-#NYI                     $seen_ranges{$range} = $data;
+#NYI                     my $data = $chart->{formula-data}->[$id];
+#NYI                     $seen-ranges{$range} = $data;
 #NYI                 }
 #NYI                 next RANGE;
 #NYI             }
 
 #NYI             # Check to see if the data is already cached locally.
-#NYI             if ( exists $seen_ranges{$range} ) {
-#NYI                 $chart->{_formula_data}->[$id] = $seen_ranges{$range};
+#NYI             if ( exists $seen-ranges{$range} ) {
+#NYI                 $chart->{formula-data}->[$id] = $seen-ranges{$range};
 #NYI                 next RANGE;
 #NYI             }
 
 #NYI             # Convert the range formula to a sheet name and cell range.
-#NYI             my ( $sheetname, @cells ) = $self->_get_chart_range( $range );
+#NYI             my ( $sheetname, @cells ) = $self->get-chart-range( $range );
 
 #NYI             # Skip if we couldn't parse the formula.
 #NYI             next RANGE if !defined $sheetname;
@@ -1870,8 +1857,8 @@ method store-workbook {
 #NYI             # Handle non-contiguous ranges: (Sheet1!$A$1:$A$2,Sheet1!$A$4:$A$5).
 #NYI             # We don't try to parse the ranges. We just return an empty list.
 #NYI             if ( $sheetname =~ m/^\([^,]+,/ ) {
-#NYI                 $chart->{_formula_data}->[$id] = [];
-#NYI                 $seen_ranges{$range} = [];
+#NYI                 $chart->{formula-data}->[$id] = [];
+#NYI                 $seen-ranges{$range} = [];
 #NYI                 next RANGE;
 #NYI             }
 
@@ -1879,19 +1866,19 @@ method store-workbook {
 #NYI             # a chart series formula.
 #NYI             if ( !exists $worksheets{$sheetname} ) {
 #NYI                 die "Unknown worksheet reference '$sheetname' in range "
-#NYI                   . "'$range' passed to add_series().\n";
+#NYI                   . "'$range' passed to add-series().\n";
 #NYI             }
 
 #NYI             # Find the worksheet object based on the sheet name.
 #NYI             my $worksheet = $worksheets{$sheetname};
 
 #NYI             # Get the data from the worksheet table.
-#NYI             my @data = $worksheet->_get_range_data( @cells );
+#NYI             my @data = $worksheet->get-range-data( @cells );
 
 #NYI             # Convert shared string indexes to strings.
 #NYI             for my $token ( @data ) {
 #NYI                 if ( ref $token ) {
-#NYI                     $token = $self->{_str_array}->[ $token->{sst_id} ];
+#NYI                     $token = $self->{str-array}->[ $token->{sst-id} ];
 
 #NYI                     # Ignore rich strings for now. Deparse later if necessary.
 #NYI                     if ( $token =~ m{^<r>} && $token =~ m{</r>$} ) {
@@ -1901,10 +1888,10 @@ method store-workbook {
 #NYI             }
 
 #NYI             # Add the data to the chart.
-#NYI             $chart->{_formula_data}->[$id] = \@data;
+#NYI             $chart->{formula-data}->[$id] = \@data;
 
 #NYI             # Store range data locally to avoid lookup if seen again.
-#NYI             $seen_ranges{$range} = \@data;
+#NYI             $seen-ranges{$range} = \@data;
 #NYI         }
 #NYI     }
 #NYI }
@@ -1912,12 +1899,12 @@ method store-workbook {
 
 ###############################################################################
 #
-# _get_chart_range()
+# get-chart-range()
 #
 # Convert a range formula such as Sheet1!$B$1:$B$5 into a sheet name and cell
 # range such as ( 'Sheet1', 0, 1, 4, 1 ).
 #
-#NYI sub _get_chart_range {
+#NYI sub get-chart-range {
 
 #NYI     my $self  = shift;
 #NYI     my $range = shift;
@@ -1949,26 +1936,26 @@ method store-workbook {
 #NYI     $sheetname =~ s/'$//g;
 #NYI     $sheetname =~ s/''/'/g;
 
-#NYI     my ( $row_start, $col_start ) = xl_cell_to_rowcol( $cell_1 );
-#NYI     my ( $row_end,   $col_end )   = xl_cell_to_rowcol( $cell_2 );
+#NYI     my ( $row-start, $col-start ) = xl-cell-to-rowcol( $cell_1 );
+#NYI     my ( $row-end,   $col-end )   = xl-cell-to-rowcol( $cell_2 );
 
 #NYI     # Check that we have a 1D range only.
-#NYI     if ( $row_start != $row_end && $col_start != $col_end ) {
+#NYI     if ( $row-start != $row-end && $col-start != $col-end ) {
 #NYI         return undef;
 #NYI     }
 
-#NYI     return ( $sheetname, $row_start, $col_start, $row_end, $col_end );
+#NYI     return ( $sheetname, $row-start, $col-start, $row-end, $col-end );
 #NYI }
 
 
 ###############################################################################
 #
-# _store_externs()
+# store-externs()
 #
 # Write the EXTERNCOUNT and EXTERNSHEET records. These are used as indexes for
 # the NAME records.
 #
-#NYI sub _store_externs {
+#NYI sub store-externs {
 
 #NYI     my $self = shift;
 
@@ -1977,11 +1964,11 @@ method store-workbook {
 
 ###############################################################################
 #
-# _store_names()
+# store-names()
 #
 # Write the NAME record to define the print area and the repeat rows and cols.
 #
-#NYI sub _store_names {
+#NYI sub store-names {
 
 #NYI     my $self = shift;
 
@@ -1990,13 +1977,13 @@ method store-workbook {
 
 ###############################################################################
 #
-# _quote_sheetname()
+# quote-sheetname()
 #
 # Sheetnames used in references should be quoted if they contain any spaces,
 # special characters or if the look like something that isn't a sheet name.
 # TODO. We need to handle more special cases.
 #
-#NYI sub _quote_sheetname {
+#NYI sub quote-sheetname {
 
 #NYI     my $self      = shift;
 #NYI     my $sheetname = $_[0];
@@ -2012,13 +1999,13 @@ method store-workbook {
 
 ###############################################################################
 #
-# _get_image_properties()
+# get-image-properties()
 #
 # Extract information from the image file such as dimension, type, filename,
 # and extension. Also keep track of previously seen images to optimise out
 # any duplicates.
 #
-#NYI sub _get_image_properties {
+#NYI sub get-image-properties {
 
 #NYI     my $self     = shift;
 #NYI     my $filename = shift;
@@ -2026,12 +2013,12 @@ method store-workbook {
 #NYI     my $type;
 #NYI     my $width;
 #NYI     my $height;
-#NYI     my $x_dpi = 96;
-#NYI     my $y_dpi = 96;
-#NYI     my $image_name;
+#NYI     my $x-dpi = 96;
+#NYI     my $y-dpi = 96;
+#NYI     my $image-name;
 
 
-#NYI     ( $image_name ) = fileparse( $filename );
+#NYI     ( $image-name ) = fileparse( $filename );
 
 #NYI     # Open the image file and import the data.
 #NYI     my $fh = FileHandle->new( $filename );
@@ -2046,49 +2033,49 @@ method store-workbook {
 #NYI     if ( unpack( 'x A3', $data ) eq 'PNG' ) {
 
 #NYI         # Test for PNGs.
-#NYI         ( $type, $width, $height, $x_dpi, $y_dpi ) =
-#NYI           $self->_process_png( $data, $filename );
+#NYI         ( $type, $width, $height, $x-dpi, $y-dpi ) =
+#NYI           $self->process-png( $data, $filename );
 
-#NYI         $self->{_image_types}->{png} = 1;
+#NYI         $self->{image-types}->{png} = 1;
 #NYI     }
 #NYI     elsif ( unpack( 'n', $data ) == 0xFFD8 ) {
 
 #NYI         # Test for JPEG files.
-#NYI         ( $type, $width, $height, $x_dpi, $y_dpi ) =
-#NYI           $self->_process_jpg( $data, $filename );
+#NYI         ( $type, $width, $height, $x-dpi, $y-dpi ) =
+#NYI           $self->process-jpg( $data, $filename );
 
-#NYI         $self->{_image_types}->{jpeg} = 1;
+#NYI         $self->{image-types}->{jpeg} = 1;
 #NYI     }
 #NYI     elsif ( unpack( 'A2', $data ) eq 'BM' ) {
 
 #NYI         # Test for BMPs.
-#NYI         ( $type, $width, $height ) = $self->_process_bmp( $data, $filename );
+#NYI         ( $type, $width, $height ) = $self->process-bmp( $data, $filename );
 
-#NYI         $self->{_image_types}->{bmp} = 1;
+#NYI         $self->{image-types}->{bmp} = 1;
 #NYI     }
 #NYI     else {
 #NYI         fail "Unsupported image format for file: $filename\n";
 #NYI     }
 
-#NYI     push @{ $self->{_images} }, [ $filename, $type ];
+#NYI     push @{ $self->{images} }, [ $filename, $type ];
 
 #NYI     # Set a default dpi for images with 0 dpi.
-#NYI     $x_dpi = 96 if $x_dpi == 0;
-#NYI     $y_dpi = 96 if $y_dpi == 0;
+#NYI     $x-dpi = 96 if $x-dpi == 0;
+#NYI     $y-dpi = 96 if $y-dpi == 0;
 
 #NYI     $fh->close;
 
-#NYI     return ( $type, $width, $height, $image_name, $x_dpi, $y_dpi );
+#NYI     return ( $type, $width, $height, $image-name, $x-dpi, $y-dpi );
 #NYI }
 
 
 ###############################################################################
 #
-# _process_png()
+# process-png()
 #
 # Extract width and height information from a PNG file.
 #
-#NYI sub _process_png {
+#NYI sub process-png {
 
 #NYI     my $self     = shift;
 #NYI     my $data     = $_[0];
@@ -2097,15 +2084,15 @@ method store-workbook {
 #NYI     my $type   = 'png';
 #NYI     my $width  = 0;
 #NYI     my $height = 0;
-#NYI     my $x_dpi  = 96;
-#NYI     my $y_dpi  = 96;
+#NYI     my $x-dpi  = 96;
+#NYI     my $y-dpi  = 96;
 
 #NYI     my $offset      = 8;
-#NYI     my $data_length = length $data;
+#NYI     my $data-length = length $data;
 
 #NYI     # Search through the image data to read the height and width in the
 #NYI     # IHDR element. Also read the DPI in the pHYs element.
-#NYI     while ( $offset < $data_length ) {
+#NYI     while ( $offset < $data-length ) {
 
 #NYI         my $length = unpack "N",  substr $data, $offset + 0, 4;
 #NYI         my $type   = unpack "A4", substr $data, $offset + 4, 4;
@@ -2116,13 +2103,13 @@ method store-workbook {
 #NYI         }
 
 #NYI         if ( $type eq "pHYs" ) {
-#NYI             my $x_ppu = unpack "N", substr $data, $offset + 8,  4;
-#NYI             my $y_ppu = unpack "N", substr $data, $offset + 12, 4;
+#NYI             my $x-ppu = unpack "N", substr $data, $offset + 8,  4;
+#NYI             my $y-ppu = unpack "N", substr $data, $offset + 12, 4;
 #NYI             my $units = unpack "C", substr $data, $offset + 16, 1;
 
 #NYI             if ( $units == 1 ) {
-#NYI                 $x_dpi = $x_ppu * 0.0254;
-#NYI                 $y_dpi = $y_ppu * 0.0254;
+#NYI                 $x-dpi = $x-ppu * 0.0254;
+#NYI                 $y-dpi = $y-ppu * 0.0254;
 #NYI             }
 #NYI         }
 
@@ -2135,19 +2122,19 @@ method store-workbook {
 #NYI         fail "$filename: no size data found in png image.\n";
 #NYI     }
 
-#NYI     return ( $type, $width, $height, $x_dpi, $y_dpi );
+#NYI     return ( $type, $width, $height, $x-dpi, $y-dpi );
 #NYI }
 
 
 ###############################################################################
 #
-# _process_bmp()
+# process-bmp()
 #
 # Extract width and height information from a BMP file.
 #
 # Most of the checks came from old Spredsheet::WriteExcel code.
 #
-#NYI sub _process_bmp {
+#NYI sub process-bmp {
 
 #NYI     my $self     = shift;
 #NYI     my $data     = $_[0];
@@ -2197,27 +2184,27 @@ method store-workbook {
 
 ###############################################################################
 #
-# _process_jpg()
+# process-jpg()
 #
 # Extract width and height information from a JPEG file.
 #
-#NYI sub _process_jpg {
+#NYI sub process-jpg {
 
 #NYI     my $self     = shift;
 #NYI     my $data     = $_[0];
 #NYI     my $filename = $_[1];
 #NYI     my $type     = 'jpeg';
-#NYI     my $x_dpi    = 96;
-#NYI     my $y_dpi    = 96;
+#NYI     my $x-dpi    = 96;
+#NYI     my $y-dpi    = 96;
 #NYI     my $width;
 #NYI     my $height;
 
 #NYI     my $offset      = 2;
-#NYI     my $data_length = length $data;
+#NYI     my $data-length = length $data;
 
 #NYI     # Search through the image data to read the height and width in the
 #NYI     # 0xFFC0/C2 element. Also read the DPI in the 0xFFE0 element.
-#NYI     while ( $offset < $data_length ) {
+#NYI     while ( $offset < $data-length ) {
 
 #NYI         my $marker = unpack "n", substr $data, $offset + 0, 2;
 #NYI         my $length = unpack "n", substr $data, $offset + 2, 2;
@@ -2229,17 +2216,17 @@ method store-workbook {
 
 #NYI         if ( $marker == 0xFFE0 ) {
 #NYI             my $units     = unpack "C", substr $data, $offset + 11, 1;
-#NYI             my $x_density = unpack "n", substr $data, $offset + 12, 2;
-#NYI             my $y_density = unpack "n", substr $data, $offset + 14, 2;
+#NYI             my $x-density = unpack "n", substr $data, $offset + 12, 2;
+#NYI             my $y-density = unpack "n", substr $data, $offset + 14, 2;
 
 #NYI             if ( $units == 1 ) {
-#NYI                 $x_dpi = $x_density;
-#NYI                 $y_dpi = $y_density;
+#NYI                 $x-dpi = $x-density;
+#NYI                 $y-dpi = $y-density;
 #NYI             }
 
 #NYI             if ( $units == 2 ) {
-#NYI                 $x_dpi = $x_density * 2.54;
-#NYI                 $y_dpi = $y_density * 2.54;
+#NYI                 $x-dpi = $x-density * 2.54;
+#NYI                 $y-dpi = $y-density * 2.54;
 #NYI             }
 #NYI         }
 
@@ -2251,27 +2238,27 @@ method store-workbook {
 #NYI         fail "$filename: no size data found in jpeg image.\n";
 #NYI     }
 
-#NYI     return ( $type, $width, $height, $x_dpi, $y_dpi );
+#NYI     return ( $type, $width, $height, $x-dpi, $y-dpi );
 #NYI }
 
 
 #NYI ###############################################################################
 #NYI #
-#NYI # _get_sheet_index()
+#NYI # get-sheet-index()
 #NYI #
 #NYI # Convert a sheet name to its index. Return undef otherwise.
 #NYI #
-#NYI sub _get_sheet_index {
+#NYI sub get-sheet-index {
 
 #NYI     my $self        = shift;
 #NYI     my $sheetname   = shift;
-#NYI     my $sheet_index = undef;
+#NYI     my $sheet-index = undef;
 
 #NYI     $sheetname =~ s/^'//;
 #NYI     $sheetname =~ s/'$//;
 
-#NYI     if ( exists $self->{_sheetnames}->{$sheetname} ) {
-#NYI         return $self->{_sheetnames}->{$sheetname}->{_index};
+#NYI     if ( exists $self->{sheetnames}->{$sheetname} ) {
+#NYI         return $self->{sheetnames}->{$sheetname}->{index};
 #NYI     }
 #NYI     else {
 #NYI         return undef;
@@ -2281,13 +2268,13 @@ method store-workbook {
 
 ###############################################################################
 #
-# set_optimization()
+# set-optimization()
 #
 # Set the speed/memory optimisation level.
 #
-method set_optimization($level = 1) {
+method set-optimization($level = 1) {
 
-    fail "set_optimization() must be called before add-worksheet()"
+    fail "set-optimization() must be called before add-worksheet()"
       if @!worksheets.elems == 0;
 
     $!optimization = $level;
@@ -2301,8 +2288,8 @@ method set_optimization($level = 1) {
 #NYI ###############################################################################
 
 #NYI # No longer required by Excel::Writer::XLSX.
-#NYI sub compatibility_mode { }
-#NYI sub set_codepage       { }
+#NYI sub compatibility-mode { }
+#NYI sub set-codepage       { }
 
 
 ###############################################################################
@@ -2314,308 +2301,291 @@ method set_optimization($level = 1) {
 
 ###############################################################################
 #
-# _write_workbook()
+# write-workbook()
 #
 # Write <workbook> element.
 #
-method write_workbook {
+method write-workbook {
 
     my $schema  = 'http://schemas.openxmlformats.org';
     my $xmlns   = $schema ~ '/spreadsheetml/2006/main';
-    my $xmlns_r = $schema ~ '/officeDocument/2006/relationships';
+    my $xmlns-r = $schema ~ '/officeDocument/2006/relationships';
 
     my @attributes = (
         'xmlns'   => $xmlns,
-        'xmlns:r' => $xmlns_r,
+        'xmlns:r' => $xmlns-r,
     );
 
-    self.xml_start_tag( 'workbook', @attributes );
+    self.xml-start-tag( 'workbook', |@attributes );
 }
 
 
 ###############################################################################
 #
-# write_file_version()
+# write-file-version()
 #
 # Write the <fileVersion> element.
 #
-method write_file_version {
+method write-file-version {
 
-    my $app_name      = 'xl';
-    my $last_edited   = 4;
-    my $lowest_edited = 4;
-    my $rup_build     = 4505;
+    my $app-name      = 'xl';
+    my $last-edited   = 4;
+    my $lowest-edited = 4;
+    my $rup-build     = 4505;
 
     my @attributes = (
-        'appName'      => $app_name,
-        'lastEdited'   => $last_edited,
-        'lowestEdited' => $lowest_edited,
-        'rupBuild'     => $rup_build,
+        'appName'      => $app-name,
+        'lastEdited'   => $last-edited,
+        'lowestEdited' => $lowest-edited,
+        'rupBuild'     => $rup-build,
     );
 
-    if $!vba_project {
+    if $!vba-project {
         push @attributes, codeName => '{37E998C4-C9E5-D4B9-71C8-EB1FF731991C}';
     }
 
-    self.xml_empty_tag( 'fileVersion', @attributes );
+    self.xml-empty-tag( 'fileVersion', @attributes );
 }
 
 
 ###############################################################################
 #
-# _write_workbook_pr()
+# write-workbook-pr()
 #
 # Write <workbookPr> element.
 #
-#NYI sub _write_workbook_pr {
+method write-workbook-pr {
 
-#NYI     my $self                   = shift;
-#NYI     my $date_1904              = $self->{_date_1904};
-#NYI     my $show_ink_annotation    = 0;
-#NYI     my $auto_compress_pictures = 0;
-#NYI     my $default_theme_version  = 124226;
-#NYI     my $codename               = $self->{_vba_codename};
-#NYI     my @attributes;
+    my $date1904              = $!date1904;
+    my $show-ink-annotation    = 0;
+    my $auto-compress-pictures = 0;
+    my $default-theme-version  = 124226;
+    my $codename               = $!vba-codename;
+    my @attributes;
 
-#NYI     push @attributes, ( 'codeName' => $codename ) if $codename;
-#NYI     push @attributes, ( 'date1904' => 1 )         if $date_1904;
-#NYI     push @attributes, ( 'defaultThemeVersion' => $default_theme_version );
+    @attributes.push: 'codeName' => $codename if $codename;
+    @attributes.push: 'date1904' => 1         if $date1904;
+    @attributes.push: 'defaultThemeVersion' => $default-theme-version;
 
-#NYI     $self->xml_empty_tag( 'workbookPr', @attributes );
-#NYI }
+    self.xml-empty-tag( 'workbookPr', |@attributes );
+}
 
 
 ###############################################################################
 #
-# _write_book_views()
+# write-book-views()
 #
 # Write <bookViews> element.
 #
-#NYI sub _write_book_views {
+method write-book-views {
 
-#NYI     my $self = shift;
-
-#NYI     $self->xml_start_tag( 'bookViews' );
-#NYI     $self->_write_workbook_view();
-#NYI     $self->xml_end_tag( 'bookViews' );
-#NYI }
+    self.xml-start-tag( 'bookViews' );
+    self.write-workbook-view();
+    self.xml-end-tag( 'bookViews' );
+}
 
 ###############################################################################
 #
-# _write_workbook_view()
+# write-workbook-view()
 #
 # Write <workbookView> element.
 #
-#NYI sub _write_workbook_view {
+method write-workbook-view {
+    my $x-window      = $!x-window;
+    my $y-window      = $!y-window;
+    my $window-width  = $!window-width;
+    my $window-height = $!window-height;
+    my $tab-ratio     = $!tab-ratio;
+    my $active-tab    = $!activesheet;
+    my $first-sheet   = $!firstsheet;
 
-#NYI     my $self          = shift;
-#NYI     my $x_window      = $self->{_x_window};
-#NYI     my $y_window      = $self->{_y_window};
-#NYI     my $window_width  = $self->{_window_width};
-#NYI     my $window_height = $self->{_window_height};
-#NYI     my $tab_ratio     = $self->{_tab_ratio};
-#NYI     my $active_tab    = $self->{_activesheet};
-#NYI     my $first_sheet   = $self->{_firstsheet};
+    my @attributes = (
+        'xWindow'      => $x-window,
+        'yWindow'      => $y-window,
+        'windowWidth'  => $window-width,
+        'windowHeight' => $window-height,
+    );
 
-#NYI     my @attributes = (
-#NYI         'xWindow'      => $x_window,
-#NYI         'yWindow'      => $y_window,
-#NYI         'windowWidth'  => $window_width,
-#NYI         'windowHeight' => $window_height,
-#NYI     );
+    # Store the tabRatio attribute when it isn't the default.
+    @attributes.push: tabRatio => $tab-ratio if $tab-ratio != 500;
 
-#NYI     # Store the tabRatio attribute when it isn't the default.
-#NYI     push @attributes, ( tabRatio => $tab_ratio ) if $tab_ratio != 500;
+    # Store the firstSheet attribute when it isn't the default.
+    @attributes.push: firstSheet => $first-sheet + 1 if $first-sheet > 0;
 
-#NYI     # Store the firstSheet attribute when it isn't the default.
-#NYI     push @attributes, ( firstSheet => $first_sheet + 1 ) if $first_sheet > 0;
+    # Store the activeTab attribute when it isn't the first sheet.
+    @attributes.push: activeTab => $active-tab if $active-tab > 0;
 
-#NYI     # Store the activeTab attribute when it isn't the first sheet.
-#NYI     push @attributes, ( activeTab => $active_tab ) if $active_tab > 0;
-
-#NYI     $self->xml_empty_tag( 'workbookView', @attributes );
-#NYI }
+    self.xml-empty-tag( 'workbookView', |@attributes );
+}
 
 ###############################################################################
 #
-# _write_sheets()
+# write-sheets()
 #
 # Write <sheets> element.
 #
-#NYI sub _write_sheets {
+method write-sheets {
 
-#NYI     my $self   = shift;
-#NYI     my $id_num = 1;
+    my $id-num = 1;
 
-#NYI     $self->xml_start_tag( 'sheets' );
+    self.xml-start-tag( 'sheets' );
 
-#NYI     for my $worksheet ( @{ $self->{_worksheets} } ) {
-#NYI         $self->_write_sheet( $worksheet->{_name}, $id_num++,
-#NYI             $worksheet->{_hidden} );
-#NYI     }
+    for @!worksheets -> $worksheet {
+        self.write-sheet( $worksheet.name, $id-num++,
+            $worksheet.hidden );
+    }
 
-#NYI     $self->xml_end_tag( 'sheets' );
-#NYI }
+    self.xml-end-tag( 'sheets' );
+}
 
 
 ###############################################################################
 #
-# _write_sheet()
+# write-sheet()
 #
 # Write <sheet> element.
 #
-#NYI sub _write_sheet {
+method write-sheet($name, $sheet-id, $hidden) {
 
-#NYI     my $self     = shift;
-#NYI     my $name     = shift;
-#NYI     my $sheet_id = shift;
-#NYI     my $hidden   = shift;
-#NYI     my $r_id     = 'rId' . $sheet_id;
+    my $r-id     = 'rId' ~ $sheet-id;
 
-#NYI     my @attributes = (
-#NYI         'name'    => $name,
-#NYI         'sheetId' => $sheet_id,
-#NYI     );
+    my @attributes = (
+        'name'    => $name,
+        'sheetId' => $sheet-id,
+    );
 
-#NYI     push @attributes, ( 'state' => 'hidden' ) if $hidden;
-#NYI     push @attributes, ( 'r:id' => $r_id );
+    @attributes.push: 'state' => 'hidden' if $hidden;
+    @attributes.push: 'r:id' => $r-id;
 
-
-#NYI     $self->xml_empty_tag( 'sheet', @attributes );
-#NYI }
+    self.xml-empty-tag( 'sheet', |@attributes );
+}
 
 
 ###############################################################################
 #
-# _write_calc_pr()
+# write-calc-pr()
 #
 # Write <calcPr> element.
 #
-#NYI sub _write_calc_pr {
+method write-calc-pr {
 
-#NYI     my $self            = shift;
-#NYI     my $calc_id         = $self->{_calc_id};
-#NYI     my $concurrent_calc = 0;
+    my $calc-id         = $!calc-id;
+    my $concurrent-calc = 0;
 
-#NYI     my @attributes = ( calcId => $calc_id );
+    my @attributes = calcId => $calc-id;
 
-#NYI     if ( $self->{_calc_mode} eq 'manual' ) {
-#NYI         push @attributes, 'calcMode'   => 'manual';
-#NYI         push @attributes, 'calcOnSave' => 0;
-#NYI     }
-#NYI     elsif ( $self->{_calc_mode} eq 'autoNoTable' ) {
-#NYI         push @attributes, calcMode => 'autoNoTable';
-#NYI     }
+    if $!calc-mode eq 'manual' {
+        @attributes.push: 'calcMode'   => 'manual';
+        @attributes.push: 'calcOnSave' => 0;
+    }
+    elsif $!calc-mode eq 'autoNoTable' {
+        @attributes.push: calcMode => 'autoNoTable';
+    }
 
-#NYI     if ( $self->{_calc_on_load} ) {
-#NYI         push @attributes, 'fullCalcOnLoad' => 1;
-#NYI     }
+    if $!calc-on-load {
+        @attributes.push: 'fullCalcOnLoad' => 1;
+    }
 
 
-#NYI     $self->xml_empty_tag( 'calcPr', @attributes );
-#NYI }
+    self.xml-empty-tag( 'calcPr', |@attributes );
+}
 
 
 ###############################################################################
 #
-# _write_ext_lst()
+# write-ext-lst()
 #
 # Write <extLst> element.
 #
-#NYI sub _write_ext_lst {
+#NYI sub write-ext-lst {
 
 #NYI     my $self = shift;
 
-#NYI     $self->xml_start_tag( 'extLst' );
-#NYI     $self->_write_ext();
-#NYI     $self->xml_end_tag( 'extLst' );
+#NYI     $self->xml-start-tag( 'extLst' );
+#NYI     $self->write-ext();
+#NYI     $self->xml-end-tag( 'extLst' );
 #NYI }
 
 
 ###############################################################################
 #
-# _write_ext()
+# write-ext()
 #
 # Write <ext> element.
 #
-#NYI sub _write_ext {
+#NYI sub write-ext {
 
 #NYI     my $self     = shift;
-#NYI     my $xmlns_mx = 'http://schemas.microsoft.com/office/mac/excel/2008/main';
+#NYI     my $xmlns-mx = 'http://schemas.microsoft.com/office/mac/excel/2008/main';
 #NYI     my $uri      = 'http://schemas.microsoft.com/office/mac/excel/2008/main';
 
 #NYI     my @attributes = (
-#NYI         'xmlns:mx' => $xmlns_mx,
+#NYI         'xmlns:mx' => $xmlns-mx,
 #NYI         'uri'      => $uri,
 #NYI     );
 
-#NYI     $self->xml_start_tag( 'ext', @attributes );
-#NYI     $self->_write_mx_arch_id();
-#NYI     $self->xml_end_tag( 'ext' );
+#NYI     $self->xml-start-tag( 'ext', @attributes );
+#NYI     $self->write-mx-arch-id();
+#NYI     $self->xml-end-tag( 'ext' );
 #NYI }
 
 ###############################################################################
 #
-# _write_mx_arch_id()
+# write-mx-arch-id()
 #
 # Write <mx:ArchID> element.
 #
-#NYI sub _write_mx_arch_id {
+#NYI sub write-mx-arch-id {
 
 #NYI     my $self  = shift;
 #NYI     my $Flags = 2;
 
 #NYI     my @attributes = ( 'Flags' => $Flags, );
 
-#NYI     $self->xml_empty_tag( 'mx:ArchID', @attributes );
+#NYI     $self->xml-empty-tag( 'mx:ArchID', @attributes );
 #NYI }
 
 
 ##############################################################################
 #
-# _write_defined_names()
+# write-defined-names()
 #
 # Write the <definedNames> element.
 #
-#NYI sub _write_defined_names {
+method write-defined-names {
 
-#NYI     my $self = shift;
+    return unless @!defined-names;
 
-#NYI     return unless @{ $self->{_defined_names} };
+    self.xml-start-tag( 'definedNames' );
 
-#NYI     $self->xml_start_tag( 'definedNames' );
+    for @!defined-names -> $aref {
+        self.write-defined-name( $aref );
+    }
 
-#NYI     for my $aref ( @{ $self->{_defined_names} } ) {
-#NYI         $self->_write_defined_name( $aref );
-#NYI     }
-
-#NYI     $self->xml_end_tag( 'definedNames' );
-#NYI }
+    self.xml-end-tag( 'definedNames' );
+}
 
 
 ##############################################################################
 #
-# _write_defined_name()
+# write-defined-name()
 #
 # Write the <definedName> element.
 #
-#NYI sub _write_defined_name {
+method write-defined-name(@data) {
 
-#NYI     my $self = shift;
-#NYI     my $data = shift;
+    my $name   = @data[0];
+    my $id     = @data[1];
+    my $range  = @data[2];
+    my $hidden = @data[3];
 
-#NYI     my $name   = $data->[0];
-#NYI     my $id     = $data->[1];
-#NYI     my $range  = $data->[2];
-#NYI     my $hidden = $data->[3];
+    my @attributes = 'name' => $name;
 
-#NYI     my @attributes = ( 'name' => $name );
+    @attributes.push: 'localSheetId' => $id if $id != -1;
+    @attributes.push: 'hidden'       => 1   if $hidden;
 
-#NYI     push @attributes, ( 'localSheetId' => $id ) if $id != -1;
-#NYI     push @attributes, ( 'hidden'       => 1 )   if $hidden;
-
-#NYI     $self->xml_data_element( 'definedName', $range, @attributes );
-#NYI }
+    self.xml-data-element( 'definedName', $range, |@attributes );
+}
 
 =begin pod
 
