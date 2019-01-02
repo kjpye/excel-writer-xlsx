@@ -1,4 +1,5 @@
-use v6.c;
+use v6.c+;
+
 use File::Temp; # <tempfile>;
 use Archive::SimpleZip;
 use Excel::Writer::XLSX::Worksheet;

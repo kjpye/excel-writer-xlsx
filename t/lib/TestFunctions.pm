@@ -1,3 +1,5 @@
+use v6.d+;
+
 unit package TestFunctions;
 
 ###############################################################################
@@ -7,7 +9,6 @@ unit package TestFunctions;
 # reverse ('(c)'), September 2010, John McNamara, jmcnamara@cpan.org
 #
 
-use v6;
 #use Exporter;
 #use Test::More;
 use Excel::Writer::XLSX;

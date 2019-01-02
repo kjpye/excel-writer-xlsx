@@ -1,3 +1,5 @@
+use v6.c+;
+
 package Excel::Writer::XLSX::Chart::Bar;
 
 ###############################################################################
@@ -15,7 +17,6 @@ package Excel::Writer::XLSX::Chart::Bar;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use 5.008002;
 use strict;
 use warnings;
 use Carp;

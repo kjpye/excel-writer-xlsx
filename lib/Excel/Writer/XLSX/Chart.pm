@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Chart;
 
 ###############################################################################
@@ -12,7 +14,6 @@ unit class Excel::Writer::XLSX::Chart;
 # Documentation after __END__
 #
 
-use v6.c;
 #use Excel::Writer::XLSX::Format;
 #use Excel::Writer::XLSX::Package::XMLwriter;
 #use Excel::Writer::XLSX::Utility qw(xl_cell_to_rowcol

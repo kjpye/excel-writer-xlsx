@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Package::Table;
 
 ###############################################################################
@@ -13,7 +15,6 @@ unit class Excel::Writer::XLSX::Package::Table;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use v6.c;
 #use Excel::Writer::XLSX::Package::XMLwriter;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);

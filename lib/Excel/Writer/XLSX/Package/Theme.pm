@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Package::Theme;
 
 ###############################################################################
@@ -21,7 +23,6 @@ unit class Excel::Writer::XLSX::Package::Theme;
 #       facilitate easier comparisons during testing. The theme1.xml file
 #       isn't actually required.
 
-use v6.c;
 
 #NYI our @ISA     = qw(Exporter);
 #NYI our $VERSION = '0.96';

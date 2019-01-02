@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Package::VML;
 
 ###############################################################################
@@ -11,7 +13,6 @@ unit class Excel::Writer::XLSX::Package::VML;
 # Documentation after __END__
 #
 
-use v6.c;
 #use Excel::Writer::XLSX::Package::XMLwriter;
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);

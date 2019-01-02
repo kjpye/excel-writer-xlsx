@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit module Excel::Writer::XLSX::Utility;
 
 ###############################################################################
@@ -14,7 +16,6 @@ unit module Excel::Writer::XLSX::Utility;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use v6.c;
 #NYI use strict;
 #NYI use Exporter;
 #NYI use warnings;

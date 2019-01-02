@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Package::XMLwriter;
 
 ###############################################################################
@@ -9,8 +11,6 @@ unit class Excel::Writer::XLSX::Package::XMLwriter;
 # Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
 #
 # Documentation at end
-
-use v6.c;
 
 has $.fh;
 

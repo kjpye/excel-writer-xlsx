@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Worksheet;
 
 ###############################################################################
@@ -14,7 +16,6 @@ unit class Excel::Writer::XLSX::Worksheet;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use v6.c;
 use File::Temp;
 use Excel::Writer::XLSX::Format;
 #use Excel::Writer::XLSX::Drawing;

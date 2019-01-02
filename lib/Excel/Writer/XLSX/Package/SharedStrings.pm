@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Package::SharedStrings;
 
 ###############################################################################
@@ -13,7 +15,6 @@ unit class Excel::Writer::XLSX::Package::SharedStrings;
 
 # perltidy with the following options: -mbl=2 -pt=0 -nola
 
-use v6.c;
 #NYI use strict;
 #NYI use warnings;
 #NYI use Carp;

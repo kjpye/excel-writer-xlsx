@@ -1,3 +1,5 @@
+use v6.c+;
+
 unit class Excel::Writer::XLSX::Format;
 
 ###############################################################################
@@ -12,7 +14,6 @@ unit class Excel::Writer::XLSX::Format;
 # Documentation after __END__
 #
 
-use v6.c;
 #NYI our @ISA     = qw(Exporter);
 #NYI our $VERSION = '0.96';
 #NYI our $AUTOLOAD;
