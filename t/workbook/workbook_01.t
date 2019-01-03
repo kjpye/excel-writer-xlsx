@@ -24,7 +24,7 @@ my $got;
 my $caption;
 my $workbook;
 
-my $data = Q:to/END/;
+my $*data = Q:to/END/;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <fileVersion appName="xl" lastEdited="4" lowestEdited="4" rupBuild="4505"/>
@@ -46,11 +46,18 @@ END
 #
 $caption = " \tWorkbook: assemble-xml-file()";
 
-$workbook = new-workbook($data);
+note "Creating new workbook";
+$workbook = new-workbook($*data);
+note "Adding worksheet";
 $workbook.add-worksheet();
+note "assemble-xml-file";
 $workbook.assemble-xml-file();
+note "created";
 
 $expected = expected-to-aref();
+dd $expected;
+dd $got;
 $got      = got-to-aref( $got );
+dd $got; fail "got";
 
 is-deep-diff( $got, $expected, $caption );

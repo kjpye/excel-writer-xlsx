@@ -1,5 +1,6 @@
 use v6.c+;
 
+use IO::String;
 use File::Temp; # <tempfile>;
 use Archive::SimpleZip;
 use Excel::Writer::XLSX::Worksheet;
@@ -99,8 +100,8 @@ has @!shapes;
 #
 # Constructor.
 #
-method TWEAK (*@args) {
-
+method TWEAK (*%args) {
+note "in TWEAK";
 #NYI     $self.filename = $_[0] || '';
 #NYI     my $options = $_[1] || {};
 
@@ -128,48 +129,47 @@ method TWEAK (*@args) {
 
 #NYI     bless $self, $class;
 
-#NYI     # Add the default cell format.
-#NYI     if ( $self->{excel2003-style} ) {
-#NYI         $self->add-format( xf-index => 0, font-family => 0 );
-#NYI     }
-#NYI     else {
-#NYI         $self->add-format( xf-index => 0 );
-#NYI     }
+# Add the default cell format.
+note "add default cell format";
+  if $!excel2003-style {
+    self.add-format( xf-index => 0, font-family => 0 );
+  }
+  else {
+    self.add-format( xf-index => 0 );
+  }
 
-#NYI     # Check for a filename unless it is an existing filehandle
-#NYI     if ( not ref $self->{filename} and $self->{filename} eq '' ) {
-#NYI         warn 'Filename required by Excel::Writer::XLSX->new()';
-#NYI         return Nil;
-#NYI     }
-
-
-#NYI     # If filename is a reference we assume that it is a valid filehandle.
-#NYI     if ( ref $self->{filename} ) {
-
-#NYI         $self->{filehandle}  = $self->{filename};
-#NYI         $self->{internal-fh} = 0;
-#NYI     }
-#NYI     elsif ( $self->{filename} eq '-' ) {
-
-#NYI         # Support special filename/filehandle '-' for backward compatibility.
-#NYI         binmode STDOUT;
-#NYI         $self->{filehandle}  = \*STDOUT;
-#NYI         $self->{internal-fh} = 0;
-#NYI     }
-#NYI     else {
-#NYI         my $fh = IO::File->new( $self->{filename}, 'w' );
-
-#NYI         return undef unless defined $fh;
-
-#NYI         $self->{filehandle}  = $fh;
-#NYI         $self->{internal-fh} = 1;
-#NYI     }
+# Check for a filename unless it is an existing filehandle
+  note "check for filename";
+  $!filename = %args<filename>;
+  if ! $!filename.defined or $!filename eq '' {
+    fail 'Filename required by Excel::Writer::XLSX.new';
+    return Nil;
+  }
 
 
-#NYI     # Set colour palette.
-#NYI     $self->set-color-palette();
+# If filename is a reference we assume that it is a valid filehandle.
+  if $!filename ~~ (IO::Handle) or $!filename ~~ (IO::String) {
+    $!filehandle  = $!filename;
+    $!internal-fh = 0;
+  } elsif $!filename eq '-' {
+# Support special filename/filehandle '-' for backward compatibility.
+#    binmode $*IN;
+    $!filehandle = $*IN;
+    $!internal-fh = 0;
+  } else {
+    my $fh = open $!filename, :w, :bin;
+    return Nil unless $fh.defined;
 
-#NYI     return $self;
+    $!filehandle  = $fh;
+    $!internal-fh = 1;
+  }
+
+
+# Set colour palette.
+note "set colour palette";
+  self.set-color-palette();
+
+note "completed TWEAK";
 }
 
 
@@ -214,7 +214,7 @@ method assemble-xml-file {
     self.xml-end-tag( 'workbook' );
 
     # Close the XML writer filehandle.
-    self.fh().close();
+    $!filehandle.close();
 }
 
 

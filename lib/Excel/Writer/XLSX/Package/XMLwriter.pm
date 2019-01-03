@@ -12,7 +12,7 @@ unit class Excel::Writer::XLSX::Package::XMLwriter;
 #
 # Documentation at end
 
-has $.fh;
+has $.fh is rw;
 
 #NYI use Exporter;
 #NYI use Carp;
