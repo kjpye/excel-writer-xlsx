@@ -11,6 +11,7 @@ unit package TestFunctions;
 
 #use Exporter;
 #use Test::More;
+use Test;
 use IO::String;
 use Excel::Writer::XLSX;
 
@@ -322,19 +323,20 @@ sub sort-rel-file-data($header, $tail, *@xml-elements) is export {
 # using Test::More::is-deeply().
 #
 sub is-deep-diff($got, $expected, $caption) is export {
-#
+
 #    eval {
 #        require Test::Differences;
 #        Test::Differences->import();
 #    };
-#
-#    if ( !$@ ) {
+
+    ok $got eqv $expected, $caption;
+#    if !$@ {
 #        eq-or-diff( $got, $expected, $caption, { context => 1 } );
 #    }
 #    else {
-       #is-deeply( $got, $expected, $caption );
+#       #is-deeply( $got, $expected, $caption );
 #    }
-#
+
 }
 
 
@@ -344,11 +346,10 @@ sub is-deep-diff($got, $expected, $caption) is export {
 # the output to the supplied scalar ref for testing. Calls to the objects XML
 # writing subs will add the output to the scalar.
 #
-#TODO
 #sub new-object($got-ref, $class) {
 #
-#    open my $gotfh, '>', $got-ref or die "Failed to open filehandle: $!";
-#
+##    open my $gotfh, '>', $got-ref or die "Failed to open filehandle: $!";
+#    my $got-fh = IO::String.new(buffer => $got-ref);
 #    my $object = $class->new( $got-fh );
 #
 #    return $object;
@@ -359,13 +360,13 @@ sub is-deep-diff($got, $expected, $caption) is export {
 #
 # Create a new Worksheet object and bind the output to the supplied scalar ref.
 #
-#TODO
-#sub new-worksheet {
-#
-#    my $got-ref = shift;
-#
-#    return new-object( $got-ref, 'Excel::Writer::XLSX::Worksheet' );
-#}
+sub new-worksheet($buffer) is export {
+
+    my $fh = IO::String.new(:$buffer);
+    my $ws = Excel::Writer::XLSX::Worksheet.new(filename => $fh);
+    $ws.fh = $fh;
+    $ws;
+}
 
 
 ###############################################################################
@@ -383,12 +384,11 @@ sub is-deep-diff($got, $expected, $caption) is export {
 
 ###############################################################################
 #
-# Create a new Workbook object and bind the output to the supplied scalar ref.
+# Create a new Workbook object.
 # This is slightly different than the previous cases since the constructor
 # requires a filename/filehandle.
 #
-#TODO
-sub new-workbook($got-ref, $buffer, $fh is rw) is export {
+sub new-workbook($got, $buffer, $fh is rw) is export {
 
     $fh = IO::String.new(:$buffer) or die "Failed to open filehandle: $!";
     my $tmp-fh = IO::String.new();
@@ -396,6 +396,5 @@ sub new-workbook($got-ref, $buffer, $fh is rw) is export {
     my $workbook = Excel::Writer::XLSX.new(filename => $tmp-fh);
     $workbook.fh = $fh;
 
-note "Got new workbook";
     return $workbook;
 }

@@ -59,6 +59,7 @@ method set-xml-writer($filename) {
 # Write the XML declaration.
 #
 method xml-declaration() {
+
     $!fh.print: qq[<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n];
 }
 

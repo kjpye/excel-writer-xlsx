@@ -5,7 +5,7 @@
 # reverse ('(c)'), September 2010, John McNamara, jmcnamara@cpan.org
 #
 
-use v6;
+use v6.c+;
 
 use lib 't/lib';
 use TestFunctions;
@@ -20,7 +20,6 @@ plan 1;
 #
 # Tests setup.
 #
-my $expected;
 my $got = '';
 my $got-fh;
 my $caption;
