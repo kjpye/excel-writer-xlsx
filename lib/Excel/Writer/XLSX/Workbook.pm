@@ -1,6 +1,5 @@
 use v6.c+;
 
-use IO::String;
 use File::Temp; # <tempfile>;
 use Archive::SimpleZip;
 use Excel::Writer::XLSX::Worksheet;
@@ -14,18 +13,18 @@ use Excel::Writer::XLSX::Utility;
 
 unit class Excel::Writer::XLSX::Workbook is Excel::Writer::XLSX::Package::XMLwriter;
 
-###############################################################################
-#
-# Workbook - A class for writing Excel Workbooks.
-#
-#
-# Used in conjunction with Excel::Writer::XLSX
-#
-# Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
-# Copyright 2017,      Kevin.Pye
-#
-# Documentation after __END__
-#
+#`[
+
+ Workbook - A class for writing Excel Workbooks.
+
+
+ Used in conjunction with Excel::Writer::XLSX
+
+ Copyright 2000-2017, John McNamara, jmcnamara@cpan.org
+ Copyright 2017-2018, Kevin.Pye,     kjpye@cpan.org
+
+ Documentation after __END__
+]
 
 #NYI our @ISA     = qw(Excel::Writer::XLSX::Package::XMLwriter);
 #NYI our $VERSION = '0.96';
@@ -37,8 +36,8 @@ unit class Excel::Writer::XLSX::Workbook is Excel::Writer::XLSX::Package::XMLwri
 ###############################################################################
 
 has $!filename;
-has $!tempdir;
-has $!date1904          = 0;
+has $.tempdir                is rw;
+has $!date1904           = 0;
 has $!activesheet        = 0;
 has $!firstsheet         = 0;
 has $!selected           = 0;
@@ -49,10 +48,10 @@ has $!sheet-name         = 'Sheet';
 has $!chart-name         = 'Chart';
 has $!sheetname-count    = 0;
 has $!chartname-count    = 0;
-has @!worksheets         = [];
+has @.worksheets         = [];
 has @!charts             = [];
 has @!drawings           = [];
-has %!sheetnames         = {};
+has %.sheetnames         = {};
 has @!formats            = [];
 has @!xf-formats         = [];
 has %!xf-format-indices  = {};
@@ -130,7 +129,6 @@ note "in TWEAK";
 #NYI     bless $self, $class;
 
 # Add the default cell format.
-note "add default cell format";
   if $!excel2003-style {
     self.add-format( xf-index => 0, font-family => 0 );
   }
@@ -139,16 +137,15 @@ note "add default cell format";
   }
 
 # Check for a filename unless it is an existing filehandle
-  note "check for filename";
   $!filename = %args<filename>;
-  if ! $!filename.defined or $!filename eq '' {
+  if ! $!filename.defined {
     fail 'Filename required by Excel::Writer::XLSX.new';
     return Nil;
   }
 
 
 # If filename is a reference we assume that it is a valid filehandle.
-  if $!filename ~~ (IO::Handle) or $!filename ~~ (IO::String) {
+  if $!filename ~~ (IO::Handle) {
     $!filehandle  = $!filename;
     $!internal-fh = 0;
   } elsif $!filename eq '-' {
@@ -157,6 +154,9 @@ note "add default cell format";
     $!filehandle = $*IN;
     $!internal-fh = 0;
   } else {
+      if ! $!filename {
+	  fail 'Filename required by Excel::Writer::XLSX.new';
+      }
     my $fh = open $!filename, :w, :bin;
     return Nil unless $fh.defined;
 
@@ -166,10 +166,8 @@ note "add default cell format";
 
 
 # Set colour palette.
-note "set colour palette";
   self.set-color-palette();
 
-note "completed TWEAK";
 }
 
 
@@ -184,7 +182,7 @@ method assemble-xml-file {
     # Prepare format object for passing to Style.pm.
     self.prepare-format-properties();
 
-#TODO    self.xml-declaration();
+    self.xml-declaration();
 
     # Write the root workbook element.
     self.write-workbook();
@@ -356,9 +354,11 @@ method add-worksheet($name? is copy) {
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init-data.Map );
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init-data );
+dd $worksheet;
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;
+dd @!worksheets, %!sheetnames;
 
     return $worksheet;
 }
@@ -459,7 +459,6 @@ method add-worksheet($name? is copy) {
 #
 method check-sheetname($name is copy = '', $chart = 0) {
 
-    $name //= '';
     my $invalid-char = token { <[\[\]:*?/\\]> };
 
     # Increment the Sheet/Chart number used for default sheet names below.
@@ -471,7 +470,7 @@ method check-sheetname($name is copy = '', $chart = 0) {
     }
 
     # Supply default Sheet/Chart name if none has been defined.
-    if $name eq '' {
+    if ! $name.defined or $name eq '' {
 
         if $chart {
             $name = $!chart-name ~ $!chartname-count;
@@ -486,7 +485,7 @@ method check-sheetname($name is copy = '', $chart = 0) {
 
     # Check that sheetname doesn't contain any invalid characters
     if $name ~~ $invalid-char {
-        fail 'Invalid character []:*?/\\ in worksheet name: ' ~ $name;
+        fail 'Invalid character(' ~ $0 ~ ') in worksheet name: "' ~ $name ~ '" ([]:*?/\\ cannot be used)';
     }
 
     # Check that the worksheet name doesn't already exist since this is a fatal
@@ -495,12 +494,12 @@ method check-sheetname($name is copy = '', $chart = 0) {
         my $name-a = $name;
         my $name-b = $worksheet.name;
 
-        if ( fc( $name-a ) eq fc( $name-b ) ) {
+        if $name-a.fc eq $name-b.fc {
             fail "Worksheet name '$name', with case ignored, is already used.";
         }
     }
 
-    return $name;
+    $name;
 }
 
 
@@ -550,7 +549,7 @@ method add-shape(*@options) {
 
     @!shapes.push: $shape;    # Store shape reference.
 
-    return $shape;
+    $shape;
 }
 
 ###############################################################################
@@ -582,12 +581,15 @@ method get1904 {
 #
 # Change the RGB components of the elements in the colour palette.
 #
-method set-custom-color($index, $red, $green?, $blue?) {
-
-    # Match a HTML #xxyyzz style parameter
-    if $red.defined and $red ~~ /^ '#' (\w\w) (\w\w) (\w\w)/ {
-      ($red, $green, $blue) = ($0, $1, $2);
+multi method set-custom-color($index, $color) {
+    if $color.defined and $color ~~ /^ '#' (\w\w) (\w\w) (\w\w) $ / {
+        self.set-custom-color($index, $0, $1, $2);
+    } else {
+        fail 'illegal usage of set-custom-color';
     }
+}
+
+multi method set-custom-color($index, $red, $green?, $blue?) {
 
     my $aref = @!palette;
 
@@ -598,9 +600,9 @@ method set-custom-color($index, $red, $green?, $blue?) {
     }
 
     # Check that the colour components are in the right range
-    unless 0 <= $red   < 0 <= 255
-       and 0 <= $green < 0 <= 255
-       and 0 <= $blue  < 0 <= 25 
+    unless 0 <= $red   <= 255
+       and 0 <= $green <= 255
+       and 0 <= $blue  <= 255
     {
         warn "Color component outside range: 0 <= color <= 255";
         return 0;
@@ -615,7 +617,7 @@ method set-custom-color($index, $red, $green?, $blue?) {
     # Store the custom colors for the style.xml file.
     push @!custom-colors, sprintf "FF%02X%02X%02X", @rgb;
 
-    return $index + 8;
+    $index + 8;
 }
 
 
@@ -686,27 +688,8 @@ method set-color-palette {
         [ 0x33, 0x33, 0x33, 0x00 ],    # 63
     ];
 
-    return 0;
+    0;
 }
-
-
-#NYI ###############################################################################
-#NYI #
-#NYI # set-tempdir()
-#NYI #
-#NYI # Change the default temp directory.
-#NYI #
-#NYI sub set-tempdir {
-
-#NYI     my $self = shift;
-#NYI     my $dir  = shift;
-
-#NYI     fail "$dir is not a valid directory" if defined $dir and not -d $dir;
-
-#NYI     $self->{tempdir} = $dir;
-
-#NYI }
-
 
 #NYI ###############################################################################
 #NYI #
@@ -771,23 +754,13 @@ method set-color-palette {
 #
 # Set the workbook size.
 #
-method set-size($width, $height) {
+method set-size($width = 1073, $height = 644) {
 
-    if !$width {
-        $!window-width = 16095;
-    }
-    else {
-        # Convert to twips at 96 dpi.
-        $!window-width = int( $width * 1440 / 96 );
-    }
-
-    if !$height {
-        $!window-height = 9660;
-    }
-    else {
-        # Convert to twips at 96 dpi.
-        $!window-height = int( $height * 1440 / 96 );
-    }
+    $width  ||= 1073;
+    $height ||=  644;
+    # Convert to twips at 96 dpi.
+    $!window-width  = int( $width  * 1440 / 96 );
+    $!window-height = int( $height * 1440 / 96 );
 }
 
 
@@ -828,10 +801,7 @@ method set-properties(*%param) {
     }
 
     # Set the creation time unless specified by the user.
-    if ( ! %param<created>.exists ) {
-        %param<created> = @!createtime;
-    }
-
+    %param<created> //= @!createtime;
 
     %!doc-properties = %param;
 }
@@ -956,7 +926,7 @@ method set-custom-property($name, $value, $type?) {
 #
 # set-calc-mode()
 #
-# Set the Excel calcuation mode for the workbook.
+# Set the Excel calculation mode for the workbook.
 #
 method set-calc-mode($mode = 'auto', $calc-id?) {
 
@@ -2312,12 +2282,12 @@ method write-workbook {
     my $xmlns   = $schema ~ '/spreadsheetml/2006/main';
     my $xmlns-r = $schema ~ '/officeDocument/2006/relationships';
 
-    my @attributes = (
+    my %attributes = (
         'xmlns'   => $xmlns,
         'xmlns:r' => $xmlns-r,
     );
 
-    self.xml-start-tag( 'workbook', |@attributes );
+    self.xml-start-tag( 'workbook', |%attributes );
 }
 
 

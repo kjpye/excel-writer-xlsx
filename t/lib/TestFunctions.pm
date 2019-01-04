@@ -49,12 +49,9 @@ sub expected-to-aref is export {
     # Ignore warning for files that don't have a 'main::DATA'.
 #    no warnings 'once';
 
-    dd $*data;
     for $*data.lines() -> $line is copy {
         next unless $line ~~ /\S/;    # Skip blank lines.
         $line ~~ s/^\s+//;           # Remove leading whitespace from XML.
-	dd $line;
-	dd @data;
         @data.push: $line;
     }
 
@@ -83,8 +80,9 @@ sub expected-vml-to-aref is export {
 # Convert an XML string returned by the XMLWriter subclasses into an
 # array ref for comparison testing with expected-to-aref().
 #
-sub got-to-aref($xml-str is copy) is export {
+sub got-to-aref($string) is export {
 
+    my $xml-str = ~$string;
 dd $xml-str;
     # Remove the newlines after the XML declaration and any others.
     $xml-str ~~ s:g/\n//;
@@ -390,12 +388,13 @@ sub is-deep-diff($got, $expected, $caption) is export {
 # requires a filename/filehandle.
 #
 #TODO
-sub new-workbook($got-ref) is export {
+sub new-workbook($got-ref, $buffer, $fh is rw) is export {
 
-    my $got-fh;
-    $got-fh = IO::String.new(buffer => $got-ref) or die "Failed to open filehandle: $!";
+    $fh = IO::String.new(:$buffer) or die "Failed to open filehandle: $!";
+    my $tmp-fh = IO::String.new();
 
-    my $workbook = Excel::Writer::XLSX.new(filename => $got-fh);
+    my $workbook = Excel::Writer::XLSX.new(filename => $tmp-fh);
+    $workbook.fh = $fh;
 
 note "Got new workbook";
     return $workbook;

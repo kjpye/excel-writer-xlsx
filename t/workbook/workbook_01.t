@@ -14,13 +14,15 @@ use TestFunctions;
 #use Test::More tests => 1;
 use Test;
 
+plan 1;
 
 ###############################################################################
 #
 # Tests setup.
 #
 my $expected;
-my $got;
+my $got = '';
+my $got-fh;
 my $caption;
 my $workbook;
 
@@ -46,18 +48,13 @@ END
 #
 $caption = " \tWorkbook: assemble-xml-file()";
 
-note "Creating new workbook";
-$workbook = new-workbook($*data);
-note "Adding worksheet";
+$workbook = new-workbook($*data, $got, $got-fh);
 $workbook.add-worksheet();
-note "assemble-xml-file";
 $workbook.assemble-xml-file();
-note "created";
 
-$expected = expected-to-aref();
-dd $expected;
-dd $got;
-$got      = got-to-aref( $got );
-dd $got; fail "got";
-
-is-deep-diff( $got, $expected, $caption );
+my @expected = expected-to-aref();
+$got      = got-to-aref( $got-fh );
+my @got = |$got;
+dd @expected;
+dd @got;
+ok @got eqv @expected, $caption;

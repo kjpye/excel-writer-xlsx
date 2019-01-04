@@ -69,15 +69,19 @@ method xml-declaration() {
 #
 # Write an XML start tag with optional attributes.
 #
-method xml-start-tag($tag is copy, *@options) {
+method xml-start-tag($tag is copy, *%options) {
 
-  for @options -> $option {
-        my $key   = $option.key;
-        my $value = escape-attributes($option.value);
+    note "xml-start-tag...";
+    dd $!fh;
+    dd $tag;
+    dd %options;
+    for %options.kv -> $key, $value is rw {
+        $value = escape-attributes($value);
 
         $tag ~= qq[ $key="$value"];
     }
-#TODO    $!fh.print: "<{$tag}>";
+    $!fh.print: "<{$tag}>";
+note "xml-start-tag printed \"$tag\"";
 }
 
 ###############################################################################
@@ -103,7 +107,7 @@ method xml-start-tag-unencoded($tag is copy, *%options) {
 # Write an XML end tag.
 
 method xml-end-tag($tag) {
-#TODO $!fh.print: "</{$tag}>";
+    $!fh.print: "</{$tag}>";
 }
 
 ###############################################################################
@@ -120,7 +124,7 @@ method xml-empty-tag($tag is copy, *@options) {
     $tag     ~= qq[ $key="$value"];
   }
 
-#TODO  $!fh.print: "<{$tag}/>";
+  $!fh.print: "<{$tag}/>";
 }
 
 ###############################################################################
