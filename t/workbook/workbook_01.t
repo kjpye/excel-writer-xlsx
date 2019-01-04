@@ -44,7 +44,7 @@ END
 
 ###############################################################################
 #
-# Test the assemble_xml_file() method.
+# Test the assemble-xml-file() method.
 #
 $caption = " \tWorkbook: assemble-xml-file()";
 

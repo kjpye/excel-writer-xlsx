@@ -1,3 +1,5 @@
+use v6.c+;
+
 ###############################################################################
 #
 # Tests for Excel::Writer::XLSX::Workbook methods.
@@ -6,40 +8,23 @@
 #
 
 use lib 't/lib';
-use TestFunctions qw(_expected_to_aref _got_to_aref _is_deep_diff _new_workbook);
-use strict;
-use warnings;
+use TestFunctions; # qw(_expected_to_aref _got_to_aref _is_deep_diff _new_workbook);
+use Test;
 
-use Test::More tests => 1;
-
+plan 1;
 
 ###############################################################################
 #
 # Tests setup.
 #
 my $expected;
-my $got;
+my $got = '';
+my $got-fh;
 my $caption;
 my $workbook;
 
 
-###############################################################################
-#
-# Test the _assemble_xml_file() method.
-#
-$caption = " \tWorkbook: _assemble_xml_file()";
-
-$workbook = _new_workbook(\$got);
-$workbook->add_worksheet();
-$workbook->add_worksheet();
-$workbook->_assemble_xml_file();
-
-$expected = _expected_to_aref();
-$got      = _got_to_aref( $got );
-
-_is_deep_diff( $got, $expected, $caption );
-
-__DATA__
+my $*data = Q:to/END/;
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <fileVersion appName="xl" lastEdited="4" lowestEdited="4" rupBuild="4505"/>
@@ -53,3 +38,22 @@ __DATA__
   </sheets>
   <calcPr calcId="124519" fullCalcOnLoad="1"/>
 </workbook>
+END
+###############################################################################
+#
+# Test the assemble-xml-file() method.
+#
+$caption = " \tWorkbook: assemble-xml-file()";
+
+$workbook = new-workbook($*data, $got, $got-fh);
+$workbook.add-worksheet();
+$workbook.add-worksheet();
+$workbook.assemble-xml-file();
+
+my @expected = expected-to-aref();
+$got      = got-to-aref( $got-fh );
+my @got = |$got;
+dd @expected;
+dd @got;
+
+ok @got eqv @expected, $caption;

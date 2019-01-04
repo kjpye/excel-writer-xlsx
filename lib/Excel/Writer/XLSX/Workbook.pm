@@ -2282,12 +2282,12 @@ method write-workbook {
     my $xmlns   = $schema ~ '/spreadsheetml/2006/main';
     my $xmlns-r = $schema ~ '/officeDocument/2006/relationships';
 
-    my %attributes = (
+    my @attributes = (
         'xmlns'   => $xmlns,
         'xmlns:r' => $xmlns-r,
     );
 
-    self.xml-start-tag( 'workbook', |%attributes );
+    self.xml-start-tag( 'workbook', @attributes );
 }
 
 

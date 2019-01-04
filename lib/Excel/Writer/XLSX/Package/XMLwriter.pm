@@ -69,13 +69,13 @@ method xml-declaration() {
 #
 # Write an XML start tag with optional attributes.
 #
-method xml-start-tag($tag is copy, *%options) {
+method xml-start-tag($tag is copy, @options = () ) {
 
     note "xml-start-tag...";
-    dd $!fh;
     dd $tag;
-    dd %options;
-    for %options.kv -> $key, $value is rw {
+    dd @options;
+    for @options -> $option {
+        my ($key, $value) = $option.kv;
         $value = escape-attributes($value);
 
         $tag ~= qq[ $key="$value"];
