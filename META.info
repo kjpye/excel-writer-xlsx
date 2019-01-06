@@ -1,11 +1,12 @@
 {
     "name"        : "Excel-Writer-XLSX",
-    "version"     : "0.2.0",
+    "version"     : "0.0.1",
     "description" : "Generate Excel XLSX files",
     "author"      : "Kevin Pye (Kevin.Pye@gmail.com)",
     "depends"     : [
                       "File::Temp",
-                      "Archive::SimpleZip"
+                      "Archive::SimpleZip",
+		      "IO::String"
                     ],
     "provides"    : {
                     "Excel::Writer::XLSX::Utility"                : "lib/Excel/Writer/XLSX/Utility.pm",

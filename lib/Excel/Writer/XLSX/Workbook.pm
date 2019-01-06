@@ -100,7 +100,7 @@ has @!shapes;
 # Constructor.
 #
 method TWEAK (*%args) {
-note "in TWEAK";
+note "in Workbook.new TWEAK";
 #NYI     $self.filename = $_[0] || '';
 #NYI     my $options = $_[1] || {};
 
@@ -354,7 +354,9 @@ method add-worksheet($name? is copy) {
 
     );
 
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( |%init-data );
+    note "calling Worksheet.new with args...";
+    dd %init-data;
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new( %init-data );
 dd $worksheet;
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;

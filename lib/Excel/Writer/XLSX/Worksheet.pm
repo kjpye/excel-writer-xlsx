@@ -111,7 +111,7 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has @!hbreaks = [];
     has @!vbreaks = [];
 
-    has $!protect  = 0;
+    has %!protect  = 0;
     has $!password = Nil;
 
     has %!set-cols = {};
@@ -215,8 +215,9 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
 #
 # Constructor.
 #
-method TWEAK {
-
+method TWEAK(|c) {
+note "in Worksheet.new TWEAK";
+note c.perl;
 #    my $class  = shift;
 #    my $fh     = shift;
 #    my $self   = Excel::Writer::XLSX::Package::XMLwriter.new( $fh );
@@ -257,6 +258,7 @@ method TWEAK {
         $!margin-footer        = 0.5;
         $!header-footer-aligns = 0;
     }
+    note "leaving Worksheet TWEAK";
 }
 
 ###############################################################################
@@ -6707,36 +6709,34 @@ method write-sheet-protection {
 
     my @attributes;
 
-    return unless $!protect;
+    return unless %!protect;
 
-    my %arg = %!protect;
+    @attributes.push: "password"            => %!protect<password> if %!protect<password>;
+    @attributes.push: "sheet"               => 1              if %!protect<sheet>;
+    @attributes.push: "content"             => 1              if %!protect<content>;
+    @attributes.push: "objects"             => 1              if !%!protect<objects>;
+    @attributes.push: "scenarios"           => 1              if !%!protect<scenarios>;
+    @attributes.push: "formatCells"         => 0              if %!protect<format_cells>;
+    @attributes.push: "formatColumns"       => 0 if %!protect<format_columns>;
+    @attributes.push: "formatRows"          => 0 if %!protect<format_rows>;
+    @attributes.push: "insertColumns"       => 0 if %!protect<insert_columns>;
+    @attributes.push: "insertRows"          => 0 if %!protect<insert_rows>;
+    @attributes.push: "insertHyperlinks"    => 0 if %!protect<insert_hyperlinks>;
+    @attributes.push: "deleteColumns"       => 0 if %!protect<delete_columns>;
+    @attributes.push: "deleteRows"          => 0 if %!protect<delete_rows>;
 
-    @attributes.push: "password"    => %arg<password> if %arg<password>;
-    @attributes.push: "sheet"       => 1              if %arg<sheet>;
-    @attributes.push: "content"     => 1              if %arg<content>;
-    @attributes.push: "objects"     => 1              if !%arg<objects>;
-    push @attributes, ( "scenarios"   => 1 )              if !$arg{scenarios};
-    push @attributes, ( "formatCells" => 0 )              if $arg{format_cells};
-    push @attributes, ( "formatColumns"    => 0 ) if $arg{format_columns};
-    push @attributes, ( "formatRows"       => 0 ) if $arg{format_rows};
-    push @attributes, ( "insertColumns"    => 0 ) if $arg{insert_columns};
-    push @attributes, ( "insertRows"       => 0 ) if $arg{insert_rows};
-    push @attributes, ( "insertHyperlinks" => 0 ) if $arg{insert_hyperlinks};
-    push @attributes, ( "deleteColumns"    => 0 ) if $arg{delete_columns};
-    push @attributes, ( "deleteRows"       => 0 ) if $arg{delete_rows};
+    @attributes.push: "selectLockedCells"   => 1
+      if !%!protect<select_locked_cells>;
 
-    push @attributes, ( "selectLockedCells" => 1 )
-      if !$arg{select_locked_cells};
+    @attributes.push: "sort"                => 0 if %!protect<sort>;
+    @attributes.push: "autoFilter"          => 0 if %!protect<autofilter>;
+    @attributes.push: "pivotTables"         => 0 if %!protect<pivot_tables>;
 
-    push @attributes, ( "sort"        => 0 ) if $arg{sort};
-    push @attributes, ( "autoFilter"  => 0 ) if $arg{autofilter};
-    push @attributes, ( "pivotTables" => 0 ) if $arg{pivot_tables};
-
-    push @attributes, ( "selectUnlockedCells" => 1 )
-      if !$arg{select_unlocked_cells};
+    @attributes.push: "selectUnlockedCells" => 1
+      if !%!protect<select_unlocked_cells>;
 
 
-    $self.xml_empty_tag( 'sheetProtection', @attributes );
+    self.xml_empty_tag( 'sheetProtection', @attributes );
 }
 
 
