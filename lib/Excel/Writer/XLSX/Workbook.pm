@@ -318,45 +318,35 @@ method get-worksheet-by-name($sheetname) {
 #
 # add-worksheet($name)
 #
-# Add a new worksheet to the Excel workbook.
+#| Add a new worksheet to the Excel workbook.
 #
 # Returns: reference to a worksheet object
 #
-method add-worksheet($name? is copy) {
+method add-worksheet($desired-name?) {
 
     my $index = @!worksheets.elems;
-    $name  = self.check-sheetname( $name );
+    my $name = self.check-sheetname($desired-name);
     my $fh;
 
-    # Porters take note, the following scheme of passing references to Workbook
-    # data (in the \$self->{foo} cases) instead of a reference to the Workbook
-    # itself is a workaround to avoid circular references between Workbook and
-    # Worksheet objects. Feel free to implement this in any way the suits your
-    # language.
-    #
-    my %init-data = (
-        fh => $fh,
-        name => $name,
-        index =>$index,
+    my $worksheet = Excel::Writer::XLSX::Worksheet.new(
+        fh              => $fh,
+        name            => $name,
+        index           => $index,
 
-        activesheet => $!activesheet,
-        firstsheet => $!firstsheet,
+        activesheet     => $!activesheet,
+        firstsheet      => $!firstsheet,
 
-        str-total => $!str-total,
-        str-unique => $!str-unique,
-        str-table => %!str-table,
+        str-total       => $!str-total,
+        str-unique      => $!str-unique,
+        str-table       => %!str-table,
 
-        date1904 => $!date1904,
-        palette => @!palette,
-        optimization => $!optimization,
-        tempdir => $!tempdir,
+        date1904        => $!date1904,
+        palette         => @!palette,
+        optimization    => $!optimization,
+        tempdir         => $!tempdir,
         excel2003-style => $!excel2003-style,
-
     );
 
-    note "calling Worksheet.new with args...";
-    dd %init-data;
-    my $worksheet = Excel::Writer::XLSX::Worksheet.new( %init-data );
 dd $worksheet;
     @!worksheets[$index] = $worksheet;
     %!sheetnames{$name}  = $worksheet;

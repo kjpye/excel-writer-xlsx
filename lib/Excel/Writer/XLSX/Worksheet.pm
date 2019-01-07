@@ -26,7 +26,7 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
 #NYI our $VERSION = '0.96';
 
 # from XMLwriter:
-    has $!fh;
+#    has $!fh;
 
     my $rowmax = 1_048_576;
     my $colmax = 16_384;
@@ -45,7 +45,7 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!tempdir;
     has $!excel2003-style;
 
-    has @!ext-sheets    = [];
+    has @!ext-sheets    = ();
     has $!fileclosed    = 0;
     has $!excel-version = 2007;
 
@@ -57,13 +57,13 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!dim-colmin = Nil;
     has $!dim-colmax = Nil;
 
-    has %!colinfo    = {};
-    has @!selections = [];
+    has %!colinfo    = ();
+    has @!selections = ();
     has $.hidden     = 0;
     has $!active     = 0;
     has $!tab-color  = 0;
 
-    has @!panes       = [];
+    has @!panes       = ();
     has $!active-pane = 3;
     has $!selected    = 0;
 
@@ -84,8 +84,8 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!footer                = '';
     has $!header-footer-aligns  = 1;
     has $!header-footer-scales  = 1;
-    has @!header-images         = [];
-    has @!footer-images         = [];
+    has @!header-images         = ();
+    has @!footer-images         = ();
 
     has $!margin-left   = 0.7;
     has $!margin-right  = 0.7;
@@ -108,14 +108,14 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!fit-width  = 0;
     has $!fit-height = 0;
 
-    has @!hbreaks = [];
-    has @!vbreaks = [];
+    has @!hbreaks = ();
+    has @!vbreaks = ();
 
-    has %!protect  = 0;
+    has %!protect  = ();
     has $!password = Nil;
 
-    has %!set-cols = {};
-    has %!set-rows = {};
+    has %!set-cols = ();
+    has %!set-rows = ();
 
     has $!zoom              = 100;
     has $!zoom-scale-normal = 1;
@@ -138,53 +138,53 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!default-col-pixels  = 64;
     has $!default-row-zeroed  = 0;
 
-    has %!names = {};
+    has %!names = ();
 
-    has @!write-match = [];
+    has @!write-match = ();
 
 
-    has %!table = {};
-    has @!merge = [];
+    has %!table = ();
+    has @!merge = ();
 
     has $!has-vml             = 0;
     has $!has-header-vml      = 0;
     has $!has-comments        = 0;
-    has %!comments            = {};
-    has @!comments-array      = [];
+    has %!comments            = ();
+    has @!comments-array      = ();
     has $!comments-author     = '';
     has $!comments-visible    = 0;
     has $!vml-shape-id        = 1024;
-    has @!buttons-array       = [];
-    has @!header-images-array = [];
+    has @!buttons-array       = ();
+    has @!header-images-array = ();
 
     has $!autofilter   = '';
     has $!filter-on    = 0;
-    has @!filter-range = [];
-    has %!filter-cols  = {};
+    has @!filter-range = ();
+    has %!filter-cols  = ();
 
-    has %!col-sizes        = {};
-    has %!row-sizes        = {};
-    has %!col-formats      = {};
+    has %!col-sizes        = ();
+    has %!row-sizes        = ();
+    has %!col-formats      = ();
     has $!col-size-changed = 0;
     has $!row-size-changed = 0;
 
     has $!last-shape-id          = 1;
     has $!rel-count              = 0;
     has $!hlink-count            = 0;
-    has @!hlink-refs             = [];
-    has @!external-hyper-links   = [];
-    has @!external-drawing-links = [];
-    has @!external-comment-links = [];
-    has @!external-vml-links     = [];
-    has @!external-table-links   = [];
-    has @!drawing-links          = [];
-    has @!vml-drawing-links      = [];
-    has @!charts                 = [];
-    has @!images                 = [];
-    has @!tables                 = [];
-    has @!sparklines             = [];
-    has @!shapes                 = [];
-    has %!shape-hash             = {};
+    has @!hlink-refs             = ();
+    has @!external-hyper-links   = ();
+    has @!external-drawing-links = ();
+    has @!external-comment-links = ();
+    has @!external-vml-links     = ();
+    has @!external-table-links   = ();
+    has @!drawing-links          = ();
+    has @!vml-drawing-links      = ();
+    has @!charts                 = ();
+    has @!images                 = ();
+    has @!tables                 = ();
+    has @!sparklines             = ();
+    has @!shapes                 = ();
+    has %!shape-hash             = ();
     has $!has-shapes             = 0;
     has $!drawing                = 0;
 
@@ -198,9 +198,10 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
     has $!dxf-priority;
     has $!fcell-data-fh;
     has $!validations;
-    has $!cond-formats;
+    has %!cond-formats;
     has $!vba-codename;
     has $!dimrowmin;
+    has %!filter-type;
     
 ###############################################################################
 #
@@ -215,9 +216,8 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
 #
 # Constructor.
 #
-method TWEAK(|c) {
+submethod TWEAK() {
 note "in Worksheet.new TWEAK";
-note c.perl;
 #    my $class  = shift;
 #    my $fh     = shift;
 #    my $self   = Excel::Writer::XLSX::Package::XMLwriter.new( $fh );
@@ -242,21 +242,21 @@ note c.perl;
         $!fcell-data-fh = $fh;
     }
 
-    $!validations  = [];
-    $!cond-formats = {};
+    $!validations  = ();
+    %!cond-formats = ();
     $!dxf-priority = 1;
 
     if $!excel2003-style {
-        $!original-row-height  = 12.75;
-        $!default-row-height   = 12.75;
-        $!default-row-pixels   = 17;
-        $!margin-left          = 0.75;
-        $!margin-right         = 0.75;
-        $!margin-top           = 1;
-        $!margin-bottom        = 1;
-        $!margin-header        = 0.5;
-        $!margin-footer        = 0.5;
-        $!header-footer-aligns = 0;
+#        $!original-row-height  = 12.75;
+#        $!default-row-height   = 12.75;
+#        $!default-row-pixels   = 17;
+#        $!margin-left          = 0.75;
+#        $!margin-right         = 0.75;
+#        $!margin-top           = 1;
+#        $!margin-bottom        = 1;
+#        $!margin-header        = 0.5;
+#        $!margin-footer        = 0.5;
+#        $!header-footer-aligns = 0;
     }
     note "leaving Worksheet TWEAK";
 }
@@ -328,10 +328,10 @@ note self.perl;
     }
 
     # Write the autoFilter element.
-    self.write-auto-filter();
+    self!write-auto-filter();
 
     # Write the mergeCells element.
-    self.write-merge-cells();
+    self!write-merge-cells();
 
     # Write the conditional formats.
     self.write-conditional-formats();
@@ -2335,59 +2335,51 @@ method write-number(*@args) {
 #NYI }
 #NYI 
 #NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_formula($row, $col, $formula, $format)
-#NYI #
-#NYI # Write a formula to the specified row and column (zero indexed).
-#NYI #
-#NYI # $format is optional.
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_formula {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row     = $_[0];           # Zero indexed row
-#NYI     my $col     = $_[1];           # Zero indexed column
-#NYI     my $formula = $_[2];           # The formula text string
-#NYI     my $xf      = $_[3];           # The format object.
-#NYI     my $value   = $_[4];           # Optional formula value.
-#NYI     my $type    = 'f';             # The data type
-#NYI 
-#NYI     # Hand off array formulas.
-#NYI     if ( $formula =~ /^{=.*}$/ ) {
-#NYI         return $self.write_array_formula( $row, $col, $row, $col, $formula,
-#NYI             $xf, $value );
-#NYI     }
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     # Remove the = sign if it exists.
-#NYI     $formula =~ s/^=//;
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, $formula, $xf, $value ];
-#NYI 
-#NYI     return 0;
-#NYI }
-#NYI 
-#NYI 
+###############################################################################
+#
+# write_formula($row, $col, $formula, $format)
+#
+# Write a formula to the specified row and column (zero indexed).
+#
+# $format is optional.
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#
+method !write-formula(@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref: @args;
+    }
+
+    if +@args < 3 { return -1 }    # Check the number of args
+
+    my ($row, $col, $formula, $xf, $value) = @args;
+    my $type = 'f';             # The data type
+
+    # Hand off array formulas.
+    if $formula ~~ /^\{\=.*\}$/ {
+        return self.write-array-formula( $row, $col, $row, $col, $formula, $xf, $value );
+    }
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    # Remove the = sign if it exists.
+    $formula ~~ s/^ \=//;
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row: $row;
+    }
+
+    %!table{$row}{$col} = ( $type, $formula, $xf, $value );
+
+    0;
+}
+
 #NYI ###############################################################################
 #NYI #
 #NYI # write_array_formula($row1, $col1, $row2, $col2, $formula, $format)
@@ -5848,30 +5840,26 @@ method write-sheet-data {
 
 ##############################################################################
 #
-# _write_merge_cells()
+# write-merge-cells()
 #
-# Write the <mergeCells> element.
+#| Write the <mergeCells> element.
 #
-#NYI sub _write_merge_cells {
-#NYI 
-#NYI     my $self         = shift;
-#NYI     my $merged_cells = $self.{_merge};
-#NYI     my $count        = @$merged_cells;
-#NYI 
-#NYI     return unless $count;
-#NYI 
-#NYI     my @attributes = ( 'count' => $count );
-#NYI 
-#NYI     $self.xml_start_tag( 'mergeCells', @attributes );
-#NYI 
-#NYI     for my $merged_range ( @$merged_cells ) {
-#NYI 
-#NYI         # Write the mergeCell element.
-#NYI         $self._write_merge_cell( $merged_range );
-#NYI     }
-#NYI 
-#NYI     $self.xml_end_tag( 'mergeCells' );
-#NYI }
+method !write-merge-cells {
+
+    return unless +@!merge;
+
+    my @attributes = ( 'count' => +@!merge );
+
+    self.xml-start-tag( 'mergeCells', @attributes );
+
+    for @!merge -> $merged-range {
+
+        # Write the mergeCell element.
+        self!write-merge-cell: $merged-range;
+    }
+
+    self.xml-end-tag('mergeCells');
+}
 
 
 ##############################################################################
@@ -5880,22 +5868,20 @@ method write-sheet-data {
 #
 # Write the <mergeCell> element.
 #
-#NYI sub _write_merge_cell {
-#NYI 
-#NYI     my $self         = shift;
-#NYI     my $merged_range = shift;
-#NYI     my ( $row_min, $col_min, $row_max, $col_max ) = @$merged_range;
-#NYI 
-#NYI 
-#NYI     # Convert the merge dimensions to a cell range.
-#NYI     my $cell_1 = xl-rowcol-to-cell( $row_min, $col_min );
-#NYI     my $cell_2 = xl-rowcol-to-cell( $row_max, $col_max );
-#NYI     my $ref    = $cell_1 . ':' . $cell_2;
-#NYI 
-#NYI     my @attributes = ( 'ref' => $ref );
-#NYI 
-#NYI     $self.xml_empty_tag( 'mergeCell', @attributes );
-#NYI }
+method !write-merge-cell($merged-range) {
+
+    my ( $row-min, $col-min, $row-max, $col-max ) = $merged-range;
+
+
+    # Convert the merge dimensions to a cell range.
+    my $cell_1 = xl-rowcol-to-cell( $row-min, $col-min );
+    my $cell_2 = xl-rowcol-to-cell( $row-max, $col-max );
+    my $ref    = $cell_1 ~ ':' ~ $cell_2;
+
+    my @attributes = ( 'ref' => $ref );
+
+    self.xml-empty-tag( 'mergeCell', @attributes );
+}
 
 
 ##############################################################################
@@ -6075,223 +6061,196 @@ method write-brk($id, $max) {
 #
 # Write the <autoFilter> element.
 #
-#NYI sub _write_auto_filter {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $ref  = $self.{_autofilter_ref};
-#NYI 
-#NYI     return unless $ref;
-#NYI 
-#NYI     my @attributes = ( 'ref' => $ref );
-#NYI 
-#NYI     if ( $self.{_filter_on} ) {
-#NYI 
-#NYI         # Autofilter defined active filters.
-#NYI         $self.xml_start_tag( 'autoFilter', @attributes );
-#NYI 
-#NYI         $self._write_autofilters();
-#NYI 
-#NYI         $self.xml_end_tag( 'autoFilter' );
-#NYI 
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # Autofilter defined without active filters.
-#NYI         $self.xml_empty_tag( 'autoFilter', @attributes );
-#NYI     }
-#NYI 
-#NYI }
+method !write-auto-filter {
+
+    my $ref  = $!autofilter;
+
+    return unless $ref;
+
+    my @attributes = ( 'ref' => $ref );
+
+    if $!filter-on {
+
+        # Autofilter defined active filters.
+        self.xml-start-tag( 'autoFilter', @attributes );
+
+        self!write-autofilters();
+
+        self.xml-end-tag( 'autoFilter' );
+
+    }
+    else {
+
+        # Autofilter defined without active filters.
+        self.xml-empty-tag( 'autoFilter', @attributes );
+    }
+
+}
 
 
 ###############################################################################
 #
-# _write_autofilters()
+# write-autofilters()
 #
-# Function to iterate through the columns that form part of an autofilter
-# range and write the appropriate filters.
+#| Iterate through the columns that form part of an autofilter
+#| range and write the appropriate filters.
 #
-#NYI sub _write_autofilters {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     my ( $col1, $col2 ) = @{ $self.{_filter_range} };
-#NYI 
-#NYI     for my $col ( $col1 .. $col2 ) {
-#NYI 
-#NYI         # Skip if column doesn't have an active filter.
-#NYI         next unless $self.{_filter_cols}.{$col};
-#NYI 
-#NYI         # Retrieve the filter tokens and write the autofilter records.
-#NYI         my @tokens = @{ $self.{_filter_cols}.{$col} };
-#NYI         my $type   = $self.{_filter_type}.{$col};
-#NYI 
-#NYI         # Filters are relative to first column in the autofilter.
-#NYI         $self._write_filter_column( $col - $col1, $type, \@tokens );
-#NYI     }
-#NYI }
+method !write-autofilters {
+
+    my ( $col1, $col2 ) = @!filter-range;
+
+    for $col1 .. $col2 -> $col {
+
+        # Skip if column doesn't have an active filter.
+        next unless %!filter-cols{$col};
+
+        # Filters are relative to first column in the autofilter.
+        self!write-filter-column( $col - $col1, %!filter-type{$col}, %!filter-cols{$col} );
+    }
+}
 
 
 ##############################################################################
 #
-# _write_filter_column()
+# write-filter-column()
 #
-# Write the <filterColumn> element.
+#| Write the <filterColumn> element.
 #
-#NYI sub _write_filter_column {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $col_id  = shift;
-#NYI     my $type    = shift;
-#NYI     my $filters = shift;
-#NYI 
-#NYI     my @attributes = ( 'colId' => $col_id );
-#NYI 
-#NYI     $self.xml_start_tag( 'filterColumn', @attributes );
-#NYI 
-#NYI 
-#NYI     if ( $type == 1 ) {
-#NYI 
-#NYI         # Type == 1 is the new XLSX style filter.
-#NYI         $self._write_filters( @$filters );
-#NYI 
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # Type == 0 is the classic "custom" filter.
-#NYI         $self._write_custom_filters( @$filters );
-#NYI     }
-#NYI 
-#NYI     $self.xml_end_tag( 'filterColumn' );
-#NYI }
+method !write-filter-column($col-id, $type, $filters) {
+
+    my @attributes = ( 'colId' => $col-id );
+
+    self.xml-start-tag( 'filterColumn', @attributes );
+
+
+    if $type == 1 {
+
+        # Type == 1 is the new XLSX style filter.
+        self!write-filters($filters);
+
+    }
+    else {
+
+        # Type == 0 is the classic "custom" filter.
+        self!write-custom-filters($filters);
+    }
+
+    self.xml-end-tag('filterColumn');
+}
 
 
 ##############################################################################
 #
-# _write_filters()
+# write-filters()
 #
-# Write the <filters> element.
+#| Write the <filters> element.
 #
-#NYI sub _write_filters {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my @filters = @_;
-#NYI 
-#NYI     if ( @filters == 1 && $filters[0] eq 'blanks' ) {
-#NYI 
-#NYI         # Special case for blank cells only.
-#NYI         $self.xml_empty_tag( 'filters', 'blank' => 1 );
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # General case.
-#NYI         $self.xml_start_tag( 'filters' );
-#NYI 
-#NYI         for my $filter ( @filters ) {
-#NYI             $self._write_filter( $filter );
-#NYI         }
-#NYI 
-#NYI         $self.xml_end_tag( 'filters' );
-#NYI     }
-#NYI }
+method !write-filters(@filters) {
+
+    if +@filters == 1 && @filters[0] eq 'blanks' {
+
+        # Special case for blank cells only.
+        self.xml-empty-tag('filters', blank => 1);
+    } else {
+
+        # General case.
+        self.xml-start-tag('filters');
+
+        for @filters -> $filter {
+            self!write-filter: $filter;
+        }
+
+        self.xml-end-tag: 'filters';
+    }
+}
 
 
 ##############################################################################
 #
-# _write_filter()
+# write-filter()
 #
-# Write the <filter> element.
+#! Write the <filter> element.
 #
-#NYI sub _write_filter {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $val  = shift;
-#NYI 
-#NYI     my @attributes = ( 'val' => $val );
-#NYI 
-#NYI     $self.xml_empty_tag( 'filter', @attributes );
-#NYI }
+method !write-filter($val) {
+
+    my @attributes = ( 'val' => $val );
+
+    self.xml-empty-tag: 'filter', @attributes;
+}
 
 
 ##############################################################################
 #
-# _write_custom_filters()
+# write-custom-filters()
 #
-# Write the <customFilters> element.
+#| Write the <customFilters> element.
 #
-#NYI sub _write_custom_filters {
-#NYI 
-#NYI     my $self   = shift;
-#NYI     my @tokens = @_;
-#NYI 
-#NYI     if ( @tokens == 2 ) {
-#NYI 
-#NYI         # One filter expression only.
-#NYI         $self.xml_start_tag( 'customFilters' );
-#NYI         $self._write_custom_filter( @tokens );
-#NYI         $self.xml_end_tag( 'customFilters' );
-#NYI 
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # Two filter expressions.
-#NYI 
-#NYI         my @attributes;
-#NYI 
-#NYI         # Check if the "join" operand is "and" or "or".
-#NYI         if ( $tokens[2] == 0 ) {
-#NYI             @attributes = ( 'and' => 1 );
-#NYI         }
-#NYI         else {
-#NYI             @attributes = ( 'and' => 0 );
-#NYI         }
-#NYI 
-#NYI         # Write the two custom filters.
-#NYI         $self.xml_start_tag( 'customFilters', @attributes );
-#NYI         $self._write_custom_filter( $tokens[0], $tokens[1] );
-#NYI         $self._write_custom_filter( $tokens[3], $tokens[4] );
-#NYI         $self.xml_end_tag( 'customFilters' );
-#NYI     }
-#NYI }
+method !write-custom-filters(*@tokens) {
+
+    if +@tokens == 2 {
+
+        # One filter expression only.
+        self.xml-start-tag: 'customFilters';
+        self!write-custom-filter: @tokens;
+        self.xml-end-tag: 'customFilters';
+
+    } else {
+
+        # Two filter expressions.
+
+        my @attributes;
+
+        # Check if the "join" operand is "and" or "or".
+        if @tokens[2] == 0 {
+            @attributes = ( 'and' => 1 );
+        }
+        else {
+            @attributes = ( 'and' => 0 );
+        }
+
+        # Write the two custom filters.
+        self.xml-start-tag:       'customFilters', @attributes;
+        self!write-custom-filter: @tokens[0], @tokens[1];
+        self!write-custom-filter: @tokens[3], @tokens[4];
+        self.xml-end-tag:         'customFilters';
+    }
+}
 
 
 ##############################################################################
 #
-# _write_custom_filter()
+# write_custom_filter()
 #
-# Write the <customFilter> element.
+#| Write the <customFilter> element.
 #
-#NYI sub _write_custom_filter {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $operator   = shift;
-#NYI     my $val        = shift;
-#NYI     my @attributes = ();
-#NYI 
-#NYI     my %operators = (
-#NYI         1  => 'lessThan',
-#NYI         2  => 'equal',
-#NYI         3  => 'lessThanOrEqual',
-#NYI         4  => 'greaterThan',
-#NYI         5  => 'notEqual',
-#NYI         6  => 'greaterThanOrEqual',
-#NYI         22 => 'equal',
-#NYI     );
-#NYI 
-#NYI 
-#NYI     # Convert the operator from a number to a descriptive string.
-#NYI     if ( defined $operators{$operator} ) {
-#NYI         $operator = $operators{$operator};
-#NYI     }
-#NYI     else {
-#NYI         fail "Unknown operator = $operator\n";
-#NYI     }
-#NYI 
-#NYI     # The 'equal' operator is the default attribute and isn't stored.
-#NYI     push @attributes, ( 'operator' => $operator ) unless $operator eq 'equal';
-#NYI     push @attributes, ( 'val' => $val );
-#NYI 
-#NYI     $self.xml_empty_tag( 'customFilter', @attributes );
-#NYI }
+method !write-custom-filter($operator, $val) {
+
+    my @attributes = ();
+
+    my %operators = (
+        1  => 'lessThan',
+        2  => 'equal',
+        3  => 'lessThanOrEqual',
+        4  => 'greaterThan',
+        5  => 'notEqual',
+        6  => 'greaterThanOrEqual',
+        22 => 'equal',
+    );
+
+
+    # Convert the operator from a number to a descriptive string.
+    if %operators{$operator}.defined {
+        $operator = %operators{$operator};
+    } else {
+        fail "Unknown operator = $operator\n";
+    }
+
+    # The 'equal' operator is the default attribute and isn't stored.
+    @attributes.push: 'operator' => $operator unless $operator eq 'equal';
+    @attributes.push: 'val' => $val;
+
+    self.xml-empty-tag: 'customFilter', @attributes;
+}
 
 
 ##############################################################################
@@ -7074,25 +7033,22 @@ method write-sheet-protection {
 
 ##############################################################################
 #
-# _write_formula_1()
+# write-formula_1()
 #
-# Write the <formula1> element.
+#| Write the <formula1> element.
 #
-#NYI sub _write_formula_1 {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $formula = shift;
-#NYI 
-#NYI     # Convert a list array ref into a comma separated string.
-#NYI     if ( ref $formula eq 'ARRAY' ) {
-#NYI         $formula = join ',', @$formula;
-#NYI         $formula = qq("$formula");
-#NYI     }
-#NYI 
-#NYI     $formula =~ s/^=//;    # Remove formula symbol.
-#NYI 
-#NYI     $self.xml_data_element( 'formula1', $formula );
-#NYI }
+method !write_formula_1($formula) {
+
+    # Convert a list array ref into a comma separated string.
+    if $formula ~~ (Array) {
+        $formula = $formula.join: ',';
+        $formula = qq("$formula");
+    }
+
+    $formula ~~ s/^ \=//;    # Remove formula symbol.
+
+    self.xml-data-element: 'formula1', $formula;
+}
 
 
 ##############################################################################
@@ -7114,334 +7070,284 @@ method write-sheet-protection {
 
 ##############################################################################
 #
-# _write_conditional_formats()
-#
+# write-conditional-formats()
+#|
 # Write the Worksheet conditional formats.
 #
-#NYI sub _write_conditional_formats {
-#NYI 
-#NYI     my $self   = shift;
-#NYI     my @ranges = sort keys %{ $self.{_cond_formats} };
-#NYI 
-#NYI     return unless scalar @ranges;
-#NYI 
-#NYI     for my $range ( @ranges ) {
-#NYI         $self._write_conditional_formatting( $range,
-#NYI             $self.{_cond_formats}.{$range} );
-#NYI     }
-#NYI }
+method !write-conditional-formats {
+
+    my @ranges = %!cond-formats.keys.sort;
+
+    return unless +@ranges;
+
+    for @ranges ->$range {
+        self!write-conditional-formatting: $range, %!cond-formats{$range};
+    }
+}
 
 
 ##############################################################################
 #
-# _write_conditional_formatting()
+# write-conditional-formatting()
 #
-# Write the <conditionalFormatting> element.
+#| Write the <conditionalFormatting> element.
 #
-#NYI sub _write_conditional_formatting {
-#NYI 
-#NYI     my $self   = shift;
-#NYI     my $range  = shift;
-#NYI     my $params = shift;
-#NYI 
-#NYI     my @attributes = ( 'sqref' => $range );
-#NYI 
-#NYI     $self.xml_start_tag( 'conditionalFormatting', @attributes );
-#NYI 
-#NYI     for my $param ( @$params ) {
-#NYI 
-#NYI         # Write the cfRule element.
-#NYI         $self._write_cf_rule( $param );
-#NYI     }
-#NYI 
-#NYI     $self.xml_end_tag( 'conditionalFormatting' );
-#NYI }
+method !write-conditional-formatting($range, @params) {
+
+    my @attributes = ( 'sqref' => $range );
+
+    self.xml-start-tag: 'conditionalFormatting', @attributes;
+
+    for @params -> $param {
+
+        # Write the cfRule element.
+        self!write-cf-rule: $param;
+    }
+
+    self.xml-end-tag: 'conditionalFormatting';
+}
 
 ##############################################################################
 #
-# _write_cf_rule()
+# write-cf-rule()
 #
-# Write the <cfRule> element.
+#| Write the <cfRule> element.
 #
-#NYI sub _write_cf_rule {
-#NYI 
-#NYI     my $self  = shift;
-#NYI     my $param = shift;
-#NYI 
-#NYI     my @attributes = ( 'type' => $param.{type} );
-#NYI 
-#NYI     push @attributes, ( 'dxfId' => $param.{format} )
-#NYI       if defined $param.{format};
-#NYI 
-#NYI     push @attributes, ( 'priority' => $param.{priority} );
-#NYI 
-#NYI     push @attributes, ( 'stopIfTrue' => 1 )
-#NYI       if $param.{stop_if_true};
-#NYI 
-#NYI     if ( $param.{type} eq 'cellIs' ) {
-#NYI         push @attributes, ( 'operator' => $param.{criteria} );
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI 
-#NYI         if ( defined $param.{minimum} && defined $param.{maximum} ) {
-#NYI             $self._write_formula( $param.{minimum} );
-#NYI             $self._write_formula( $param.{maximum} );
-#NYI         }
-#NYI         else {
-#NYI             $self._write_formula( $param.{value} );
-#NYI         }
-#NYI 
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'aboveAverage' ) {
-#NYI         if ( $param.{criteria} =~ /below/ ) {
-#NYI             push @attributes, ( 'aboveAverage' => 0 );
-#NYI         }
-#NYI 
-#NYI         if ( $param.{criteria} =~ /equal/ ) {
-#NYI             push @attributes, ( 'equalAverage' => 1 );
-#NYI         }
-#NYI 
-#NYI         if ( $param.{criteria} =~ /([123]) std dev/ ) {
-#NYI             push @attributes, ( 'stdDev' => $1 );
-#NYI         }
-#NYI 
-#NYI         $self.xml_empty_tag( 'cfRule', @attributes );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'top10' ) {
-#NYI         if ( defined $param.{criteria} && $param.{criteria} eq '%' ) {
-#NYI             push @attributes, ( 'percent' => 1 );
-#NYI         }
-#NYI 
-#NYI         if ( $param.{direction} ) {
-#NYI             push @attributes, ( 'bottom' => 1 );
-#NYI         }
-#NYI 
-#NYI         my $rank = $param.{value} || 10;
-#NYI         push @attributes, ( 'rank' => $rank );
-#NYI 
-#NYI         $self.xml_empty_tag( 'cfRule', @attributes );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'duplicateValues' ) {
-#NYI         $self.xml_empty_tag( 'cfRule', @attributes );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'uniqueValues' ) {
-#NYI         $self.xml_empty_tag( 'cfRule', @attributes );
-#NYI     }
-#NYI     elsif ($param.{type} eq 'containsText'
-#NYI         || $param.{type} eq 'notContainsText'
-#NYI         || $param.{type} eq 'beginsWith'
-#NYI         || $param.{type} eq 'endsWith' )
-#NYI     {
-#NYI         push @attributes, ( 'operator' => $param.{criteria} );
-#NYI         push @attributes, ( 'text'     => $param.{value} );
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_formula( $param.{formula} );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'timePeriod' ) {
-#NYI         push @attributes, ( 'timePeriod' => $param.{criteria} );
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_formula( $param.{formula} );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ($param.{type} eq 'containsBlanks'
-#NYI         || $param.{type} eq 'notContainsBlanks'
-#NYI         || $param.{type} eq 'containsErrors'
-#NYI         || $param.{type} eq 'notContainsErrors' )
-#NYI     {
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_formula( $param.{formula} );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'colorScale' ) {
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_color_scale( $param );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'dataBar' ) {
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_data_bar( $param );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'expression' ) {
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_formula( $param.{criteria} );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI     elsif ( $param.{type} eq 'iconSet' ) {
-#NYI 
-#NYI         $self.xml_start_tag( 'cfRule', @attributes );
-#NYI         $self._write_icon_set( $param );
-#NYI         $self.xml_end_tag( 'cfRule' );
-#NYI     }
-#NYI }
+method !write-cf-rule($param) {
+
+    my @attributes = ( 'type' => $param<type> );
+
+    @attributes.push: 'dxfId' => $param<format> if $param<format>.defined;
+
+    @attributes.push: 'priority' => $param<priority>;
+
+    @attributes.push: 'stopIfTrue' => 1 if $param<stop-if-true>;
+
+    given $param<type> {
+	when 'cellIs' {
+            @attributes.push: 'operator' => $param<criteria>;
+            self.xml-start-tag: 'cfRule', @attributes;
+
+            if $param<minimum>.defined && $param<maximum>.defined {
+		self!write-formula: $param<minimum>;
+		self!write-formula: $param<maximum>;
+            } else {
+		self!write-formula: $param<value>;
+            }
+            self.xml-end-tag: 'cfRule';
+	}
+	when 'aboveAverage' {
+	    given $param<criteria> {
+		when /below/ {
+		    @attributes.push: 'aboveAverage' => 0;
+		}
+		when /equal/ {
+		    @attributes.push: 'equalAverage' => 1;
+		}
+		when /<[123]> ' ' std ' ' dev/ {
+		    @attributes.push: 'stdDev'       => $1;
+		}
+	    }
+            self.xml-empty-tag: 'cfRule', @attributes;
+	}
+	when 'top10' {
+            if $param<criteria>.defined && $param<criteria> eq '%' {
+		@attributes.push: 'percent' => 1;
+            }
+	    
+            if $param<direction> {
+		@attributes.push: 'bottom' => 1;
+            }
+	    
+            my $rank = $param<value> || 10;
+            @attributes.push: 'rank' => $rank;
+	    
+            self.xml-empty-tag: 'cfRule', @attributes;
+	}
+	when 'duplicateValues' {
+            self.xml-empty-tag: 'cfRule', @attributes;
+	}
+	when 'uniqueValues' {
+            self.xml-empty-tag: 'cfRule', @attributes;
+	}
+	when 'containsText' | 'notContainsText' | 'beginsWith' | 'endsWith' {
+            @attributes.push: 'operator' => $param<criteria>;
+            @attributes.push: 'text'     => $param<value>;
+	    
+            self.xml-start-tag: 'cfRule', @attributes;
+            self!write-formula: $param<formula>;
+            self.xml-end-tag:   'cfRule';
+	}
+	when 'timePeriod' {
+            @attributes.push: 'timePeriod' => $param<criteria>;
+
+            self.xml-start-tag: 'cfRule', @attributes;
+            self!write-formula: $param<formula>;
+            self.xml-end-tag:   'cfRule';
+	}
+	when 'containsBlanks' | 'notContainsBlanks' | 'containsErrors' | 'notContainsErrors' {
+            self.xml-start-tag: 'cfRule', @attributes;
+            self!write-formula: $param<formula>;
+            self.xml-end-tag:   'cfRule';
+	}
+	when 'colorScale' {
+            self.xml-start-tag:     'cfRule', @attributes;
+            self!write-color-scale: $param;
+            self.xml-end-tag:       'cfRule';
+	}
+	when 'dataBar' {
+            self.xml-start-tag: 'cfRule', @attributes;
+            self!write-data-bar: $param;
+            self.xml-end-tag:   'cfRule';
+	}
+	when 'expression' {
+            self.xml-start-tag: 'cfRule', @attributes;
+            self!write-formula: $param<criteria>;
+            self.xml-end-tag:   'cfRule';
+	}
+	when 'iconSet' {
+            self.xml-start-tag:  'cfRule', @attributes;
+            self!write-icon-set: $param;
+            self.xml-end-tag:    'cfRule';
+	}
+    }
+}
 
 
 ##############################################################################
 #
-# _write_icon_set()
+# write-icon-set()
 #
-# Write the <iconSet> element.
+#| Write the <iconSet> element.
 #
-#NYI sub _write_icon_set {
-#NYI 
-#NYI     my $self        = shift;
-#NYI     my $param       = shift;
-#NYI     my $icon_style  = $param.{icon_style};
-#NYI     my $total_icons = $param.{total_icons};
-#NYI     my $icons       = $param.{icons};
-#NYI     my $i;
-#NYI 
-#NYI     my @attributes = ();
-#NYI 
-#NYI     # Don't set attribute for default style.
-#NYI     if ( $icon_style ne '3TrafficLights' ) {
-#NYI         @attributes = ( 'iconSet' => $icon_style );
-#NYI     }
-#NYI 
-#NYI     if ( exists $param.{'icons_only'} && $param.{'icons_only'} ) {
-#NYI         push @attributes, ( 'showValue' => 0 );
-#NYI     }
-#NYI 
-#NYI     if ( exists $param.{'reverse_icons'} && $param.{'reverse_icons'} ) {
-#NYI         push @attributes, ( 'reverse' => 1 );
-#NYI     }
-#NYI 
-#NYI     $self.xml_start_tag( 'iconSet', @attributes );
-#NYI 
-#NYI     # Write the properites for different icon styles.
-#NYI     for my $icon ( reverse @{ $param.{icons} } ) {
-#NYI         $self._write_cfvo(
-#NYI             $icon.{'type'},
-#NYI             $icon.{'value'},
-#NYI             $icon.{'criteria'}
-#NYI         );
-#NYI     }
-#NYI 
-#NYI     $self.xml_end_tag( 'iconSet' );
-#NYI }
+method !write-icon-set($param) {
+
+    my $icon-style  = $param<icon-style>;
+    my $total-icons = $param<total_-icons>;
+    my $icons       = $param<icons>;
+    my $i;
+
+    my @attributes = ();
+
+    # Don't set attribute for default style.
+    if $icon-style ne '3TrafficLights' {
+        @attributes = ( 'iconSet' => $icon-style );
+    }
+
+    if $param<icons_only>.exists && $param<icons-only> {
+        @attributes.push: 'showValue' => 0;
+    }
+
+    if $param<reverse-icons> && $param<reverse-icons> {
+        @attributes.push: 'reverse' => 1;
+    }
+
+    self.xml-start-tag: 'iconSet', @attributes;
+
+    # Write the properites for different icon styles.
+    for $param<icons>.reverse -> $icon {
+        self!write-cfvo: $icon<type>, $icon<value>, $icon<criteria'>;
+    }
+
+    self.xml-end-tag: 'iconSet';
+}
 
 ##############################################################################
 #
-# _write_formula()
+# write-formula()
 #
-# Write the <formula> element.
+#| Write the <formula> element.
 #
-#NYI sub _write_formula {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $data = shift;
-#NYI 
-#NYI     # Remove equality from formula.
-#NYI     $data =~ s/^=//;
-#NYI 
-#NYI     $self.xml_data_element( 'formula', $data );
-#NYI }
+#method !write-formula($data) {
+#
+#    # Remove equality from formula.
+#    $data ~~ s/^ \=//;
+#
+#    self.xml-data-element: 'formula', $data;
+#}
 
 
 ##############################################################################
 #
-# _write_color_scale()
+# write-color-scale()
 #
-# Write the <colorScale> element.
+#| Write the <colorScale> element.
 #
-#NYI sub _write_color_scale {
-#NYI 
-#NYI     my $self  = shift;
-#NYI     my $param = shift;
-#NYI 
-#NYI     $self.xml_start_tag( 'colorScale' );
-#NYI 
-#NYI     $self._write_cfvo( $param.{min_type}, $param.{min_value} );
-#NYI 
-#NYI     if ( defined $param.{mid_type} ) {
-#NYI         $self._write_cfvo( $param.{mid_type}, $param.{mid_value} );
-#NYI     }
-#NYI 
-#NYI     $self._write_cfvo( $param.{max_type}, $param.{max_value} );
-#NYI 
-#NYI     $self._write_color( 'rgb' => $param.{min_color} );
-#NYI 
-#NYI     if ( defined $param.{mid_color} ) {
-#NYI         $self._write_color( 'rgb' => $param.{mid_color} );
-#NYI     }
-#NYI 
-#NYI     $self._write_color( 'rgb' => $param.{max_color} );
-#NYI 
-#NYI     $self.xml_end_tag( 'colorScale' );
-#NYI }
+method !write-color-scale($param) {
+
+    self.xml-start-tag: 'colorScale';
+
+    self!write-cfvo: $param<min-type>, $param<min-value>;
+
+    if $param<mid-type>.defined {
+        self!write_cfvo: $param<mid-type>, $param<mid-value>;
+    }
+
+    self!write-cfvo: $param<max-type>, $param<max-value>;
+
+    self!write-color: 'rgb' => $param<min-color>;
+
+    if $param<mid-color>.defined {
+        self!write-color: 'rgb' => $param<mid-color>;
+    }
+
+    self!write-color: 'rgb' => $param<max-color>;
+
+    self.xml-end-tag: 'colorScale';
+}
 
 
 ##############################################################################
 #
-# _write_data_bar()
+# write-data-bar()
 #
 # Write the <dataBar> element.
 #
-#NYI sub _write_data_bar {
-#NYI 
-#NYI     my $self  = shift;
-#NYI     my $param = shift;
-#NYI 
-#NYI     $self.xml_start_tag( 'dataBar' );
-#NYI 
-#NYI     $self._write_cfvo( $param.{min_type}, $param.{min_value} );
-#NYI     $self._write_cfvo( $param.{max_type}, $param.{max_value} );
-#NYI 
-#NYI     $self._write_color( 'rgb' => $param.{bar_color} );
-#NYI 
-#NYI     $self.xml_end_tag( 'dataBar' );
-#NYI }
+method !write-data-bar($param) {
+
+    self.xml-start-tag: 'dataBar';
+
+    self!write-cfvo: $param<min-type>, $param<min-value>;
+    self!write-cfvo: $param<max-type>, $param<max-value>;
+
+    self!write_color: 'rgb' => $param<bar-color>;
+
+    self.xml-end-tag: 'dataBar';
+}
 
 
 ##############################################################################
 #
-# _write_cfvo()
+# write-cfvo()
 #
-# Write the <cfvo> element.
+#| Write the <cfvo> element.
 #
-#NYI sub _write_cfvo {
-#NYI 
-#NYI     my $self     = shift;
-#NYI     my $type     = shift;
-#NYI     my $value    = shift;
-#NYI     my $criteria = shift;
-#NYI 
-#NYI     my @attributes = (
-#NYI         'type' => $type,
-#NYI         'val'  => $value
-#NYI     );
-#NYI 
-#NYI     if ( $criteria ) {
-#NYI         push @attributes, ( 'gte', 0 );
-#NYI     }
-#NYI 
-#NYI     $self.xml_empty_tag( 'cfvo', @attributes );
-#NYI }
+method !write-cfvo($type, $value, $criteria) {
+
+    my @attributes = (
+        'type' => $type,
+        'val'  => $value
+    );
+
+    if $criteria {
+        @attributes.push: 'gte', 0;
+    }
+
+    self.xml-empty-tag: 'cfvo', @attributes;
+}
 
 
 ##############################################################################
 #
-# _write_color()
+# write-color()
 #
-# Write the <color> element.
+#| Write the <color> element.
 #
-#NYI sub _write_color {
-#NYI 
-#NYI     my $self  = shift;
-#NYI     my $name  = shift;
-#NYI     my $value = shift;
-#NYI 
-#NYI     my @attributes = ( $name => $value );
-#NYI 
-#NYI     $self.xml_empty_tag( 'color', @attributes );
-#NYI }
+method !write-color($name, $value) {
+    my @attributes = ( $name => $value );
+
+    self.xml-empty-tag: 'color', @attributes;
+}
 
 
 ##############################################################################
@@ -7870,7 +7776,7 @@ Kevin Pye     kjpye@cpan.org
 =head1 COPYRIGHT
 
 (c) MM-MMXVII, John McNamara.
-(c) MMXVII-MMXVIII, kevin Pye
+(c) MMXVII-MMXVIII, Kevin Pye
 
 All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
 =end pod

@@ -375,7 +375,7 @@ XMLwriter - A base class for the Excel::Writer::XLSX writer classes.
 
 This module is used by L<Excel::Writer::XLSX> for writing XML documents. It is a light weight re-implementation of L<XML::Writer>.
 
-XMLwriter is approximately twice as fast as L<XML::Writer>. This speed is achieved at the expense of error and correctness checking. In addition not all of the L<XML::Writer> methods are implemented. As such, XMLwriter is not recommended for use outside of Excel::Writer::XLSX.
+
 
 =head1 SEE ALSO
 
