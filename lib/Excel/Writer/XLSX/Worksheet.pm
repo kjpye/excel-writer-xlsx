@@ -197,7 +197,7 @@ unit class Excel::Writer::XLSX::Worksheet is Excel::Writer::XLSX::Package::XMLwr
 # stuff added to make it compile
     has $!dxf-priority;
     has $!fcell-data-fh;
-    has $!validations;
+    has @!validations;
     has %!cond-formats;
     has $!vba-codename;
     has $!dimrowmin;
@@ -242,8 +242,8 @@ note "in Worksheet.new TWEAK";
         $!fcell-data-fh = $fh;
     }
 
-    $!validations  = ();
-    %!cond-formats = ();
+    @!validations  = @();
+    %!cond-formats = %();
     $!dxf-priority = 1;
 
     if $!excel2003-style {
@@ -334,10 +334,10 @@ note self.perl;
     self!write-merge-cells();
 
     # Write the conditional formats.
-    self.write-conditional-formats();
+    self!write-conditional-formats();
 
     # Write the dataValidations element.
-    self.write-data-validations();
+    self!write-data-validations();
 
     # Write the hyperlink element.
     self.write-hyperlinks();
@@ -385,19 +385,17 @@ note self.perl;
 
 ###############################################################################
 #
-# _close()
+# close()
 #
 # Write the worksheet elements.
-#
-#NYI sub _close {
-#NYI 
-#NYI     # TODO. Unused. Remove after refactoring.
-#NYI     my $self       = shift;
-#NYI     my $sheetnames = shift;
-#NYI     my $num_sheets = scalar @$sheetnames;
-#NYI }
-#NYI 
-#NYI 
+
+method !close(@sheetnames) {
+
+    # TODO. Unused. Remove after refactoring.
+    my $num-sheets = +@sheetnames;
+}
+
+
 ###############################################################################
 #
 # get-name().
@@ -473,93 +471,88 @@ method set-first-sheet {
 #
 # Set the worksheet protection flags to prevent modification of worksheet
 # objects.
+
+method !protect($password, %options) {
+
+    if $password ne '' {
+        $password = self!encode-password: $password;
+    }
+
+    # Default values for objects that can be protected.
+    my %defaults = (
+        sheet                 => 1,
+        content               => 0,
+        objects               => 0,
+        scenarios             => 0,
+        format_cells          => 0,
+        format_columns        => 0,
+        format_rows           => 0,
+        insert_columns        => 0,
+        insert_rows           => 0,
+        insert_hyperlinks     => 0,
+        delete_columns        => 0,
+        delete_rows           => 0,
+        select_locked_cells   => 1,
+        sort                  => 0,
+        autofilter            => 0,
+        pivot_tables          => 0,
+        select_unlocked_cells => 1,
+    );
+
+
+    # Overwrite the defaults with user specified values.
+    for %options.keys -> $key {
+
+        if %defaults{$key}.exists {
+            %defaults{$key} = %options{$key};
+        }
+        else {
+            warn "Unknown protection object: $key\n";
+        }
+    }
+
+    # Set the password after the user defined values.
+    %defaults<password> = $password;
+
+    $!protect = %defaults;
+}
+
+
+###############################################################################
 #
-#NYI sub protect {
-#NYI 
-#NYI     my $self     = shift;
-#NYI     my $password = shift || '';
-#NYI     my $options  = shift || {};
-#NYI 
-#NYI     if ( $password ne '' ) {
-#NYI         $password = $self._encode_password( $password );
-#NYI     }
-#NYI 
-#NYI     # Default values for objects that can be protected.
-#NYI     my %defaults = (
-#NYI         sheet                 => 1,
-#NYI         content               => 0,
-#NYI         objects               => 0,
-#NYI         scenarios             => 0,
-#NYI         format_cells          => 0,
-#NYI         format_columns        => 0,
-#NYI         format_rows           => 0,
-#NYI         insert_columns        => 0,
-#NYI         insert_rows           => 0,
-#NYI         insert_hyperlinks     => 0,
-#NYI         delete_columns        => 0,
-#NYI         delete_rows           => 0,
-#NYI         select_locked_cells   => 1,
-#NYI         sort                  => 0,
-#NYI         autofilter            => 0,
-#NYI         pivot_tables          => 0,
-#NYI         select_unlocked_cells => 1,
-#NYI     );
-#NYI 
-#NYI 
-#NYI     # Overwrite the defaults with user specified values.
-#NYI     for my $key ( keys %{$options} ) {
-#NYI 
-#NYI         if ( exists $defaults{$key} ) {
-#NYI             $defaults{$key} = $options.{$key};
-#NYI         }
-#NYI         else {
-#NYI             warn "Unknown protection object: $key\n";
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Set the password after the user defined values.
-#NYI     $defaults{password} = $password;
-#NYI 
-#NYI     $self.{_protect} = \%defaults;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _encode_password($password)
-#NYI #
-#NYI # Based on the algorithm provided by Daniel Rentz of OpenOffice.
-#NYI #
-#NYI sub _encode_password {
-#NYI 
-#NYI     use integer;
-#NYI 
-#NYI     my $self      = shift;
-#NYI     my $plaintext = $_[0];
-#NYI     my $password;
-#NYI     my $count;
-#NYI     my @chars;
-#NYI     my $i = 0;
-#NYI 
-#NYI     $count = @chars = split //, $plaintext;
-#NYI 
-#NYI     foreach my $char ( @chars ) {
-#NYI         my $low_15;
-#NYI         my $high_15;
-#NYI         $char    = ord( $char ) << ++$i;
-#NYI         $low_15  = $char & 0x7fff;
-#NYI         $high_15 = $char & 0x7fff << 15;
-#NYI         $high_15 = $high_15 >> 15;
-#NYI         $char    = $low_15 | $high_15;
-#NYI     }
-#NYI 
-#NYI     $password = 0x0000;
-#NYI     $password ^= $_ for @chars;
-#NYI     $password ^= $count;
-#NYI     $password ^= 0xCE4B;
-#NYI 
-#NYI     return sprintf "%X", $password;
-#NYI }
+# encode-password($password)
+#
+# Based on the algorithm provided by Daniel Rentz of OpenOffice.
+#
+method !encode-password($plaintext) {
+
+#    use integer;
+
+    my int $password;
+    my $count;
+    my @chars = $plaintext.comb('');
+    my $i = 0;
+
+    $count = +@chars;
+
+
+    for @chars -> int $char is rw {
+        my int $low15;
+        my int $high15;
+        $char   = $char.ord +< ++$i;
+        $low15  = $char +& 0x7fff;
+        $high15 = $char +& 0x7fff +< 15;
+        $high15 = $high15 +> 15;
+        $char    = $low15 +| $high15;
+    }
+
+    $password = 0x0000;
+    for @chars { $password +^= $_ }
+    $password +^= $count;
+    $password +^= 0xCE4B;
+
+    sprintf "%X", $password;
+}
 
 
 # TODO: Check argument usage
@@ -577,7 +570,7 @@ method set-column(@data) {
 
     # Check for a cell reference in A1 notation and substitute row and column
     if $cell ~~ /^\D/ {
-        @data = self.substitute-cellref( @data );
+        @data = self!substitute-cellref( @data );
 
         # Returned values $row1 and $row2 aren't required here. Remove them.
         shift @data;    # $row1
@@ -638,125 +631,119 @@ method set-column(@data) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set-selection()
-#NYI #
-#NYI # Set which cell or cells are selected in a worksheet.
-#NYI #
-#NYI sub set-selection {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $pane;
-#NYI     my $active-cell;
-#NYI     my $sqref;
-#NYI 
-#NYI     return unless @_;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column.
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # There should be either 2 or 4 arguments.
-#NYI     if ( @_ == 2 ) {
-#NYI 
-#NYI         # Single cell selection.
-#NYI         $active_cell = xl-rowcol-to-cell( $_[0], $_[1] );
-#NYI         $sqref = $active_cell;
-#NYI     }
-#NYI     elsif ( @_ == 4 ) {
-#NYI 
-#NYI         # Range selection.
-#NYI         $active_cell = xl-rowcol-to-cell( $_[0], $_[1] );
-#NYI 
-#NYI         my ( $row_first, $col_first, $row_last, $col_last ) = @_;
-#NYI 
-#NYI         # Swap last row/col for first row/col as necessary
-#NYI         if ( $row_first > $row_last ) {
-#NYI             ( $row_first, $row_last ) = ( $row_last, $row_first );
-#NYI         }
-#NYI 
-#NYI         if ( $col_first > $col_last ) {
-#NYI             ( $col_first, $col_last ) = ( $col_last, $col_first );
-#NYI         }
-#NYI 
-#NYI         # If the first and last cell are the same write a single cell.
-#NYI         if ( ( $row_first == $row_last ) && ( $col_first == $col_last ) ) {
-#NYI             $sqref = $active_cell;
-#NYI         }
-#NYI         else {
-#NYI             $sqref = xl-range( $row_first, $row_last, $col_first, $col_last );
-#NYI         }
-#NYI 
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # User supplied wrong number or arguments.
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     # Selection isn't set for cell A1.
-#NYI     return if $sqref eq 'A1';
-#NYI 
-#NYI     $self.{_selections} = [ [ $pane, $active_cell, $sqref ] ];
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # freeze_panes( $row, $col, $top_row, $left_col )
-#NYI #
-#NYI # Set panes and mark them as frozen.
-#NYI #
-#NYI sub freeze_panes {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     return unless @_;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column.
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     my $row      = shift;
-#NYI     my $col      = shift || 0;
-#NYI     my $top_row  = shift || $row;
-#NYI     my $left_col = shift || $col;
-#NYI     my $type     = shift || 0;
-#NYI 
-#NYI     $self.{_panes} = [ $row, $col, $top_row, $left_col, $type ];
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # split_panes( $y, $x, $top_row, $left_col )
-#NYI #
-#NYI # Set panes and mark them as split.
-#NYI #
-#NYI # Implementers note. The API for this method doesn't map well from the XLS
-#NYI # file format and isn't sufficient to describe all cases of split panes.
-#NYI # It should probably be something like:
-#NYI #
-#NYI #     split_panes( $y, $x, $top_row, $left_col, $offset_row, $offset_col )
-#NYI #
-#NYI # I'll look at changing this if it becomes an issue.
-#NYI #
-#NYI sub split_panes {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Call freeze panes but add the type flag for split panes.
-#NYI     $self.freeze_panes( @_[ 0 .. 3 ], 2 );
-#NYI }
-#NYI 
-#NYI # Older method name for backwards compatibility.
-#NYI *thaw_panes = *split_panes;
-#NYI 
-#NYI 
+###############################################################################
+#
+# set-selection()
+#
+# Set which cell or cells are selected in a worksheet.
+#
+method set-selection(*@args) {
+
+    my $pane;
+    my $active-cell;
+    my $sqref;
+
+    return unless +@args;
+
+    # Check for a cell reference in A1 notation and substitute row and column.
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    # There should be either 2 or 4 arguments.
+    if +@args == 2 {
+
+        # Single cell selection.
+        $active-cell = xl-rowcol-to-cell(@args[0], @args[1]);
+        $sqref = $active-cell;
+    }
+    elsif +@args == 4 {
+
+        # Range selection.
+        $active-cell = xl-rowcol-to-cell(@args[0], @args[1]);
+
+        my ($row-first, $col-first, $row-last, $col-last) = @args;
+
+        # Swap last row/col for first row/col as necessary
+        if $row-first > $row-last {
+            ($row-first, $row-last ) = ($row-last, $row-first);
+        }
+
+        if $col-first > $col-last {
+            ($col-first, $col-last) = ($col-last, $col-first);
+        }
+
+        # If the first and last cell are the same write a single cell.
+        if ($row-first == $row-last) && ($col-first == $col-last) {
+            $sqref = $active-cell;
+        }
+        else {
+            $sqref = xl-range($row-first, $row-last, $col-first, $col-last);
+        }
+
+    }
+    else {
+
+        # User supplied wrong number or arguments.
+        return;
+    }
+
+    # Selection isn't set for cell A1.
+    return if $sqref eq 'A1';
+
+    @!selections = @( @($pane, $active-cell, $sqref) );
+}
+ 
+
+###############################################################################
+#
+# freeze_panes( $row, $col, $top_row, $left_col )
+#
+# Set panes and mark them as frozen.
+#
+method freeze_panes(*@args) {
+
+    return unless +@args;
+
+    # Check for a cell reference in A1 notation and substitute row and column.
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+   }
+
+    my $row      = @args.shift;
+    my $col      = @args.shift || 0;
+    my $top-row  = @args.shift || $row;
+    my $left-col = @args.shift || $col;
+    my $type     = @args.shift || 0;
+
+    @!panes = @( $row, $col, $top-row, $left-col, $type );
+}
+
+
+###############################################################################
+#
+# split_panes( $y, $x, $top_row, $left_col )
+#
+# Set panes and mark them as split.
+#
+# Implementers note. The API for this method doesn't map well from the XLS
+# file format and isn't sufficient to describe all cases of split panes.
+# It should probably be something like:
+#
+#     split_panes( $y, $x, $top_row, $left_col, $offset_row, $offset_col )
+#
+# I'll look at changing this if it becomes an issue.
+#
+method split-panes(*@args) {
+
+    # Call freeze panes but add the type flag for split panes.
+    self.freeze-panes(@args[ 0 .. 3 ], 2);
+}
+
+# Older method name for backwards compatibility.
+#TODO *thaw-panes = *split-panes;
+
+
 ###############################################################################
 #
 # set-portrait()
@@ -817,134 +804,122 @@ method set-paper($paper-size) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # set-header()
-#NYI #
-#NYI # Set the page header caption and optional margin.
-#NYI #
-#NYI sub set-header {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $string  = $_[0] || '';
-#NYI     my $margin  = $_[1] || 0.3;
-#NYI     my $options = $_[2] || {};
-#NYI 
-#NYI 
-#NYI     # Replace the Excel placeholder &[Picture] with the internal &G.
-#NYI     $string =~ s/&\[Picture\]/&G/g;
-#NYI 
-#NYI     if ( length $string >= 255 ) {
-#NYI         warn 'Header string must be less than 255 characters';
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     if ( defined $options.{align_with_margins} ) {
-#NYI         $self.{_header_footer_aligns} = $options.{align_with_margins};
-#NYI     }
-#NYI 
-#NYI     if ( defined $options.{scale_with_doc} ) {
-#NYI         $self.{_header_footer_scales} = $options.{scale_with_doc};
-#NYI     }
-#NYI 
-#NYI     # Reset the array in case the function is called more than once.
-#NYI     $self.{_header_images} = [];
-#NYI 
-#NYI     if ( $options.{image_left} ) {
-#NYI         push @{ $sel{_header_images} }, [ $options.{image_left}, 'LH' ];
-#NYI     }
-#NYI 
-#NYI     if ( $options.{image_center} ) {
-#NYI         push @{ $self.{_header_images} }, [ $options.{image_center}, 'CH' ];
-#NYI     }
-#NYI 
-#NYI     if ( $options.{image_right} ) {
-#NYI         push @{ $self.{_header_images} }, [ $options.{image_right}, 'RH' ];
-#NYI     }
-#NYI 
-#NYI     my $placeholder_count = () = $string =~ /&G/g;
-#NYI     my $image_count = @{ $self.{_header_images} };
-#NYI 
-#NYI     if ( $image_count != $placeholder_count ) {
-#NYI         warn "Number of header images ($image_count) doesn't match placeholder "
-#NYI           . "count ($placeholder_count) in string: $string\n";
-#NYI         $self.{_header_images} = [];
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     if ( $image_count ) {
-#NYI         $self.{_has_header_vml} = 1;
-#NYI     }
-#NYI 
-#NYI     $self.{_header}                = $string;
-#NYI     $self.{_margin_header}         = $margin;
-#NYI     $self.{_header_footer_changed} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_footer()
-#NYI #
-#NYI # Set the page footer caption and optional margin.
-#NYI #
-#NYI sub set_footer {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $string  = $_[0] || '';
-#NYI     my $margin  = $_[1] || 0.3;
-#NYI     my $options = $_[2] || {};
-#NYI 
-#NYI 
-#NYI     # Replace the Excel placeholder &[Picture] with the internal &G.
-#NYI     $string =~ s/&\[Picture\]/&G/g;
-#NYI 
-#NYI     if ( length $string >= 255 ) {
-#NYI         warn 'Footer string must be less than 255 characters';
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     if ( defined $options.{align_with_margins} ) {
-#NYI         $self.{_header_footer_aligns} = $options.{align_with_margins};
-#NYI     }
-#NYI 
-#NYI     if ( defined $options.{scale_with_doc} ) {
-#NYI         $self.{_header_footer_scales} = $options.{scale_with_doc};
-#NYI     }
-#NYI 
-#NYI     # Reset the array in case the function is called more than once.
-#NYI     $self.{_footer_images} = [];
-#NYI 
-#NYI     if ( $options.{image_left} ) {
-#NYI         push @{ $self.{_footer_images} }, [ $options.{image_left}, 'LF' ];
-#NYI     }
-#NYI 
-#NYI     if ( $options.{image_center} ) {
-#NYI         push @{ $self.{_footer_images} }, [ $options.{image_center}, 'CF' ];
-#NYI     }
-#NYI 
-#NYI     if ( $options.{image_right} ) {
-#NYI         push @{ $self.{_footer_images} }, [ $options.{image_right}, 'RF' ];
-#NYI     }
-#NYI 
-#NYI     my $placeholder_count = () = $string =~ /&G/g;
-#NYI     my $image_count = @{ $self.{_footer_images} };
-#NYI 
-#NYI     if ( $image_count != $placeholder_count ) {
-#NYI         warn "Number of footer images ($image_count) doesn't match placeholder "
-#NYI           . "count ($placeholder_count) in string: $string\n";
-#NYI         $self.{_footer_images} = [];
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     if ( $image_count ) {
-#NYI         $self.{_has_header_vml} = 1;
-#NYI     }
-#NYI 
-#NYI     $self.{_footer}                = $string;
-#NYI     $self.{_margin_footer}         = $margin;
-#NYI     $self.{_header_footer_changed} = 1;
-#NYI }
+###############################################################################
+#
+# set-header()
+#
+# Set the page header caption and optional margin.
+#
+method set-header($string = '', $margin = 0.3, *%options) {
+
+    # Replace the Excel placeholder &[Picture] with the internal &G.
+    $string ~~ s:g/\&\[Picture\]/&G/;
+
+    if $string.bytes >= 255 {
+        warn 'Header string must be less than 255 characters';
+        return;
+    }
+
+    if %options<align-with-margins>.defined {
+        $!header-footer-aligns = %options<align-with-margins>;
+    }
+
+    if %options<scale-with-doc> {
+        $!header-footer-scales = %options<scale-with-doc>;
+    }
+
+    # Reset the array in case the function is called more than once.
+    $!header-images = @();
+
+    if %options<image-left> {
+        @!header-images.push: @(%options<image-left>, 'LH');
+    }
+
+    if %options<image-center> {
+        @!header-images.push: @(%options<image-center>, 'CH');
+    }
+
+    if %options<image-right> {
+        @!header-imagesi.push: @(%options<image-right>, 'RH');
+    }
+
+    my $placeholder-count;
+#FIX    my $placeholder-count = () = $string ~~ /&G/g;
+    my $image-count = +@!header-images;
+
+    if $image-count != $placeholder-count {
+        warn "Number of header images ($image-count) doesn't match placeholder "
+         ~ "count ($placeholder-count) in string: $string\n";
+        #!header-images = @();
+        return;
+    }
+
+    if $image-count {
+        $!has-header-vml = 1;
+    }
+
+    $!header                = $string;
+    $!margin-header         = $margin;
+    $!header-footer-changed = 1;
+}
+
+
+###############################################################################
+#
+# set-footer()
+#
+# Set the page footer caption and optional margin.
+#
+method set-footer($string = '', $margin = 0.3, *%options) {
+
+    # Replace the Excel placeholder &[Picture] with the internal &G.
+    $string ~~ s:g/\&\[Picture\]/&G/;
+    if $string.bytes >= 255 {
+       warn 'Footer string must be less than 255 characters';
+        return;
+    }
+
+    if %options<align-with-margins>.defined {
+        $!header-footer-aligns = %options<align-with-margins>;
+    }
+
+    if %options<scale-with-doc>.defined {
+        $!header-footer-scales = %options<scale-with-doc>;
+    }
+
+    # Reset the array in case the function is called more than once.
+    @!footer-images = @();
+
+    if %options<image-left> {
+        @!footer-images.push: @(%options<image-left>, 'LF');
+    }
+
+    if %options<image-center> {
+        @!footer-images.push: @(%options<image_center>, 'CF');
+    }
+    if %options<image-right> {
+        @!footer-images.push: @(%options<image-right>, 'RF');
+    }
+
+    my $placeholder-count;
+#FIX    my $placeholder-count = () = $string =~ /&G/g;
+    my $image-count = +@!footer-images;
+
+    if $image-count != $placeholder-count {
+        warn "Number of footer images ($image-count) doesn't match placeholder "
+         ~ "count ($placeholder-count) in string: $string\n";
+        @!footer-images = @();
+        return;
+    }
+
+    if $image-count {
+       $!has-header-vml = 1; # Why header and not footer?
+    }
+
+    $!footer                = $string;
+    $!margin-footer         = $margin;
+    $!header-footer-changed = 1;
+}
 
 
 ###############################################################################
@@ -1086,7 +1061,7 @@ method repeat-rows($row-min, $row-max) {
 method repeat-columns($col-min, $col-max) {
     # Check for a cell reference in A1 notation and substitute row and column
     if $col-min ~~ /^\D/ {
-        (Nil, $col-min, Nil, $col-max) = self.substitute-cellref( $col-min, $col-max );
+        (Nil, $col-min, Nil, $col-max) = self!substitute-cellref( $col-min, $col-max );
     }
 
     $col-max //= $col-min;    # Second col is optional
@@ -1105,475 +1080,434 @@ method repeat-columns($col-min, $col-max) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # print-area($first-row, $first-col, $last-row, $last-col)
-#NYI #
-#NYI # Set the print area in the current worksheet. This is stored as a <NamedRange>
-#NYI # element.
-#NYI #
-#NYI sub print-area {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     return if @_ != 4;    # Require 4 parameters
-#NYI 
-#NYI     my ( $row1, $col1, $row2, $col2 ) = @_;
-#NYI 
-#NYI     # Ignore max print area since this is the same as no print area for Excel.
-#NYI     if (    $row1 == 0
-#NYI         and $col1 == 0
-#NYI         and $row2 == $self.{_xls_rowmax} - 1
-#NYI         and $col2 == $self.{_xls_colmax} - 1 )
-#NYI     {
-#NYI         return;
-#NYI     }
-#NYI 
-#NYI     # Build up the print area range "=Sheet2!R1C1:R2C1"
-#NYI     my $area = $self._convert_name_area( $row1, $col1, $row2, $col2 );
-#NYI 
-#NYI     $self.{_print_area} = $area;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # autofilter($first_row, $first_col, $last_row, $last_col)
-#NYI #
-#NYI # Set the autofilter area in the worksheet.
-#NYI #
-#NYI sub autofilter {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     return if @_ != 4;    # Require 4 parameters
-#NYI 
-#NYI     my ( $row1, $col1, $row2, $col2 ) = @_;
-#NYI 
-#NYI     # Reverse max and min values if necessary.
-#NYI     ( $row1, $row2 ) = ( $row2, $row1 ) if $row2 < $row1;
-#NYI     ( $col1, $col2 ) = ( $col2, $col1 ) if $col2 < $col1;
-#NYI 
-#NYI     # Build up the print area range "Sheet1!$A$1:$C$13".
-#NYI     my $area = $self._convert_name_area( $row1, $col1, $row2, $col2 );
-#NYI     my $ref = xl-range( $row1, $row2, $col1, $col2 );
-#NYI 
-#NYI     $self.{_autofilter}     = $area;
-#NYI     $self.{_autofilter_ref} = $ref;
-#NYI     $self.{_filter_range}   = [ $col1, $col2 ];
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # filter_column($column, $criteria, ...)
-#NYI #
-#NYI # Set the column filter criteria.
-#NYI #
-#NYI sub filter_column {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $col        = $_[0];
-#NYI     my $expression = $_[1];
-#NYI 
-#NYI     fail "Must call autofilter() before filter_column()"
-#NYI       unless $self.{_autofilter};
-#NYI     fail "Incorrect number of arguments to filter_column()"
-#NYI       unless @_ == 2;
-#NYI 
-#NYI 
-#NYI     # Check for a column reference in A1 notation and substitute.
-#NYI     if ( $col =~ /^\D/ ) {
-#NYI         my $col_letter = $col;
-#NYI 
-#NYI         # Convert col ref to a cell ref and then to a col number.
-#NYI         ( undef, $col ) = $self._substitute_cellref( $col . '1' );
-#NYI 
-#NYI         fail "Invalid column '$col_letter'" if $col >= $self.{_xls_colmax};
-#NYI     }
-#NYI 
-#NYI     my ( $col_first, $col_last ) = @{ $self.{_filter_range} };
-#NYI 
-#NYI     # Reject column if it is outside filter range.
-#NYI     if ( $col < $col_first or $col > $col_last ) {
-#NYI         fail "Column '$col' outside autofilter() column range "
-#NYI           . "($col_first .. $col_last)";
-#NYI     }
-#NYI 
-#NYI 
-#NYI     my @tokens = $self._extract_filter_tokens( $expression );
-#NYI 
-#NYI     fail "Incorrect number of tokens in expression '$expression'"
-#NYI       unless ( @tokens == 3 or @tokens == 7 );
-#NYI 
-#NYI 
-#NYI     @tokens = $self._parse_filter_expression( $expression, @tokens );
-#NYI 
-#NYI     # Excel handles single or double custom filters as default filters. We need
-#NYI     # to check for them and handle them accordingly.
-#NYI     if ( @tokens == 2 && $tokens[0] == 2 ) {
-#NYI 
-#NYI         # Single equality.
-#NYI         $self.filter_column_list( $col, $tokens[1] );
-#NYI     }
-#NYI     elsif (@tokens == 5
-#NYI         && $tokens[0] == 2
-#NYI         && $tokens[2] == 1
-#NYI         && $tokens[3] == 2 )
-#NYI     {
-#NYI 
-#NYI         # Double equality with "or" operator.
-#NYI         $self.filter_column_list( $col, $tokens[1], $tokens[4] );
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # Non default custom filter.
-#NYI         $self.{_filter_cols}.{$col} = [@tokens];
-#NYI         $self.{_filter_type}.{$col} = 0;
-#NYI 
-#NYI     }
-#NYI 
-#NYI     $self.{_filter_on} = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # filter_column_list($column, @matches )
-#NYI #
-#NYI # Set the column filter criteria in Excel 2007 list style.
-#NYI #
-#NYI sub filter_column_list {
-#NYI 
-#NYI     my $self   = shift;
-#NYI     my $col    = shift;
-#NYI     my @tokens = @_;
-#NYI 
-#NYI     fail "Must call autofilter() before filter_column_list()"
-#NYI       unless $self.{_autofilter};
-#NYI     fail "Incorrect number of arguments to filter_column_list()"
-#NYI       unless @tokens;
-#NYI 
-#NYI     # Check for a column reference in A1 notation and substitute.
-#NYI     if ( $col =~ /^\D/ ) {
-#NYI         my $col_letter = $col;
-#NYI 
-#NYI         # Convert col ref to a cell ref and then to a col number.
-#NYI         ( undef, $col ) = $self._substitute_cellref( $col . '1' );
-#NYI 
-#NYI         fail "Invalid column '$col_letter'" if $col >= $self.{_xls_colmax};
-#NYI     }
-#NYI 
-#NYI     my ( $col_first, $col_last ) = @{ $self.{_filter_range} };
-#NYI 
-#NYI     # Reject column if it is outside filter range.
-#NYI     if ( $col < $col_first or $col > $col_last ) {
-#NYI         fail "Column '$col' outside autofilter() column range "
-#NYI           . "($col_first .. $col_last)";
-#NYI     }
-#NYI 
-#NYI     $self.{_filter_cols}.{$col} = [@tokens];
-#NYI     $self.{_filter_type}.{$col} = 1;           # Default style.
-#NYI     $self.{_filter_on}           = 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _extract_filter_tokens($expression)
-#NYI #
-#NYI # Extract the tokens from the filter expression. The tokens are mainly non-
-#NYI # whitespace groups. The only tricky part is to extract string tokens that
-#NYI # contain whitespace and/or quoted double quotes (Excel's escaped quotes).
-#NYI #
-#NYI # Examples: 'x <  2000'
-#NYI #           'x >  2000 and x <  5000'
-#NYI #           'x = "foo"'
-#NYI #           'x = "foo bar"'
-#NYI #           'x = "foo "" bar"'
-#NYI #
-#NYI sub _extract_filter_tokens {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $expression = $_[0];
-#NYI 
-#NYI     return unless $expression;
-#NYI 
-#NYI     my @tokens = ( $expression =~ /"(?:[^"]|"")*"|\S+/g );    #"
-#NYI 
-#NYI     # Remove leading and trailing quotes and unescape other quotes
-#NYI     for ( @tokens ) {
-#NYI         s/^"//;                                               #"
-#NYI         s/"$//;                                               #"
-#NYI         s/""/"/g;                                             #"
-#NYI     }
-#NYI 
-#NYI     return @tokens;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _parse_filter_expression(@token)
-#NYI #
-#NYI # Converts the tokens of a possibly conditional expression into 1 or 2
-#NYI # sub expressions for further parsing.
-#NYI #
-#NYI # Examples:
-#NYI #          ('x', '==', 2000) . exp1
-#NYI #          ('x', '>',  2000, 'and', 'x', '<', 5000) . exp1 and exp2
-#NYI #
-#NYI sub _parse_filter_expression {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $expression = shift;
-#NYI     my @tokens     = @_;
-#NYI 
-#NYI     # The number of tokens will be either 3 (for 1 expression)
-#NYI     # or 7 (for 2  expressions).
-#NYI     #
-#NYI     if ( @tokens == 7 ) {
-#NYI 
-#NYI         my $conditional = $tokens[3];
-#NYI 
-#NYI         if ( $conditional =~ /^(and|&&)$/ ) {
-#NYI             $conditional = 0;
-#NYI         }
-#NYI         elsif ( $conditional =~ /^(or|\|\|)$/ ) {
-#NYI             $conditional = 1;
-#NYI         }
-#NYI         else {
-#NYI             fail "Token '$conditional' is not a valid conditional "
-#NYI               . "in filter expression '$expression'";
-#NYI         }
-#NYI 
-#NYI         my @expression_1 =
-#NYI           $self._parse_filter_tokens( $expression, @tokens[ 0, 1, 2 ] );
-#NYI         my @expression_2 =
-#NYI           $self._parse_filter_tokens( $expression, @tokens[ 4, 5, 6 ] );
-#NYI 
-#NYI         return ( @expression_1, $conditional, @expression_2 );
-#NYI     }
-#NYI     else {
-#NYI         return $self._parse_filter_tokens( $expression, @tokens );
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _parse_filter_tokens(@token)
-#NYI #
-#NYI # Parse the 3 tokens of a filter expression and return the operator and token.
-#NYI #
-#NYI sub _parse_filter_tokens {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $expression = shift;
-#NYI     my @tokens     = @_;
-#NYI 
-#NYI     my %operators = (
-#NYI         '==' => 2,
-#NYI         '='  => 2,
-#NYI         '=~' => 2,
-#NYI         'eq' => 2,
-#NYI 
-#NYI         '!=' => 5,
-#NYI         '!~' => 5,
-#NYI         'ne' => 5,
-#NYI         '<>' => 5,
-#NYI 
-#NYI         '<'  => 1,
-#NYI         '<=' => 3,
-#NYI         '>'  => 4,
-#NYI         '>=' => 6,
-#NYI     );
-#NYI 
-#NYI     my $operator = $operators{ $tokens[1] };
-#NYI     my $token    = $tokens[2];
-#NYI 
-#NYI 
-#NYI     # Special handling of "Top" filter expressions.
-#NYI     if ( $tokens[0] =~ /^top|bottom$/i ) {
-#NYI 
-#NYI         my $value = $tokens[1];
-#NYI 
-#NYI         if (   $value =~ /\D/
-#NYI             or $value < 1
-#NYI             or $value > 500 )
-#NYI         {
-#NYI             fail "The value '$value' in expression '$expression' "
-#NYI               . "must be in the range 1 to 500";
-#NYI         }
-#NYI 
-#NYI         $token = lc $token;
-#NYI 
-#NYI         if ( $token ne 'items' and $token ne '%' ) {
-#NYI             fail "The type '$token' in expression '$expression' "
-#NYI               . "must be either 'items' or '%'";
-#NYI         }
-#NYI 
-#NYI         if ( $tokens[0] =~ /^top$/i ) {
-#NYI             $operator = 30;
-#NYI         }
-#NYI         else {
-#NYI             $operator = 32;
-#NYI         }
-#NYI 
-#NYI         if ( $tokens[2] eq '%' ) {
-#NYI             $operator++;
-#NYI         }
-#NYI 
-#NYI         $token = $value;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     if ( not $operator and $tokens[0] ) {
-#NYI         fail "Token '$tokens[1]' is not a valid operator "
-#NYI           . "in filter expression '$expression'";
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Special handling for Blanks/NonBlanks.
-#NYI     if ( $token =~ /^blanks|nonblanks$/i ) {
-#NYI 
-#NYI         # Only allow Equals or NotEqual in this context.
-#NYI         if ( $operator != 2 and $operator != 5 ) {
-#NYI             fail "The operator '$tokens[1]' in expression '$expression' "
-#NYI               . "is not valid in relation to Blanks/NonBlanks'";
-#NYI         }
-#NYI 
-#NYI         $token = lc $token;
-#NYI 
-#NYI         # The operator should always be 2 (=) to flag a "simple" equality in
-#NYI         # the binary record. Therefore we convert <> to =.
-#NYI         if ( $token eq 'blanks' ) {
-#NYI             if ( $operator == 5 ) {
-#NYI                 $token = ' ';
-#NYI             }
-#NYI         }
-#NYI         else {
-#NYI             if ( $operator == 5 ) {
-#NYI                 $operator = 2;
-#NYI                 $token    = 'blanks';
-#NYI             }
-#NYI             else {
-#NYI                 $operator = 5;
-#NYI                 $token    = ' ';
-#NYI             }
-#NYI         }
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # if the string token contains an Excel match character then change the
-#NYI     # operator type to indicate a non "simple" equality.
-#NYI     if ( $operator == 2 and $token =~ /[*?]/ ) {
-#NYI         $operator = 22;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     return ( $operator, $token );
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # _convert_name_area($first_row, $first_col, $last_row, $last_col)
-#NYI #
-#NYI # Convert zero indexed rows and columns to the format required by worksheet
-#NYI # named ranges, eg, "Sheet1!$A$1:$C$13".
-#NYI #
-#NYI sub _convert_name_area {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     my $row_num_1 = $_[0];
-#NYI     my $col_num_1 = $_[1];
-#NYI     my $row_num_2 = $_[2];
-#NYI     my $col_num_2 = $_[3];
-#NYI 
-#NYI     my $range1       = '';
-#NYI     my $range2       = '';
-#NYI     my $row_col_only = 0;
-#NYI     my $area;
-#NYI 
-#NYI     # Convert to A1 notation.
-#NYI     my $col_char_1 = xl-col-to-name( $col_num_1, 1 );
-#NYI     my $col_char_2 = xl-col-to-name( $col_num_2, 1 );
-#NYI     my $row_char_1 = '$' . ( $row_num_1 + 1 );
-#NYI     my $row_char_2 = '$' . ( $row_num_2 + 1 );
-#NYI 
-#NYI     # We need to handle some special cases that refer to rows or columns only.
-#NYI     if ( $row_num_1 == 0 and $row_num_2 == $self.{_xls_rowmax} - 1 ) {
-#NYI         $range1       = $col_char_1;
-#NYI         $range2       = $col_char_2;
-#NYI         $row_col_only = 1;
-#NYI     }
-#NYI     elsif ( $col_num_1 == 0 and $col_num_2 == $self.{_xls_colmax} - 1 ) {
-#NYI         $range1       = $row_char_1;
-#NYI         $range2       = $row_char_2;
-#NYI         $row_col_only = 1;
-#NYI     }
-#NYI     else {
-#NYI         $range1 = $col_char_1 . $row_char_1;
-#NYI         $range2 = $col_char_2 . $row_char_2;
-#NYI     }
-#NYI 
-#NYI     # A repeated range is only written once (if it isn't a special case).
-#NYI     if ( $range1 eq $range2 && !$row_col_only ) {
-#NYI         $area = $range1;
-#NYI     }
-#NYI     else {
-#NYI         $area = $range1 . ':' . $range2;
-#NYI     }
-#NYI 
-#NYI     # Build up the print area range "Sheet1!$A$1:$C$13".
-#NYI     my $sheetname = quote-sheetname( $self.{_name} );
-#NYI     $area = $sheetname . "!" . $area;
-#NYI 
-#NYI     return $area;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # hide_gridlines()
-#NYI #
-#NYI # Set the option to hide gridlines on the screen and the printed page.
-#NYI #
-#NYI # This was mainly useful for Excel 5 where printed gridlines were on by
-#NYI # default.
-#NYI #
-#NYI sub hide_gridlines {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $option =
-#NYI       defined $_[0] ? $_[0] : 1;    # Default to hiding printed gridlines
-#NYI 
-#NYI     if ( $option == 0 ) {
-#NYI         $self.{_print_gridlines}       = 1;    # 1 = display, 0 = hide
-#NYI         $self.{_screen_gridlines}      = 1;
-#NYI         $self.{_print_options_changed} = 1;
-#NYI     }
-#NYI     elsif ( $option == 1 ) {
-#NYI         $self.{_print_gridlines}  = 0;
-#NYI         $self.{_screen_gridlines} = 1;
-#NYI     }
-#NYI     else {
-#NYI         $self.{_print_gridlines}  = 0;
-#NYI         $self.{_screen_gridlines} = 0;
-#NYI     }
-#NYI }
+###############################################################################
+#
+# print-area($first-row, $first-col, $last-row, $last-col)
+#
+# Set the print area in the current worksheet. This is stored as a <NamedRange>
+# element.
+#
+method print-area(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    return if +@args != 4;    # Require 4 parameters
+
+    my ($row1, $col1, $row2, $col2) = @args;
+
+    # Ignore max print area since this is the same as no print area for Excel.
+    if      $row1 == 0
+        and $col1 == 0
+        and $row2 == $!xls-rowmax - 1
+        and $col2 == $!xls-colmax - 1
+    {
+        return;
+    }
+
+    # Build up the print area range "=Sheet2!R1C1:R2C1"
+    my $area = self!convert-name-area($row1, $col1, $row2, $col2);
+
+    $!print-area = $area;
+}
+
+
+###############################################################################
+#
+# autofilter($first-row, $first-col, $last-row, $last-col)
+#
+# Set the autofilter area in the worksheet.
+#
+method autofilter(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    return if +@args != 4;    # Require 4 parameters
+
+    my ($row1, $col1, $row2, $col2) = @args;
+
+    # Reverse max and min values if necessary.
+    ($row1, $row2) = ($row2, $row1) if $row2 < $row1;
+    ($col1, $col2) = ($col2, $col1) if $col2 < $col1;
+
+    # Build up the print area range "Sheet1!$A$1:$C$13".
+    my $area = self!convert-name-area($row1, $col1, $row2, $col2);
+    my $ref = xl-range($row1, $row2, $col1, $col2);
+
+    $!autofilter     = $area;
+    $!autofilter-ref = $ref;
+    $!filter-range   = @($col1, $col2);
+}
+
+###############################################################################
+#
+# filter-column($column, $criteria, ...)
+#
+# Set the column filter criteria.
+#
+method filter-column($col, $expression) {
+
+    fail "Must call autofilter() before filter-column()"
+      unless $!autofilter;
+
+    # Check for a column reference in A1 notation and substitute.
+    if $col ~~ /^\D/ {
+        my $col-letter = $col;
+
+        # Convert col ref to a cell ref and then to a col number.
+        $col = (self!substitute-cellref($col ~ '1'))[1];
+
+        fail "Invalid column '$col-letter'" if $col >= $!xlscolmax;
+    }
+
+    my ($col-first, $col-last) = @!filter-range;
+
+    # Reject column if it is outside filter range.
+    if $col < $col-first or $col > $col-last {
+        fail "Column '$col' outside autofilter() column range "
+          ~ "($col-first .. $col-last)";
+    }
+
+
+    my @tokens = self!extract-filter-tokens($expression);
+
+    fail "Incorrect number of tokens in expression '$expression'"
+      unless  +@tokens == 3 or +@tokens == 7;
+
+
+    @tokens = self!parse-filter-expression($expression, @tokens);
+
+    # Excel handles single or double custom filters as default filters. We need
+    # to check for them and handle them accordingly.
+    if +@tokens == 2 && @tokens[0] == 2 {
+
+        # Single equality.
+        self.filter-column-list($col, @tokens[1]);
+    }
+    elsif +@tokens == 5
+        && @tokens[0] == 2
+        && @tokens[2] == 1
+        && @tokens[3] == 2
+    {
+
+        # Double equality with "or" operator.
+        self.filter-column-list($col, @tokens[1], @tokens[4]);
+    }
+    else {
+        # Non default custom filter.
+        %!filter-cols{$col} = @tokens;
+        %!filter-type{$col} = 0;
+
+    }
+
+    $!filter-on = 1;
+}
+
+
+###############################################################################
+#
+# filter_column_list($column, @matches )
+#
+# Set the column filter criteria in Excel 2007 list style.
+#
+method filter-column-list($col, *@tokens) {
+
+    fail "Must call autofilter() before filter-column-list()"
+      unless $!autofilter;
+    fail "Incorrect number of arguments to filter-column-list()"
+      unless +@tokens;
+
+    # Check for a column reference in A1 notation and substitute.
+    if $col ~~ /^\D/ {
+        my $col-letter = $col;
+
+        # Convert col ref to a cell ref and then to a col number.
+        $col = (self!substitute-cellref($col ~ '1'))[1];
+
+        fail "Invalid column '$col-letter'" if $col >= $!xls-colmax;
+    }
+
+    my ($col-first, $col-last) = @!filter-range;
+
+    # Reject column if it is outside filter range.
+    if $col < $col-first or $col > $col-last {
+        fail "Column '$col' outside autofilter() column range "
+          ~ "($col-first .. $col-last)";
+    }
+
+    %!filter-cols{$col} = @tokens;
+    %!filter-type{$col} = 1;           # Default style.
+    $!filter_on         = 1;
+}
+
+
+###############################################################################
+#
+# extract-filter-tokens($expression)
+#
+# Extract the tokens from the filter expression. The tokens are mainly non-
+# whitespace groups. The only tricky part is to extract string tokens that
+# contain whitespace and/or quoted double quotes (Excel's escaped quotes).
+#
+# Examples: 'x <  2000'
+#           'x >  2000 and x <  5000'
+#           'x = "foo"'
+#           'x = "foo bar"'
+#           'x = "foo "" bar"'
+#
+method !extract-filter-tokens($expression) {
+
+    return unless $expression;
+
+    my @tokens = @($expression ~~ m:P5:g/"(?:[^"]|"")*"|\S+/);    #"
+
+    # Remove leading and trailing quotes and unescape other quotes
+    for @tokens {
+        s/^\"//;                                               #"
+        s/\"$//;                                               #"
+        s:g/\"\"/"/;                                           #"
+    }
+
+    return @tokens;
+}
+
+
+###############################################################################
+#
+# parse-filter-expression(@token)
+#
+# Converts the tokens of a possibly conditional expression into 1 or 2
+# sub expressions for further parsing.
+#
+# Examples:
+#          ('x', '==', 2000) . exp1
+#          ('x', '>',  2000, 'and', 'x', '<', 5000) . exp1 and exp2
+#
+method !parse-filter-expression($expression, *@tokens) {
+
+    # The number of tokens will be either 3 (for 1 expression)
+    # or 7 (for 2  expressions).
+    #
+    if +@tokens == 7 {
+
+        my $conditional = @tokens[3];
+
+        if $conditional ~~ /^(and|\&\&)$/ {
+            $conditional = 0;
+        }
+        elsif $conditional ~~ /^(or|\|\|)$/ {
+            $conditional = 1;
+        }
+        else {
+            fail "Token '$conditional' is not a valid conditional "
+              ~ "in filter expression '$expression'";
+        }
+
+        my @expression_1 = self!parse-filter-tokens($expression, @tokens[0, 1, 2]);
+        my @expression_2 = self!parse-filter-tokens($expression, @tokens[4, 5, 6]);
+
+        return (@expression_1, $conditional, @expression_2);
+    }
+    else {
+        return self!parse-filter-tokens($expression, @tokens);
+    }
+}
+
+
+###############################################################################
+#
+# parse-filter-tokens(@token)
+#
+# Parse the 3 tokens of a filter expression and return the operator and token.
+#
+method !parse-filter-tokens($expression, *@tokens) {
+
+    my %operators = (
+        '==' => 2,
+        '='  => 2,
+        '=~' => 2,
+        'eq' => 2,
+
+        '!=' => 5,
+        '!~' => 5,
+        'ne' => 5,
+        '<>' => 5,
+
+        '<'  => 1,
+        '<=' => 3,
+        '>'  => 4,
+        '>=' => 6,
+    );
+
+    my $operator = %operators{@tokens[1]};
+    my $token    = @tokens[2];
+
+
+    # Special handling of "Top" filter expressions.
+    if @tokens[0] ~~ m:i/^top|bottom$/ {
+
+        my $value = @tokens[1];
+
+        if     $value ~~ /\D/
+            or $value < 1
+            or $value > 500
+        {
+            fail "The value '$value' in expression '$expression' "
+              ~ "must be in the range 1 to 500";
+        }
+
+        $token .= lc;
+
+        if $token ne 'items' and $token ne '%' {
+            fail "The type '$token' in expression '$expression' "
+              ~ "must be either 'items' or '%'";
+        }
+
+        if @tokens[0] ~~ m:i/^top$/ {
+            $operator = 30;
+        }
+        else {
+            $operator = 32;
+        }
+
+        if @tokens[2] eq '%' {
+            $operator++;
+        }
+
+        $token = $value;
+    }
+
+
+    if not $operator and @tokens[0] {
+        fail "Token '@tokens[1]' is not a valid operator "
+          ~ "in filter expression '$expression'";
+    }
+
+
+    # Special handling for Blanks/NonBlanks.
+    if $token ~~ m:i/^blanks|nonblanks$/ {
+
+        # Only allow Equals or NotEqual in this context.
+        if $operator != 2 and $operator != 5 {
+            fail "The operator '@tokens[1]' in expression '$expression' "
+              ~ "is not valid in relation to Blanks/NonBlanks'";
+        }
+
+        $token .= lc;
+
+        # The operator should always be 2 (=) to flag a "simple" equality in
+        # the binary record. Therefore we convert <> to =.
+        if $token eq 'blanks' {
+            if $operator == 5 {
+                $token = ' ';
+            }
+        }
+        else {
+            if $operator == 5 {
+                $operator = 2;
+                $token    = 'blanks';
+            }
+            else {
+                $operator = 5;
+                $token    = ' ';
+            }
+        }
+    }
+
+
+    # if the string token contains an Excel match character then change the
+    # operator type to indicate a non "simple" equality.
+    if $operator == 2 and $token ~~ m:P5/[*?]/ { # FIX
+        $operator = 22;
+    }
+
+
+    return ($operator, $token);
+}
+
+
+###############################################################################
+#
+# convert-name-area($first-row, $first-col, $last-row, $last-col)
+#
+# Convert zero indexed rows and columns to the format required by worksheet
+# named ranges, eg, "Sheet1!$A$1:$C$13".
+#
+method !convert-name-area($row-num1, $col-num1, $row-num2, $col-num2) {
+
+    my $range1       = '';
+    my $range2       = '';
+    my $row-col-only = 0;
+    my $area;
+
+    # Convert to A1 notation.
+    my $col-char1 = xl-col-to-name($col-num1, 1);
+    my $col-char2 = xl-col-to-name($col-num2, 1);
+    my $row-char1 = '$' ~ ($row-num1 + 1);
+    my $row-char2 = '$' ~ ($row-num2 + 1);
+
+    # We need to handle some special cases that refer to rows or columns only.
+    if $row-num1 == 0 and $row-num2 == $!xls-rowmax - 1 {
+        $range1       = $col-char1;
+        $range2       = $col-char2;
+        $row-col-only = 1;
+    }
+    elsif $col-num1 == 0 and $col-num2 == $!xls-colmax - 1 {
+        $range1       = $row-char1;
+        $range2       = $row-char2;
+        $row-col-only = 1;
+    }
+    else {
+        $range1 = $col-char1 ~ $row-char1;
+        $range2 = $col-char2 ~ $row-char2;
+    }
+
+    # A repeated range is only written once (if it isn't a special case).
+    if $range1 eq $range2 && !$row-col-only {
+        $area = $range1;
+    }
+    else {
+        $area = $range1 ~ ':' ~ $range2;
+    }
+
+    # Build up the print area range "Sheet1!$A$1:$C$13".
+    my $sheetname = quote-sheetname($!name);
+    $area = $sheetname ~ "!" ~ $area;
+
+    return $area;
+}
+
+
+###############################################################################
+#
+# hide-gridlines()
+#
+# Set the option to hide gridlines on the screen and the printed page.
+#
+# This was mainly useful for Excel 5 where printed gridlines were on by
+# default.
+#
+method hide-gridlines($option = 1) {  # Default to hiding printed gridlines
+
+    if $option == 0 {
+        $!print-gridlines       = 1;    # 1 = display, 0 = hide
+        $!screen-gridlines      = 1;
+        $!print-options-changed = 1;
+    }
+    elsif $option == 1 {
+        $!print-gridlines  = 0;
+        $!screen-gridlines = 1;
+    }
+    else {
+        $!print-gridlines  = 0;
+        $!screen-gridlines = 0;
+    }
+}
 
 
 ###############################################################################
@@ -1714,107 +1648,83 @@ method set-comments-author($author) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # right-to-left()
-#NYI #
-#NYI # Display the worksheet right to left for some eastern versions of Excel.
-#NYI #
-#NYI sub right_to_left {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self.{_right_to_left} = defined $_[0] ? $_[0] : 1;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # hide_zero()
-#NYI #
-#NYI # Hide cell zero values.
-#NYI #
-#NYI sub hide_zero {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     $self.{_show_zeros} = defined $_[0] ? not $_[0] : 0;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # print_across()
-#NYI #
-#NYI # Set the order in which pages are printed.
-#NYI #
-#NYI sub print_across {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $page_order = defined $_[0] ? $_[0] : 1;
-#NYI 
-#NYI     if ( $page_order ) {
-#NYI         $self.{_page_order}         = 1;
-#NYI         $self.{_page_setup_changed} = 1;
-#NYI     }
-#NYI     else {
-#NYI         $self.{_page_order} = 0;
-#NYI     }
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_start_page()
-#NYI #
-#NYI # Set the start page number.
-#NYI #
-#NYI sub set_start_page {
-#NYI 
-#NYI     my $self = shift;
-#NYI     return unless defined $_[0];
-#NYI 
-#NYI     $self.{_page_start}   = $_[0];
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # set_first_row_column()
-#NYI #
-#NYI # Set the topmost and leftmost visible row and column.
-#NYI # TODO: Document this when tested fully for interaction with panes.
-#NYI #
-#NYI sub set_first_row_column {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     my $row = $_[0] || 0;
-#NYI     my $col = $_[1] || 0;
-#NYI 
-#NYI     $row = $self.{_xls_rowmax} if $row > $self.{_xls_rowmax};
-#NYI     $col = $self.{_xls_colmax} if $col > $self.{_xls_colmax};
-#NYI 
-#NYI     $self.{_first_row} = $row;
-#NYI     $self.{_first_col} = $col;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # add_write_handler($re, $code_ref)
-#NYI #
-#NYI # Allow the user to add their own matches and handlers to the write() method.
-#NYI #
-#NYI sub add_write_handler {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     return unless @_ == 2;
-#NYI     return unless ref $_[1] eq 'CODE';
-#NYI 
-#NYI     push @{ $self.{_write_match} }, [@_];
-#NYI }
+###############################################################################
+#
+# right-to-left()
+#
+# Display the worksheet right to left for some eastern versions of Excel.
+#
+method right-to-left($val = 1) {
+    $!right-to-left = $val;
+}
+
+
+###############################################################################
+#
+# hide-zero()
+#
+# Hide cell zero values.
+#
+method hide-zero($val = 0) {
+    $!show-zeros = $val;
+}
+
+
+###############################################################################
+#
+# print-across()
+#
+# Set the order in which pages are printed.
+#
+method print-across($page-order = 1) {
+    if $page-order {
+        $!page-order         = 1;
+        $!page-setup-changed = 1;
+    } else {
+       $!page-order = 0;
+    }
+}
+
+
+###############################################################################
+#
+# set-start-page()
+#
+# Set the start page number.
+#
+method set-start-page($val?) {
+
+    return unless $val.defined;
+
+    $!page-start   = $val;
+}
+
+
+###############################################################################
+#
+# set-first-row-column()
+#
+# Set the topmost and leftmost visible row and column.
+# TODO: Document this when tested fully for interaction with panes.
+#
+method set-first-row-column($row = 0, $col = 0) {
+    $row = $!xls-rowmax if $row > $!xls-rowmax;
+    $col = $!xls-colmax if $col > $!xlscolmax;
+
+    $!first-row = $row;
+    $!first-col = $col;
+}
+
+
+###############################################################################
+#
+# add-write-handler($re, $code-ref)
+#
+# Allow the user to add their own matches and handlers to the write() method.
+#
+method add-write-handler($re, &code-ref) {
+    @!write_match.push: @($re, &code-ref);
+}
 
 
 ###############################################################################
@@ -1830,7 +1740,7 @@ method set-comments-author($author) {
 method write(*@args) {
     # Check for a cell reference in A1 notation and substitute row and column
     if @args[0] ~~ /^\D/ {
-        @args = self.substitute-cellref( @args );
+        @args = self!substitute-cellref( @args );
     }
 
     my $token = @args[2];
@@ -1851,155 +1761,146 @@ method write(*@args) {
     }
 
 
-#NYI     # Match an array ref.
-#NYI     if ( ref $token eq "ARRAY" ) {
-#NYI         return $self.write-row( @_ );
-#NYI     }
+    # Match an array ref.
+    if $token ~~ (Array) {
+        return self.write-row(@args);
+    }
 
-#NYI     # Match integer with leading zero(s)
-#NYI     elsif ( $self.{_leading_zeros} and $token =~ /^0\d+$/ ) {
-#NYI         return $self.write_string( @_ );
-#NYI     }
+    # Match integer with leading zero(s)
+    elsif $!leading-zeros and $token ~~ /^0\d+$/ {
+        return self.write-string(@args);
+    }
 
-#NYI     # Match number
-#NYI     elsif ( $token =~ /^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ ) {
-#NYI         return $self.write_number( @_ );
-#NYI     }
+    # Match number
+    elsif $token ~~ m:P5/^([+-]?)(?=[0-9]|\.[0-9])[0-9]*(\.[0-9]*)?([Ee]([+-]?[0-9]+))?$/ { # FIX
+        return self.write-number(@args);
+    }
 
-#NYI     # Match http, https or ftp URL
-#NYI     elsif ( $token =~ m|^[fh]tt?ps?://| ) {
-#NYI         return $self.write_url( @_ );
-#NYI     }
+    # Match http, https or ftp URL
+    elsif $token ~~ m|^<[fh]>tt?ps?\:\/\/| {
+        return self.write-url(@args);
+    }
 
-#NYI     # Match mailto:
-#NYI     elsif ( $token =~ m/^mailto:/ ) {
-#NYI         return $self.write_url( @_ );
-#NYI     }
+    # Match mailto:
+    elsif $token ~~ m/^mailto:/ {
+        return self.write-url(@args);
+    }
 
-#NYI     # Match internal or external sheet link
-#NYI     elsif ( $token =~ m[^(?:in|ex)ternal:] ) {
-#NYI         return $self.write_url( @_ );
-#NYI     }
+    # Match internal or external sheet link
+    elsif $token ~~ m:P5[^(?:in|ex)ternal:] {
+        return self.write-url(@args);
+    }
 
-#NYI     # Match formula
-#NYI     elsif ( $token =~ /^=/ ) {
-#NYI         return $self.write_formula( @_ );
-#NYI     }
+    # Match formula
+    elsif $token ~~ /^\=/ {
+        return self.write-formula(@args);
+    }
 
-#NYI     # Match array formula
-#NYI     elsif ( $token =~ /^{=.*}$/ ) {
-#NYI         return $self.write_formula( @_ );
-#NYI     }
+    # Match array formula
+    elsif $token ~~ m:P5/^{=.*}$/ {
+        return self.write-formula(@args);
+    }
 
-#NYI     # Match blank
-#NYI     elsif ( $token eq '' ) {
-#NYI         splice @_, 2, 1;    # remove the empty string from the parameter list
-#NYI         return $self.write_blank( @_ );
-#NYI     }
+    # Match blank
+    elsif $token eq '' {
+        @args.splice: 2, 1;    # remove the empty string from the parameter list
+        return self.write-blank(@args);
+    }
 
-#NYI     # Default: match string
-#NYI     else {
-#NYI         return $self.write_string( @_ );
-#NYI     }
+    # Default: match string
+    else {
+        return self.write-string(@args);
+    }
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_row($row, $col, $array_ref, $format)
-#NYI #
-#NYI # Write a row of data starting from ($row, $col). Call write_col() if any of
-#NYI # the elements of the array ref are in turn array refs. This allows the writing
-#NYI # of 1D or 2D arrays of data in one go.
-#NYI #
-#NYI # Returns: the first encountered error value or zero for no errors
-#NYI #
-#NYI sub write_row {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     # Catch non array refs passed by user.
-#NYI     if ( ref $_[2] ne 'ARRAY' ) {
-#NYI         fail "Not an array ref in call to write_row()$!";
-#NYI     }
-#NYI 
-#NYI     my $row     = shift;
-#NYI     my $col     = shift;
-#NYI     my $tokens  = shift;
-#NYI     my @options = @_;
-#NYI     my $error   = 0;
-#NYI     my $ret;
-#NYI 
-#NYI     for my $token ( @$tokens ) {
-#NYI 
-#NYI         # Check for nested arrays
-#NYI         if ( ref $token eq "ARRAY" ) {
-#NYI             $ret = $self.write_col( $row, $col, $token, @options );
-#NYI         }
-#NYI         else {
-#NYI             $ret = $self.write( $row, $col, $token, @options );
-#NYI         }
-#NYI 
-#NYI         # Return only the first error encountered, if any.
-#NYI         $error ||= $ret;
-#NYI         $col++;
-#NYI     }
-#NYI 
-#NYI     return $error;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_col($row, $col, $array_ref, $format)
-#NYI #
-#NYI # Write a column of data starting from ($row, $col). Call write_row() if any of
-#NYI # the elements of the array ref are in turn array refs. This allows the writing
-#NYI # of 1D or 2D arrays of data in one go.
-#NYI #
-#NYI # Returns: the first encountered error value or zero for no errors
-#NYI #
-#NYI sub write_col {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     # Catch non array refs passed by user.
-#NYI     if ( ref $_[2] ne 'ARRAY' ) {
-#NYI         fail "Not an array ref in call to write_col()$!";
-#NYI     }
-#NYI 
-#NYI     my $row     = shift;
-#NYI     my $col     = shift;
-#NYI     my $tokens  = shift;
-#NYI     my @options = @_;
-#NYI     my $error   = 0;
-#NYI     my $ret;
-#NYI 
-#NYI     for my $token ( @$tokens ) {
-#NYI 
-#NYI         # write() will deal with any nested arrays
-#NYI         $ret = $self.write( $row, $col, $token, @options );
-#NYI 
-#NYI         # Return only the first error encountered, if any.
-#NYI         $error ||= $ret;
-#NYI         $row++;
-#NYI     }
-#NYI 
-#NYI     return $error;
-#NYI }
+###############################################################################
+#
+# write-row($row, $col, @array, $format)
+#
+# Write a row of data starting from ($row, $col). Call write_col() if any of
+# the elements of the array ref are in turn array refs. This allows the writing
+# of 1D or 2D arrays of data in one go.
+#
+# Returns: the first encountered error value or zero for no errors
+#
+method write-row(@args) {
 
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    # Catch non array refs passed by user.
+    if @args[2] !~~ (Array) {
+        fail "Not an array in call to write-row()";
+    }
+
+    my $row     = @args.shift;
+    my $col     = @args.shift;
+    my @tokens  = @args.shift;
+    my @options = @args;
+    my $error   = 0;
+    my $ret;
+
+    for @tokens -> $token {
+        # Check for nested arrays
+        if $token ~~ (Array) {
+            $ret = self.write-col($row, $col, $token, @options);
+        }
+        else {
+            $ret = self.write($row, $col, $token, @options);
+        }
+
+        # Return only the first error encountered, if any.
+        $error ||= $ret;
+        $col++;
+    }
+    $error;
+}
+
+
+###############################################################################
+#
+# write-col($row, $col, @array, $format)
+#
+# Write a column of data starting from ($row, $col). Call write_row() if any of
+# the elements of the array ref are in turn array refs. This allows the writing
+# of 1D or 2D arrays of data in one go.
+#
+# Returns: the first encountered error value or zero for no errors
+#
+method write-col(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    # Catch non array refs passed by user.
+    if @args[2] !~~ (Array) {
+        fail "Not an array ref in call to write-col()";
+    }
+
+    my $row     = @args.shift;
+    my $col     = @args.shift;
+    my @tokens  = @args.shift;
+    my @options = @args;
+    my $error   = 0;
+    my $ret;
+
+    for @tokens -> $token {
+
+        # write() will deal with any nested arrays
+        $ret = self.write($row, $col, $token, @options);
+
+        # Return only the first error encountered, if any.
+        $error ||= $ret;
+        $row++;
+    }
+
+    $error;
+}
 
 ###############################################################################
 #
@@ -2014,7 +1915,7 @@ method write(*@args) {
 method write-comment(*@options) {
     # Check for a cell reference in A1 notation and substitute row and column
     if ( @options[0] ~~ /^\D/ ) {
-        (@options) = self.substitute-cellref( @options );
+        (@options) = self!substitute-cellref( @options );
     }
 
     if @options.elems < 3 { return -1 }    # Check the number of args
@@ -2052,7 +1953,7 @@ method write-number(*@args) {
 
     # Check for a cell reference in A1 notation and substitute row and column
     if ( @args[0] ~~ /^\D/ ) {
-        @args = self.substitute-cellref( @args );
+        @args = self!substitute-cellref( @args );
     }
 
     if ( @args.elems < 3 ) { return -1 }    # Check the number of args
@@ -2078,263 +1979,253 @@ method write-number(*@args) {
 }
 
 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_string ($row, $col, $string, $format)
-#NYI #
-#NYI # Write a string to the specified row and column (zero indexed).
-#NYI # $format is optional.
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #         -3 : long string truncated to 32767 chars
-#NYI #
-#NYI sub write_string {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row  = $_[0];              # Zero indexed row
-#NYI     my $col  = $_[1];              # Zero indexed column
-#NYI     my $str  = $_[2];
-#NYI     my $xf   = $_[3];              # The cell format
-#NYI     my $type = 's';                # The data type
-#NYI     my $index;
-#NYI     my $str_error = 0;
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     # Check that the string is < 32767 chars
-#NYI     if ( length $str > $self.{_xls_strmax} ) {
-#NYI         $str = substr( $str, 0, $self.{_xls_strmax} );
-#NYI         $str_error = -3;
-#NYI     }
-#NYI 
-#NYI     # Write a shared string or an in-line string based on optimisation level.
-#NYI     if ( $self.{_optimization} == 0 ) {
-#NYI         $index = $self._get_shared_string_index( $str );
-#NYI     }
-#NYI     else {
-#NYI         $index = $str;
-#NYI     }
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, $index, $xf ];
-#NYI 
-#NYI     return $str_error;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_rich_string( $row, $column, $format, $string, ..., $cell_format )
-#NYI #
-#NYI # The write_rich_string() method is used to write strings with multiple formats.
-#NYI # The method receives string fragments prefixed by format objects. The final
-#NYI # format object is used as the cell format.
-#NYI #
-#NYI # Returns  0 : normal termination.
-#NYI #         -1 : insufficient number of arguments.
-#NYI #         -2 : row or column out of range.
-#NYI #         -3 : long string truncated to 32767 chars.
-#NYI #         -4 : 2 consecutive formats used.
-#NYI #
-#NYI sub write_rich_string {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row    = shift;            # Zero indexed row.
-#NYI     my $col    = shift;            # Zero indexed column.
-#NYI     my $str    = '';
-#NYI     my $xf     = undef;
-#NYI     my $type   = 's';              # The data type.
-#NYI     my $length = 0;                # String length.
-#NYI     my $index;
-#NYI     my $str_error = 0;
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI 
-#NYI     # If the last arg is a format we use it as the cell format.
-#NYI     if ( ref $_[-1] ) {
-#NYI         $xf = pop @_;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Create a temp XML::Writer object and use it to write the rich string
-#NYI     # XML to a string.
-#NYI     open my $str_fh, '>', \$str or die "Failed to open filehandle: $!";
-#NYI     binmode $str_fh, ':utf8';
-#NYI 
-#NYI     my $writer = Excel::Writer::XLSX::Package::XMLwriter.new( $str_fh );
-#NYI 
-#NYI     $self.{_rstring} = $writer;
-#NYI 
-#NYI     # Create a temp format with the default font for unformatted fragments.
-#NYI     my $default = Excel::Writer::XLSX::Format.new();
-#NYI 
-#NYI     # Convert the list of $format, $string tokens to pairs of ($format, $string)
-#NYI     # except for the first $string fragment which doesn't require a default
-#NYI     # formatting run. Use the default for strings without a leading format.
-#NYI     my @fragments;
-#NYI     my $last = 'format';
-#NYI     my $pos  = 0;
-#NYI 
-#NYI     for my $token ( @_ ) {
-#NYI         if ( !ref $token ) {
-#NYI 
-#NYI             # Token is a string.
-#NYI             if ( $last ne 'format' ) {
-#NYI 
-#NYI                 # If previous token wasn't a format add one before the string.
-#NYI                 push @fragments, ( $default, $token );
-#NYI             }
-#NYI             else {
-#NYI 
-#NYI                 # If previous token was a format just add the string.
-#NYI                 push @fragments, $token;
-#NYI             }
-#NYI 
-#NYI             $length += length $token;    # Keep track of actual string length.
-#NYI             $last = 'string';
-#NYI         }
-#NYI         else {
-#NYI 
-#NYI             # Can't allow 2 formats in a row.
-#NYI             if ( $last eq 'format' && $pos > 0 ) {
-#NYI                 return -4;
-#NYI             }
-#NYI 
-#NYI             # Token is a format object. Add it to the fragment list.
-#NYI             push @fragments, $token;
-#NYI             $last = 'format';
-#NYI         }
-#NYI 
-#NYI         $pos++;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # If the first token is a string start the <r> element.
-#NYI     if ( !ref $fragments[0] ) {
-#NYI         $self.{_rstring}.xml_start_tag( 'r' );
-#NYI     }
-#NYI 
-#NYI     # Write the XML elements for the $format $string fragments.
-#NYI     for my $token ( @fragments ) {
-#NYI         if ( ref $token ) {
-#NYI 
-#NYI             # Write the font run.
-#NYI             $self.{_rstring}.xml_start_tag( 'r' );
-#NYI             $self._write_font( $token );
-#NYI         }
-#NYI         else {
-#NYI 
-#NYI             # Write the string fragment part, with whitespace handling.
-#NYI             my @attributes = ();
-#NYI 
-#NYI             if ( $token =~ /^\s/ || $token =~ /\s$/ ) {
-#NYI                 push @attributes, ( 'xml:space' => 'preserve' );
-#NYI             }
-#NYI 
-#NYI             $self.{_rstring}.xml_data_element( 't', $token, @attributes );
-#NYI             $self.{_rstring}.xml_end_tag( 'r' );
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Check that the string is < 32767 chars.
-#NYI     if ( $length > $self.{_xls_strmax} ) {
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Write a shared string or an in-line string based on optimisation level.
-#NYI     if ( $self.{_optimization} == 0 ) {
-#NYI         $index = $self._get_shared_string_index( $str );
-#NYI     }
-#NYI     else {
-#NYI         $index = $str;
-#NYI     }
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, $index, $xf ];
-#NYI 
-#NYI     return 0;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_blank($row, $col, $format)
-#NYI #
-#NYI # Write a blank cell to the specified row and column (zero indexed).
-#NYI # A blank cell is used to specify formatting without adding a string
-#NYI # or a number.
-#NYI #
-#NYI # A blank cell without a format serves no purpose. Therefore, we don't write
-#NYI # a BLANK record unless a format is specified. This is mainly an optimisation
-#NYI # for the write_row() and write_col() methods.
-#NYI #
-#NYI # Returns  0 : normal termination (including no format)
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_blank {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     # Check the number of args
-#NYI     return -1 if @_ < 2;
-#NYI 
-#NYI     # Don't write a blank cell unless it has a format
-#NYI     return 0 if not defined $_[2];
-#NYI 
-#NYI     my $row  = $_[0];    # Zero indexed row
-#NYI     my $col  = $_[1];    # Zero indexed column
-#NYI     my $xf   = $_[2];    # The cell format
-#NYI     my $type = 'b';      # The data type
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, undef, $xf ];
-#NYI 
-#NYI     return 0;
-#NYI }
-#NYI 
-#NYI 
+###############################################################################
+#
+# write-string ($row, $col, $string, $format)
+#
+# Write a string to the specified row and column (zero indexed).
+# $format is optional.
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#         -3 : long string truncated to 32767 chars
+#
+method write-string(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    if +@args < 3 { return -1 }    # Check the number of args
+
+    my $row  = @args[0];              # Zero indexed row
+    my $col  = @args[1];              # Zero indexed column
+    my $str  = @args[2];
+    my $xf   = @args[3];              # The cell format
+    my $type = 's';                # The data type
+    my $index;
+    my $str-error = 0;
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    # Check that the string is < 32767 chars
+    if $str.bytes > $!xls-strmax {
+        $str .= substr(0, $!xls-strmax);
+        $str-error = -3;
+    }
+
+    # Write a shared string or an in-line string based on optimisation level.
+    if self!optimization == 0 {
+        $index = self!get-shared-string-index($str);
+    }
+    else {
+        $index = $str;
+    }
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row}{$col} = @($type, $index, $xf);
+
+    $str-error;
+}
+
+
+###############################################################################
+#
+# write-rich-string($row, $column, $format, $string, ..., $cell-format )
+#
+# The write_rich_string() method is used to write strings with multiple formats.
+# The method receives string fragments prefixed by format objects. The final
+# format object is used as the cell format.
+#
+# Returns  0 : normal termination.
+#         -1 : insufficient number of arguments.
+#         -2 : row or column out of range.
+#         -3 : long string truncated to 32767 chars.
+#         -4 : 2 consecutive formats used.
+#
+method write-rich-string(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    if +@args < 3 { return -1 }    # Check the number of args
+
+    my $row    = @args.shift;            # Zero indexed row.
+    my $col    = @args.shift;            # Zero indexed column.
+    my $str    = '';
+    my $xf     = Nil;
+    my $type   = 's';              # The data type.
+    my $length = 0;                # String length.
+    my $index;
+    my $str-error = 0;
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+
+    # If the last arg is a format we use it as the cell format.
+    if @args[*-1] ~~ (Excell::Writer::XLSX::Format) {
+        $xf = @args.pop;
+    }
+
+
+    # Create a temp XML::Writer object and use it to write the rich string
+    # XML to a string.
+    my $str-fh =  $str.IO::Handle.open;
+#    open my $str_fh, '>', \$str or die "Failed to open filehandle: $!";
+#    binmode $str_fh, ':utf8';
+
+    my $writer = Excel::Writer::XLSX::Package::XMLwriter.new($str-fh);
+
+    $!rstring = $writer;
+
+    # Create a temp format with the default font for unformatted fragments.
+    my $default = Excel::Writer::XLSX::Format.new();
+
+    # Convert the list of $format, $string tokens to pairs of ($format, $string)
+    # except for the first $string fragment which doesn't require a default
+    # formatting run. Use the default for strings without a leading format.
+    my @fragments;
+    my $last = 'format';
+    my $pos  = 0;
+
+    for @args -> $token {
+        if $token !~~ (Excel::Writer::XLSX::Format) {
+
+            # Token is a string.
+            if $last ne 'format' {
+                # If previous token wasn't a format add one before the string.
+                @fragments.append: ($default, $token);
+            }
+            else {
+                # If previous token was a format just add the string.
+                @fragments.push: $token;
+            }
+
+            $length += $token.bytes;    # Keep track of actual string length.
+            $last = 'string';
+        }
+        else {
+            # Can't allow 2 formats in a row.
+            if $last eq 'format' && $pos > 0 {
+                return -4;
+            }
+
+            # Token is a format object. Add it to the fragment list.
+            @fragments.push: $token;
+            $last = 'format';
+        }
+
+        $pos++;
+    }
+
+    # If the first token is a string start the <r> element.
+    if @fragments[0] !~~ (Excel::Write::XLSX::Format) {
+        $!rstring.xml-start-tag('r');
+    }
+
+    # Write the XML elements for the $format $string fragments.
+    for @fragments -> $token {
+        if $token ~~ (Excel::Writer::XLSX::Format) {
+ 
+            # Write the font run.
+            $!rstring.xml-start-tag('r');
+            self!write-font: $token;
+        }
+        else {
+            # Write the string fragment part, with whitespace handling.
+            my @attributes = ();
+
+            if $token ~~ /^\s/ || $token ~~ /\s$/ {
+                @attributes.push: @('xml:space' => 'preserve');
+            }
+
+            $!rstring.xml-data-element('t', $token, @attributes);
+            $!rstring.xml-end-tag('r');
+        }
+    }
+
+    # Check that the string is < 32767 chars.
+    if $length > $!xls-strmax {
+        return -3;
+    }
+
+
+    # Write a shared string or an in-line string based on optimisation level.
+    if $!optimization == 0 {
+         $index = self!get-shared-string-index($str);
+    }
+    else {
+        $index = $str;
+    }
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row}{$col} = @($type, $index, $xf);
+ 
+    return 0;
+}
+
+
+###############################################################################
+#
+# write-blank($row, $col, $format)
+#
+# Write a blank cell to the specified row and column (zero indexed).
+# A blank cell is used to specify formatting without adding a string
+# or a number.
+#
+# A blank cell without a format serves no purpose. Therefore, we don't write
+# a BLANK record unless a format is specified. This is mainly an optimisation
+# for the write_row() and write_col() methods.
+#
+# Returns  0 : normal termination (including no format)
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#
+method write-blank(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    # Check the number of args
+    return -1 if +@args < 2;
+
+    # Don't write a blank cell unless it has a format
+    return 0 unless @args[2].defined;
+
+    my $row  = @args[0];    # Zero indexed row
+    my $col  = @args[1];    # Zero indexed column
+    my $xf   = @args[2];    # The cell format
+    my $type = 'b';      # The data type
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row}{$col} = @($type, Nil, $xf);
+
+    0;
+}
+
+
 ###############################################################################
 #
 # write_formula($row, $col, $formula, $format)
@@ -2365,14 +2256,14 @@ method !write-formula(@args) {
     }
 
     # Check that row and col are valid and store max and min values
-    return -2 if self!check-dimensions($row, $col);
+    return -2 if self.check-dimensions($row, $col);
 
     # Remove the = sign if it exists.
     $formula ~~ s/^ \=//;
 
     # Write previous row if in in-line string optimization mode.
     if $!optimization == 1 && $row > $!previous-row {
-        self!write-single-row: $row;
+        self.write-single-row: $row;
     }
 
     %!table{$row}{$col} = ( $type, $formula, $xf, $value );
@@ -2380,124 +2271,116 @@ method !write-formula(@args) {
     0;
 }
 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_array_formula($row1, $col1, $row2, $col2, $formula, $format)
-#NYI #
-#NYI # Write an array formula to the specified row and column (zero indexed).
-#NYI #
-#NYI # $format is optional.
-#NYI #
-#NYI # Returns  0 : normal termination
-#NYI #         -1 : insufficient number of arguments
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_array_formula {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 5 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row1    = $_[0];           # First row
-#NYI     my $col1    = $_[1];           # First column
-#NYI     my $row2    = $_[2];           # Last row
-#NYI     my $col2    = $_[3];           # Last column
-#NYI     my $formula = $_[4];           # The formula text string
-#NYI     my $xf      = $_[5];           # The format object.
-#NYI     my $value   = $_[6];           # Optional formula value.
-#NYI     my $type    = 'a';             # The data type
-#NYI 
-#NYI     # Swap last row/col with first row/col as necessary
-#NYI     ( $row1, $row2 ) = ( $row2, $row1 ) if $row1 > $row2;
-#NYI     ( $col1, $col2 ) = ( $col1, $col2 ) if $col1 > $col2;
-#NYI 
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row2, $col2 );
-#NYI 
-#NYI 
-#NYI     # Define array range
-#NYI     my $range;
-#NYI 
-#NYI     if ( $row1 == $row2 and $col1 == $col2 ) {
-#NYI         $range = xl-rowcol-to-cell( $row1, $col1 );
-#NYI 
-#NYI     }
-#NYI     else {
-#NYI         $range =
-#NYI             xl-rowcol-to-cell( $row1, $col1 ) . ':'
-#NYI           . xl-rowcol-to-cell( $row2, $col2 );
-#NYI     }
-#NYI 
-#NYI     # Remove array formula braces and the leading =.
-#NYI     $formula =~ s/^{(.*)}$/$1/;
-#NYI     $formula =~ s/^=//;
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     my $row = $row1;
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row1}.{$col1} =
-#NYI       [ $type, $formula, $xf, $range, $value ];
-#NYI 
-#NYI 
-#NYI     # Pad out the rest of the area with formatted zeroes.
-#NYI     if ( !$self.{_optimization} ) {
-#NYI         for my $row ( $row1 .. $row2 ) {
-#NYI             for my $col ( $col1 .. $col2 ) {
-#NYI                 next if $row == $row1 and $col == $col1;
-#NYI                 $self.write_number( $row, $col, 0, $xf );
-#NYI             }
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     return 0;
-#NYI }
-#NYI 
-#NYI 
-#NYI ###############################################################################
-#NYI #
-#NYI # write_boolean($row, $col, $value, $format)
-#NYI #
-#NYI # Write a boolean value to the specified row and column (zero indexed).
-#NYI #
-#NYI # Returns  0 : normal termination (including no format)
-#NYI #         -2 : row or column out of range
-#NYI #
-#NYI sub write_boolean {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     my $row  = $_[0];            # Zero indexed row
-#NYI     my $col  = $_[1];            # Zero indexed column
-#NYI     my $val  = $_[2] ? 1 : 0;    # Boolean value.
-#NYI     my $xf   = $_[3];            # The cell format
-#NYI     my $type = 'l';              # The data type
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, $val, $xf ];
-#NYI 
-#NYI     return 0;
-#NYI }
+###############################################################################
+#
+# write-array-formula($row1, $col1, $row2, $col2, $formula, $format)
+#
+# Write an array formula to the specified row and column (zero indexed).
+#
+# $format is optional.
+#
+# Returns  0 : normal termination
+#         -1 : insufficient number of arguments
+#         -2 : row or column out of range
+#
+method write-array-formula(*@args) {
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    if +@args < 5 { return -1 }    # Check the number of args
+
+    my $row1    = @args[0];           # First row
+    my $col1    = @args[1];           # First column
+    my $row2    = @args[2];           # Last row
+    my $col2    = @args[3];           # Last column
+    my $formula = @args[4];           # The formula text string
+    my $xf      = @args[5];           # The format object.
+    my $value   = @args[6];           # Optional formula value.
+    my $type    = 'a';             # The data type
+
+    # Swap last row/col with first row/col as necessary
+    ($row1, $row2) = ($row2, $row1) if $row1 > $row2;
+    ($col1, $col2) = ($col1, $col2) if $col1 > $col2;
+
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row2, $col2);
+
+
+    # Define array range
+    my $range;
+
+    if $row1 == $row2 and $col1 == $col2 {
+        $range = xl-rowcol-to-cell( $row1, $col1 );
+    } else {
+        $range =
+            xl-rowcol-to-cell($row1, $col1) ~ ':'
+          ~ xl-rowcol-to-cell($row2, $col2);
+    }
+
+    # Remove array formula braces and the leading =.
+    $formula ~~ s:P5/^{(.*)}$/$1/;
+    $formula ~~ s/^\=//;
+
+    # Write previous row if in in-line string optimization mode.
+    my $row = $row1;
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row1}{$col1} = @($type, $formula, $xf, $range, $value);
+
+
+    # Pad out the rest of the area with formatted zeroes.
+    if !$!optimization {
+        for $row1 .. $row2 -> $row {
+            for $col1 .. $col2 -> $col {
+                next if $row == $row1 and $col == $col1;
+                self.write-number($row, $col, 0, $xf);
+            }
+        }
+    }
+
+    0;
+}
+
+
+###############################################################################
+#
+# write-boolean($row, $col, $value, $format)
+#
+# Write a boolean value to the specified row and column (zero indexed).
+#
+# Returns  0 : normal termination (including no format)
+#         -2 : row or column out of range
+#
+method write-boolean(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    my $row  = @args[0];            # Zero indexed row
+    my $col  = @args[1];            # Zero indexed column
+    my $val  = @args[2] ?? 1 !! 0;    # Boolean value.
+    my $xf   = @args[3];            # The cell format
+    my $type = 'l';              # The data type
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row}{$col} = @($type, $val, $xf);
+
+    0;
+}
 
 
 ###############################################################################
@@ -2559,137 +2442,133 @@ method escape-url($url) {
 #         -4 : URL longer than 255 characters
 #         -5 : Exceeds limit of 65_530 urls per worksheet
 #
-#NYI sub write_url {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI 
-#NYI     # Reverse the order of $string and $format if necessary. We work on a copy
-#NYI     # in order to protect the callers args. We don't use "local @_" in case of
-#NYI     # perl50005 threads.
-#NYI     my @args = @_;
-#NYI     ( $args[3], $args[4] ) = ( $args[4], $args[3] ) if ref $args[3];
-#NYI 
-#NYI 
-#NYI     my $row       = $args[0];    # Zero indexed row
-#NYI     my $col       = $args[1];    # Zero indexed column
-#NYI     my $url       = $args[2];    # URL string
-#NYI     my $str       = $args[3];    # Alternative label
-#NYI     my $xf        = $args[4];    # Cell format
-#NYI     my $tip       = $args[5];    # Tool tip
-#NYI     my $type      = 'l';         # XML data type
-#NYI     my $link_type = 1;
-#NYI     my $external  = 0;
-#NYI 
-#NYI     # The displayed string defaults to the url string.
-#NYI     $str = $url unless defined $str;
-#NYI 
-#NYI     # Remove the URI scheme from internal links.
-#NYI     if ( $url =~ s/^internal:// ) {
-#NYI         $str =~ s/^internal://;
-#NYI         $link_type = 2;
-#NYI     }
-#NYI 
-#NYI     # Remove the URI scheme from external links and change the directory
-#NYI     # separator from Unix to Dos.
-#NYI     if ( $url =~ s/^external:// ) {
-#NYI         $str =~ s/^external://;
-#NYI         $url =~ s[/][\\]g;
-#NYI         $str =~ s[/][\\]g;
-#NYI         $external = 1;
-#NYI     }
-#NYI 
-#NYI     # Strip the mailto header.
-#NYI     $str =~ s/^mailto://;
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     # Check that the string is < 32767 chars
-#NYI     my $str_error = 0;
-#NYI     if ( length $str > $self.{_xls_strmax} ) {
-#NYI         $str = substr( $str, 0, $self.{_xls_strmax} );
-#NYI         $str_error = -3;
-#NYI     }
-#NYI 
-#NYI     # Copy string for use in hyperlink elements.
-#NYI     my $url_str = $str;
-#NYI 
-#NYI     # External links to URLs and to other Excel workbooks have slightly
-#NYI     # different characteristics that we have to account for.
-#NYI     if ( $link_type == 1 ) {
-#NYI 
-#NYI         # Split url into the link and optional anchor/location.
-#NYI         ( $url, $url_str ) = split /#/, $url, 2;
-#NYI 
-#NYI         $url = _escape_url( $url );
-#NYI 
-#NYI         # Escape the anchor for hyperlink style urls only.
-#NYI         if ( $url_str && !$external ) {
-#NYI             $url_str = _escape_url( $url_str );
-#NYI         }
-#NYI 
-#NYI         # Add the file:/// URI to the url for Windows style "C:/" link and
-#NYI         # Network shares.
-#NYI         if ( $url =~ m{^\w:} || $url =~ m{^\\\\} ) {
-#NYI             $url = 'file:///' . $url;
-#NYI         }
-#NYI 
-#NYI         # Convert a ./dir/file.xlsx link to dir/file.xlsx.
-#NYI         $url =~ s{^.\\}{};
-#NYI     }
-#NYI 
-#NYI     # Excel limits the escaped URL and location/anchor to 255 characters.
-#NYI     my $tmp_url_str = $url_str || '';
-#NYI 
-#NYI     if ( length $url > 255 || length $tmp_url_str > 255 ) {
-#NYI         warn "Ignoring URL '$url' where link or anchor > 255 characters "
-#NYI           . "since it exceeds Excel's limit for URLS. See LIMITATIONS "
-#NYI           . "section of the Excel::Writer::XLSX documentation.";
-#NYI         return -4;
-#NYI     }
-#NYI 
-#NYI     # Check the limit of URLS per worksheet.
-#NYI     $self.{_hlink_count}++;
-#NYI 
-#NYI     if ( $self.{_hlink_count} > 65_530 ) {
-#NYI         warn "Ignoring URL '$url' since it exceeds Excel's limit of 65,530 "
-#NYI           . "URLS per worksheet. See LIMITATIONS section of the "
-#NYI           . "Excel::Writer::XLSX documentation.";
-#NYI         return -5;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     # Write the hyperlink string.
-#NYI     $self.write_string( $row, $col, $str, $xf );
-#NYI 
-#NYI     # Store the hyperlink data in a separate structure.
-#NYI     $self.{_hyperlinks}.{$row}.{$col} = {
-#NYI         _link_type => $link_type,
-#NYI         _url       => $url,
-#NYI         _str       => $url_str,
-#NYI         _tip       => $tip
-#NYI     };
-#NYI 
-#NYI     return $str_error;
-#NYI }
+method write-url(*@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    if +@args < 3 { return -1 }    # Check the number of args
+
+
+    # Reverse the order of $string and $format if necessary. We work on a copy
+    # in order to protect the callers args. We don't use "local @_" in case of
+    # perl50005 threads.
+    (@args[3], @args[4]) = (@args[4], @args[3]) if @args[3] ~~ (Excel::Writer::XLSX::Format);
+
+    my $row       = @args[0];    # Zero indexed row
+    my $col       = @args[1];    # Zero indexed column
+    my $url       = @args[2];    # URL string
+    my $str       = @args[3];    # Alternative label
+    my $xf        = @args[4];    # Cell format
+    my $tip       = @args[5];    # Tool tip
+    my $type      = 'l';         # XML data type
+    my $link-type = 1;
+    my $external  = 0;
+
+    # The displayed string defaults to the url string.
+    $str = $url unless $str.defined;
+
+    # Remove the URI scheme from internal links.
+    if $url ~~ s/^internal\:// {
+        $str ~~ s/^internal\://;
+        $link-type = 2;
+    }
+
+    # Remove the URI scheme from external links and change the directory
+    # separator from Unix to Dos.
+    if $url ~~ s/^external\:// {
+        $str ~~ s/^external\://;
+        $url .= subst:g('/', '\\');
+        $str .= subst:g('/', '\\');
+        $external = 1;
+    }
+
+    # Strip the mailto header.
+    $str ~~ s/^mailto\://;
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    # Check that the string is < 32767 chars
+    my $str-error = 0;
+    if $str.bytes > $!xls-strmax {
+        $str = $str.sybstr: 0, $!xls-strmax;
+        $str-error = -3;
+    }
+
+    # Copy string for use in hyperlink elements.
+    my $url-str = $str;
+
+    # External links to URLs and to other Excel workbooks have slightly
+    # different characteristics that we have to account for.
+    if $link-type == 1 {
+
+        # Split url into the link and optional anchor/location.
+        ($url, $url-str) = $url.split('#', 2);
+
+        $url = escape-url($url);
+
+        # Escape the anchor for hyperlink style urls only.
+        if $url-str && !$external {
+            $url-str = escape-url($url-str);
+        }
+
+        # Add the file:/// URI to the url for Windows style "C:/" link and
+        # Network shares.
+        if $url ~~ m{^\w\:} || $url ~~ m{^\\\\} {
+            $url = 'file:///' ~ $url;
+        }
+
+        # Convert a ./dir/file.xlsx link to dir/file.xlsx.
+        $url .= subst(/^.\\/, '');
+    }
+
+    # Excel limits the escaped URL and location/anchor to 255 characters.
+    my $tmp-url-str = $url-str || '';
+
+    if $url.bytes > 255 || $tmp-url-str.bytes > 255 {
+        warn "Ignoring URL '$url' where link or anchor > 255 characters "
+          ~ "since it exceeds Excel's limit for URLS. See LIMITATIONS "
+          ~ "section of the Excel::Writer::XLSX documentation.";
+        return -4;
+    }
+
+    # Check the limit of URLS per worksheet.
+    $!hlink-count++;
+
+    if $!hlink-count > 65_530 {
+        warn "Ignoring URL '$url' since it exceeds Excel's limit of 65,530 "
+          ~ "URLS per worksheet. See LIMITATIONS section of the "
+          ~ "Excel::Writer::XLSX documentation.";
+        return -5;
+    }
+
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    # Write the hyperlink string.
+    self.write-string($row, $col, $str, $xf);
+
+    # Store the hyperlink data in a separate structure.
+    %!hyperlinks{$row}{$col} = {
+        link-type => $link-type,
+        url       => $url,
+        str       => $url-str,
+        tip       => $tip
+    };
+
+    return $str-error;
+}
 
 
 ###############################################################################
 #
-# write_date_time ($row, $col, $string, $format)
+# write-date-time ($row, $col, $string, $format)
 #
 # Write a datetime string in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format as a
 # number representing an Excel date. $format is optional.
@@ -2699,49 +2578,46 @@ method escape-url($url) {
 #         -2 : row or column out of range
 #         -3 : Invalid date_time, written as string
 #
-#NYI sub write_date_time {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     if ( @_ < 3 ) { return -1 }    # Check the number of args
-#NYI 
-#NYI     my $row  = $_[0];              # Zero indexed row
-#NYI     my $col  = $_[1];              # Zero indexed column
-#NYI     my $str  = $_[2];
-#NYI     my $xf   = $_[3];              # The cell format
-#NYI     my $type = 'n';                # The data type
-#NYI 
-#NYI 
-#NYI     # Check that row and col are valid and store max and min values
-#NYI     return -2 if $self._check_dimensions( $row, $col );
-#NYI 
-#NYI     my $str_error = 0;
-#NYI     my $date_time = $self.convert_date_time( $str );
-#NYI 
-#NYI     # If the date isn't valid then write it as a string.
-#NYI     if ( !defined $date_time ) {
-#NYI         return $self.write_string( @_ );
-#NYI     }
-#NYI 
-#NYI     # Write previous row if in in-line string optimization mode.
-#NYI     if ( $self.{_optimization} == 1 && $row > $self.{_previous_row} ) {
-#NYI         $self._write_single_row( $row );
-#NYI     }
-#NYI 
-#NYI     $self.{_table}.{$row}.{$col} = [ $type, $date_time, $xf ];
-#NYI 
-#NYI     return $str_error;
-#NYI }
+method write-date-time(*@args) {
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    if @args < 3 { return -1 }    # Check the number of args
+
+    my $row  = @args[0];              # Zero indexed row
+    my $col  = @args[1];              # Zero indexed column
+    my $str  = @args[2];
+    my $xf   = @args[3];              # The cell format
+    my $type = 'n';                # The data type
+
+
+    # Check that row and col are valid and store max and min values
+    return -2 if self!check-dimensions($row, $col);
+
+    my $str-error = 0;
+    my $date-time = self.convert-date-time($str);
+
+    # If the date isn't valid then write it as a string.
+    if ! $date-time.defined {
+        return self.write-string(@args);
+    }
+
+    # Write previous row if in in-line string optimization mode.
+    if $!optimization == 1 && $row > $!previous-row {
+        self!write-single-row($row);
+    }
+
+    %!table{$row}{$col} = @( $type, $date-time, $xf );
+
+    return $str-error;
+}
 
 
 ###############################################################################
 #
-# convert_date_time($date_time_string)
+# convert-date-time($date_time_string)
 #
 # The function takes a date and time in ISO8601 "yyyy-mm-ddThh:mm:ss.ss" format
 # and converts it to a decimal number representing a valid Excel date.
@@ -2760,367 +2636,340 @@ method escape-url($url) {
 #            A decimal number representing a valid Excel date, or
 #            undef if the date is invalid.
 #
-#NYI sub convert_date_time {
-#NYI 
-#NYI     my $self      = shift;
-#NYI     my $date_time = $_[0];
-#NYI 
-#NYI     my $days    = 0;    # Number of days since epoch
-#NYI     my $seconds = 0;    # Time expressed as fraction of 24h hours in seconds
-#NYI 
-#NYI     my ( $year, $month, $day );
-#NYI     my ( $hour, $min,   $sec );
-#NYI 
-#NYI 
-#NYI     # Strip leading and trailing whitespace.
-#NYI     $date_time =~ s/^\s+//;
-#NYI     $date_time =~ s/\s+$//;
-#NYI 
-#NYI     # Check for invalid date char.
-#NYI     return if $date_time =~ /[^0-9T:\-\.Z]/;
-#NYI 
-#NYI     # Check for "T" after date or before time.
-#NYI     return unless $date_time =~ /\dT|T\d/;
-#NYI 
-#NYI     # Strip trailing Z in ISO8601 date.
-#NYI     $date_time =~ s/Z$//;
-#NYI 
-#NYI 
-#NYI     # Split into date and time.
-#NYI     my ( $date, $time ) = split /T/, $date_time;
-#NYI 
-#NYI 
-#NYI     # We allow the time portion of the input DateTime to be optional.
-#NYI     if ( $time ne '' ) {
-#NYI 
-#NYI         # Match hh:mm:ss.sss+ where the seconds are optional
-#NYI         if ( $time =~ /^(\d\d):(\d\d)(:(\d\d(\.\d+)?))?/ ) {
-#NYI             $hour = $1;
-#NYI             $min  = $2;
-#NYI             $sec  = $4 || 0;
-#NYI         }
-#NYI         else {
-#NYI             return undef;    # Not a valid time format.
-#NYI         }
-#NYI 
-#NYI         # Some boundary checks
-#NYI         return if $hour >= 24;
-#NYI         return if $min >= 60;
-#NYI         return if $sec >= 60;
-#NYI 
-#NYI         # Excel expresses seconds as a fraction of the number in 24 hours.
-#NYI         $seconds = ( $hour * 60 * 60 + $min * 60 + $sec ) / ( 24 * 60 * 60 );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # We allow the date portion of the input DateTime to be optional.
-#NYI     return $seconds if $date eq '';
-#NYI 
-#NYI 
-#NYI     # Match date as yyyy-mm-dd.
-#NYI     if ( $date =~ /^(\d\d\d\d)-(\d\d)-(\d\d)$/ ) {
-#NYI         $year  = $1;
-#NYI         $month = $2;
-#NYI         $day   = $3;
-#NYI     }
-#NYI     else {
-#NYI         return undef;    # Not a valid date format.
-#NYI     }
-#NYI 
-#NYI     # Set the epoch as 1900 or 1904. Defaults to 1900.
-#NYI     my $date_1904 = $self.{_date_1904};
-#NYI 
-#NYI 
-#NYI     # Special cases for Excel.
-#NYI     if ( not $date_1904 ) {
-#NYI         return $seconds      if $date eq '1899-12-31';    # Excel 1900 epoch
-#NYI         return $seconds      if $date eq '1900-01-00';    # Excel 1900 epoch
-#NYI         return 60 + $seconds if $date eq '1900-02-29';    # Excel false leapday
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # We calculate the date by calculating the number of days since the epoch
-#NYI     # and adjust for the number of leap days. We calculate the number of leap
-#NYI     # days by normalising the year in relation to the epoch. Thus the year 2000
-#NYI     # becomes 100 for 4 and 100 year leapdays and 400 for 400 year leapdays.
-#NYI     #
-#NYI     my $epoch  = $date_1904 ? 1904 : 1900;
-#NYI     my $offset = $date_1904 ? 4    : 0;
-#NYI     my $norm   = 300;
-#NYI     my $range  = $year - $epoch;
-#NYI 
-#NYI 
-#NYI     # Set month days and check for leap year.
-#NYI     my @mdays = ( 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 );
-#NYI     my $leap = 0;
-#NYI     $leap = 1 if $year % 4 == 0 and $year % 100 or $year % 400 == 0;
-#NYI     $mdays[1] = 29 if $leap;
-#NYI 
-#NYI 
-#NYI     # Some boundary checks
-#NYI     return if $year < $epoch or $year > 9999;
-#NYI     return if $month < 1     or $month > 12;
-#NYI     return if $day < 1       or $day > $mdays[ $month - 1 ];
-#NYI 
-#NYI     # Accumulate the number of days since the epoch.
-#NYI     $days = $day;    # Add days for current month
-#NYI     $days += $mdays[$_] for 0 .. $month - 2;    # Add days for past months
-#NYI     $days += $range * 365;                      # Add days for past years
-#NYI     $days += int( ( $range ) / 4 );             # Add leapdays
-#NYI     $days -= int( ( $range + $offset ) / 100 ); # Subtract 100 year leapdays
-#NYI     $days += int( ( $range + $offset + $norm ) / 400 );  # Add 400 year leapdays
-#NYI     $days -= $leap;                                      # Already counted above
-#NYI 
-#NYI 
-#NYI     # Adjust for Excel erroneously treating 1900 as a leap year.
-#NYI     $days++ if $date_1904 == 0 and $days > 59;
-#NYI 
-#NYI     return $days + $seconds;
-#NYI }
+method convert-date-time($date-time) {
+
+    my $days    = 0;    # Number of days since epoch
+    my $seconds = 0;    # Time expressed as fraction of 24h hours in seconds
+
+    my ( $year, $month, $day );
+    my ( $hour, $min,   $sec );
+
+
+    # Strip leading and trailing whitespace.
+    $date-time ~~ s/^\s+//;
+    $date-time ~~ s/\s+$//;
+
+    # Check for invalid date char.
+    return if $date-time ~~ /<-[0..9 T \: \- \. Z]>/;
+
+    # Check for "T" after date or before time.
+    return unless $date-time ~~ /\dT|T\d/;
+
+    # Strip trailing Z in ISO8601 date.
+    $date-time ~~ s/Z$//;
+
+
+    # Split into date and time.
+    my ($date, $time) = $date-time.split: 'T';
+
+
+    # We allow the time portion of the input DateTime to be optional.
+    if $time ne '' {
+
+        # Match hh:mm:ss.sss+ where the seconds are optional
+        if $time ~~ /^(\d\d)\:(\d\d)(\:(\d\d(\.\d+)?))?/ {
+            $hour = $0;
+            $min  = $1;
+            $sec  = $3 // 0;
+        }
+        else {
+            return Nil;    # Not a valid time format.
+        }
+
+        # Some boundary checks
+        return if $hour >= 24;
+        return if $min  >= 60;
+        return if $sec  >= 60;
+
+        # Excel expresses seconds as a fraction of the number in 24 hours.
+        $seconds = ($hour * 60 * 60 + $min * 60 + $sec) / (24 * 60 * 60);
+    }
+
+
+    # We allow the date portion of the input DateTime to be optional.
+    return $seconds if $date eq '';
+
+
+    # Match date as yyyy-mm-dd.
+    if $date ~~ /^(\d\d\d\d)\-(\d\d)\-(\d\d)$/ {
+        $year  = $0;
+        $month = $1;
+        $day   = $2;
+    }
+    else {
+        return Nil;    # Not a valid date format.
+    }
+
+    # Set the epoch as 1900 or 1904. Defaults to 1900.
+    my $date_1904 = $!date_1904;
+
+
+    # Special cases for Excel.
+    if not $date_1904 {
+        return $seconds      if $date eq '1899-12-31';    # Excel 1900 epoch
+        return $seconds      if $date eq '1900-01-00';    # Excel 1900 epoch
+        return 60 + $seconds if $date eq '1900-02-29';    # Excel false leapday
+    }
+
+
+    # We calculate the date by calculating the number of days since the epoch
+    # and adjust for the number of leap days. We calculate the number of leap
+    # days by normalising the year in relation to the epoch. Thus the year 2000
+    # becomes 100 for 4 and 100 year leapdays and 400 for 400 year leapdays.
+    #
+    my $epoch  = $date_1904 ?? 1904 !! 1900;
+    my $offset = $date_1904 ?? 4    !! 0;
+    my $norm   = 300;
+    my $range  = $year - $epoch;
+
+
+    # Set month days and check for leap year.
+    my @mdays = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+    my $leap = 0;
+    $leap = 1 if $year % 4 == 0 and $year % 100 or $year % 400 == 0;
+    @mdays[1] = 29 if $leap;
+
+
+    # Some boundary checks
+    return if $year < $epoch or $year > 9999;
+    return if $month < 1     or $month > 12;
+    return if $day < 1       or $day > @mdays[$month - 1];
+
+    # Accumulate the number of days since the epoch.
+    $days = $day;    # Add days for current month
+    for ^($month-1) {$days += @mdays[$_]}            # Add days for past months
+    $days += $range * 365;                           # Add days for past years
+    $days += ( $range                    /   4).int; # Add leapdays
+    $days -= (($range + $offset)         / 100).int; # Subtract 100 year leapdays
+    $days += (($range + $offset + $norm) / 400).int; # Add 400 year leapdays
+    $days -= $leap;                                  # Already counted above
+
+
+    # Adjust for Excel erroneously treating 1900 as a leap year.
+    $days++ if $date_1904 == 0 and $days > 59;
+
+    return $days + $seconds;
+}
 
 
 ###############################################################################
 #
-# set_row($row, $height, $XF, $hidden, $level, $collapsed)
+# set-row($row, $height, $XF, $hidden, $level, $collapsed)
 #
 # This method is used to set the height and XF format for a row.
 #
-#NYI sub set_row {
-#NYI 
-#NYI     my $self      = shift;
-#NYI     my $row       = shift;         # Row Number.
-#NYI     my $height    = shift;         # Row height.
-#NYI     my $xf        = shift;         # Format object.
-#NYI     my $hidden    = shift || 0;    # Hidden flag.
-#NYI     my $level     = shift || 0;    # Outline level.
-#NYI     my $collapsed = shift || 0;    # Collapsed row.
-#NYI     my $min_col   = 0;
-#NYI 
-#NYI     return unless defined $row;    # Ensure at least $row is specified.
-#NYI 
-#NYI     # Get the default row height.
-#NYI     my $default_height = $self.{_default_row_height};
-#NYI 
-#NYI     # Use min col in _check_dimensions(). Default to 0 if undefined.
-#NYI     if ( defined $self.{_dim_colmin} ) {
-#NYI         $min_col = $self.{_dim_colmin};
-#NYI     }
-#NYI 
-#NYI     # Check that row is valid.
-#NYI     return -2 if $self._check_dimensions( $row, $min_col );
-#NYI 
-#NYI     $height = $default_height if !defined $height;
-#NYI 
-#NYI     # If the height is 0 the row is hidden and the height is the default.
-#NYI     if ( $height == 0 ) {
-#NYI         $hidden = 1;
-#NYI         $height = $default_height;
-#NYI     }
-#NYI 
-#NYI     # Set the limits for the outline levels (0 <= x <= 7).
-#NYI     $level = 0 if $level < 0;
-#NYI     $level = 7 if $level > 7;
-#NYI 
-#NYI     if ( $level > $self.{_outline_row_level} ) {
-#NYI         $self.{_outline_row_level} = $level;
-#NYI     }
-#NYI 
-#NYI     # Store the row properties.
-#NYI     $self.{_set_rows}.{$row} = [ $height, $xf, $hidden, $level, $collapsed ];
-#NYI 
-#NYI     # Store the row change to allow optimisations.
-#NYI     $self.{_row_size_changed} = 1;
-#NYI 
-#NYI     if ($hidden) {
-#NYI         $height = 0;
-#NYI     }
-#NYI 
-#NYI     # Store the row sizes for use when calculating image vertices.
-#NYI     $self.{_row_sizes}.{$row} = $height;
-#NYI }
+method set_row($row, $height?, $xf?, $hidden = 0, $level = 0, $collapsed = 0, $min-col = 0) {
+
+    # Get the default row height.
+    my $default-height = $!default-row-height;
+
+    # Use min col in _check_dimensions(). Default to 0 if undefined.
+    if $!dim-colmin.defined {
+        $min-col = $!dim-colmin;
+    }
+
+    # Check that row is valid.
+    return -2 if self!check-dimensions($row, $min-col);
+
+    $height = $default-height if ! $height.defined;
+
+    # If the height is 0 the row is hidden and the height is the default.
+    if $height == 0 {
+        $hidden = 1;
+        $height = $default-height;
+    }
+
+    # Set the limits for the outline levels (0 <= x <= 7).
+    $level = 0 if $level < 0;
+    $level = 7 if $level > 7;
+
+    if $level > $!outline-row-level {
+        $!outline-row-level = $level;
+    }
+
+    # Store the row properties.
+    %!set-rows{$row} = @( $height, $xf, $hidden, $level, $collapsed );
+
+    # Store the row change to allow optimisations.
+    $!row-size-changed = 1;
+
+    if $hidden {
+        $height = 0;
+    }
+
+    # Store the row sizes for use when calculating image vertices.
+    %!row-sizes{$row} = $height;
+}
 
 
 ###############################################################################
 #
-# set_default_row()
+# set-default-row()
 #
 # Set the default row properties
 #
-#NYI sub set_default_row {
-#NYI 
-#NYI     my $self        = shift;
-#NYI     my $height      = shift || $self.{_original_row_height};
-#NYI     my $zero_height = shift || 0;
-#NYI 
-#NYI     if ( $height != $self.{_original_row_height} ) {
-#NYI         $self.{_default_row_height} = $height;
-#NYI 
-#NYI         # Store the row change to allow optimisations.
-#NYI         $self.{_row_size_changed} = 1;
-#NYI     }
-#NYI 
-#NYI     if ( $zero_height ) {
-#NYI         $self.{_default_row_zeroed} = 1;
-#NYI     }
-#NYI }
+method set-default-row($height = $!original-row-height, $zero-height = 0) {
+
+    if $height != $!original-row-height {
+        $!default-row-height = $height;
+
+        # Store the row change to allow optimisations.
+        $!row-size-changed = 1;
+    }
+
+    if $zero-height {
+        $!default-row-zeroed = 1;
+    }
+}
 
 
 ###############################################################################
 #
-# merge_range($first_row, $first_col, $last_row, $last_col, $string, $format)
+# merge-range($first-row, $first-col, $last-row, $last-col, $string, $format)
 #
 # Merge a range of cells. The first cell should contain the data and the others
 # should be blank. All cells should contain the same format.
 #
-#NYI sub merge_range {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI     fail "Incorrect number of arguments" if @_ < 6;
-#NYI     fail "Fifth parameter must be a format object" unless ref $_[5];
-#NYI 
-#NYI     my $row_first  = shift;
-#NYI     my $col_first  = shift;
-#NYI     my $row_last   = shift;
-#NYI     my $col_last   = shift;
-#NYI     my $string     = shift;
-#NYI     my $format     = shift;
-#NYI     my @extra_args = @_;      # For write_url().
-#NYI 
-#NYI     # Excel doesn't allow a single cell to be merged
-#NYI     if ( $row_first == $row_last and $col_first == $col_last ) {
-#NYI         fail "Can't merge single cell";
-#NYI     }
-#NYI 
-#NYI     # Swap last row/col with first row/col as necessary
-#NYI     ( $row_first, $row_last ) = ( $row_last, $row_first )
-#NYI       if $row_first > $row_last;
-#NYI     ( $col_first, $col_last ) = ( $col_last, $col_first )
-#NYI       if $col_first > $col_last;
-#NYI 
-#NYI     # Check that column number is valid and store the max value
-#NYI     return if $self._check_dimensions( $row_last, $col_last );
-#NYI 
-#NYI     # Store the merge range.
-#NYI     push @{ $self.{_merge} }, [ $row_first, $col_first, $row_last, $col_last ];
-#NYI 
-#NYI     # Write the first cell
-#NYI     $self.write( $row_first, $col_first, $string, $format, @extra_args );
-#NYI 
-#NYI     # Pad out the rest of the area with formatted blank cells.
-#NYI     for my $row ( $row_first .. $row_last ) {
-#NYI         for my $col ( $col_first .. $col_last ) {
-#NYI             next if $row == $row_first and $col == $col_first;
-#NYI             $self.write_blank( $row, $col, $format );
-#NYI         }
-#NYI     }
-#NYI }
+method merge-range(*@args) {
 
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+    fail "Incorrect number of arguments" if +@args < 6;
+#FIX    fail "Fifth parameter must be a format object" unless ref $_[5];
+
+    my $row-first  = @args.shift;
+    my $col-first  = @args.shift;
+    my $row-last   = @args.shift;
+    my $col-last   = @args.shift;
+    my $string     = @args.shift;
+    my $format     = @args.shift;
+
+    # Excel doesn't allow a single cell to be merged
+    if $row-first == $row-last and $col-first == $col-last {
+        fail "Can't merge single cell";
+    }
+
+    # Swap last row/col with first row/col as necessary
+    ($row-first, $row-last) = ($row-last, $row-first)
+      if $row-first > $row-last;
+    ($col-first, $col-last) = ($col-last, $col-first)
+      if $col-first > $col-last;
+
+    # Check that column number is valid and store the max value
+    return if self!check-dimensions($row-last, $col-last);
+
+    # Store the merge range.
+    @!merge.append: @($row-first, $col-first, $row-last, $col-last);
+
+    # Write the first cell
+    self.write($row-first, $col-first, $string, $format, @args);
+
+    # Pad out the rest of the area with formatted blank cells.
+    for $row-first .. $row-last -> $row {
+        for  $col-first .. $col-last -> $col {
+            next if $row == $row-first and $col == $col-first;
+            self.write-blank($row, $col, $format);
+        }
+    }
+}
 
 ###############################################################################
 #
-# merge_range_type()
+# merge-range-type()
 #
 # Same as merge_range() above except the type of write() is specified.
 #
-#NYI sub merge_range_type {
-#NYI 
-#NYI     my $self = shift;
-#NYI     my $type = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     my $row_first = shift;
-#NYI     my $col_first = shift;
-#NYI     my $row_last  = shift;
-#NYI     my $col_last  = shift;
-#NYI     my $format;
-#NYI 
-#NYI     # Get the format. It can be in different positions for the different types.
-#NYI     if (   $type eq 'array_formula'
-#NYI         || $type eq 'blank'
-#NYI         || $type eq 'rich_string' )
-#NYI     {
-#NYI 
-#NYI         # The format is the last element.
-#NYI         $format = $_[-1];
-#NYI     }
-#NYI     else {
-#NYI 
-#NYI         # Or else it is after the token.
-#NYI         $format = $_[1];
-#NYI     }
-#NYI 
-#NYI     # Check that there is a format object.
-#NYI     fail "Format object missing or in an incorrect position"
-#NYI       unless ref $format;
-#NYI 
-#NYI     # Excel doesn't allow a single cell to be merged
-#NYI     if ( $row_first == $row_last and $col_first == $col_last ) {
-#NYI         fail "Can't merge single cell";
-#NYI     }
-#NYI 
-#NYI     # Swap last row/col with first row/col as necessary
-#NYI     ( $row_first, $row_last ) = ( $row_last, $row_first )
-#NYI       if $row_first > $row_last;
-#NYI     ( $col_first, $col_last ) = ( $col_last, $col_first )
-#NYI       if $col_first > $col_last;
-#NYI 
-#NYI     # Check that column number is valid and store the max value
-#NYI     return if $self._check_dimensions( $row_last, $col_last );
-#NYI 
-#NYI     # Store the merge range.
-#NYI     push @{ $self.{_merge} }, [ $row_first, $col_first, $row_last, $col_last ];
-#NYI 
-#NYI     # Write the first cell
-#NYI     if ( $type eq 'string' ) {
-#NYI         $self.write_string( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'number' ) {
-#NYI         $self.write_number( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'blank' ) {
-#NYI         $self.write_blank( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'date_time' ) {
-#NYI         $self.write_date_time( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'rich_string' ) {
-#NYI         $self.write_rich_string( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'url' ) {
-#NYI         $self.write_url( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'formula' ) {
-#NYI         $self.write_formula( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     elsif ( $type eq 'array_formula' ) {
-#NYI         $self.write_formula_array( $row_first, $col_first, @_ );
-#NYI     }
-#NYI     else {
-#NYI         fail "Unknown type '$type'";
-#NYI     }
-#NYI 
-#NYI     # Pad out the rest of the area with formatted blank cells.
-#NYI     for my $row ( $row_first .. $row_last ) {
-#NYI         for my $col ( $col_first .. $col_last ) {
-#NYI             next if $row == $row_first and $col == $col_first;
-#NYI             $self.write_blank( $row, $col, $format );
-#NYI         }
-#NYI     }
-#NYI }
+method merge-range-type($type, *@args) {
+
+    # Check for a cell reference in A1 notation and substitute row and column
+    if @args[0] ~~ /^\D/ {
+        @args = self!substitute-cellref(@args);
+    }
+
+    my $row-first = @args.shift;
+    my $col-first = @args.shift;
+    my $row-last  = @args.shift;
+    my $col-last  = @args.shift;
+    my $format;
+
+    # Get the format. It can be in different positions for the different types.
+    if    $type eq 'array-formula'
+       || $type eq 'blank'
+       || $type eq 'rich-string'
+    {
+
+        # The format is the last element.
+        $format = @args[*-1];
+    }
+    else {
+
+        # Or else it is after the token.
+        $format = @args[1];
+    }
+
+    # Check that there is a format object.
+    fail "Format object missing or in an incorrect position"
+      unless $format ~~ (Excel::Writer::XLSX::Format);
+
+    # Excel doesn't allow a single cell to be merged
+    if $row-first == $row-last and $col-first == $col-last {
+        fail "Can't merge single cell";
+    }
+
+    # Swap last row/col with first row/col as necessary
+    ($row-first, $row-last) = ($row-last, $row-first) if $row-first > $row-last;
+    ($col-first, $col-last) = ($col-last, $col-first) if $col-first > $col-last;
+ 
+    # Check that column number is valid and store the max value
+    return if self!check-dimensions($row-last, $col-last);
+
+    # Store the merge range.
+    @!merge.push: @($row-first, $col-first, $row-last, $col-last);
+
+    # Write the first cell
+    if $type eq 'string' {
+        self.write-string($row-first, $col-first, @args);
+    }
+    elsif $type eq 'number' {
+        self.write-number($row-first, $col-first, @args);
+    }
+    elsif $type eq 'blank' {
+        self.write-blank($row-first, $col-first, @args);
+    }
+    elsif $type eq 'date-time' {
+        self.write-date-time( $row-first, $col-first, @args);
+    }
+    elsif ( $type eq 'rich_string' ) {
+        self.write-rich-string($row-first, $col-first, @args);
+    }
+    elsif $type eq 'url' {
+        self.write-url($row-first, $col-first, @args);
+    }
+    elsif $type eq 'formula' {
+        self.write-formula($row-first, $col-first, @args);
+    }
+    elsif $type eq 'array-formula' {
+        self.write-formula-array($row-first, $col-first, @args);
+    }
+    else {
+        fail "Unknown type '$type'";
+    }
+
+    # Pad out the rest of the area with formatted blank cells.
+    for $row-first .. $row-last -> $row {
+        for $col-first .. $col-last -> $col {
+            next if $row == $row-first and $col == $col-first;
+            self.write-blank($row, $col, $format);
+        }
+    }
+}
 
 
 ###############################################################################
 #
-# data_validation($row, $col, {...})
+# data-validation($row, $col, {...})
 #
 # This method handles the interface to Excel data validation.
 # Somewhat ironically this requires a lot of validation code since the
@@ -3136,291 +2985,268 @@ method escape-url($url) {
 #         -2 : row or column out of range
 #         -3 : incorrect parameter.
 #
-#NYI sub data_validation {
-#NYI 
-#NYI     my $self = shift;
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     # Check for a valid number of args.
-#NYI     if ( @_ != 5 && @_ != 3 ) { return -1 }
-#NYI 
-#NYI     # The final hashref contains the validation parameters.
-#NYI     my $param = pop;
-#NYI 
-#NYI     # Make the last row/col the same as the first if not defined.
-#NYI     my ( $row1, $col1, $row2, $col2 ) = @_;
-#NYI     if ( !defined $row2 ) {
-#NYI         $row2 = $row1;
-#NYI         $col2 = $col1;
-#NYI     }
-#NYI 
-#NYI     # Check that row and col are valid without storing the values.
-#NYI     return -2 if $self._check_dimensions( $row1, $col1, 1, 1 );
-#NYI     return -2 if $self._check_dimensions( $row2, $col2, 1, 1 );
-#NYI 
-#NYI 
-#NYI     # Check that the last parameter is a hash list.
-#NYI     if ( ref $param ne 'HASH' ) {
-#NYI         warn "Last parameter '$param' in data_validation() must be a hash ref";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # List of valid input parameters.
-#NYI     my %valid_parameter = (
-#NYI         validate      => 1,
-#NYI         criteria      => 1,
-#NYI         value         => 1,
-#NYI         source        => 1,
-#NYI         minimum       => 1,
-#NYI         maximum       => 1,
-#NYI         ignore_blank  => 1,
-#NYI         dropdown      => 1,
-#NYI         show_input    => 1,
-#NYI         input_title   => 1,
-#NYI         input_message => 1,
-#NYI         show_error    => 1,
-#NYI         error_title   => 1,
-#NYI         error_message => 1,
-#NYI         error_type    => 1,
-#NYI         other_cells   => 1,
-#NYI     );
-#NYI 
-#NYI     # Check for valid input parameters.
-#NYI     for my $param_key ( keys %$param ) {
-#NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             warn "Unknown parameter '$param_key' in data_validation()";
-#NYI             return -3;
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Map alternative parameter names 'source' or 'minimum' to 'value'.
-#NYI     $param.{value} = $param.{source}  if defined $param.{source};
-#NYI     $param.{value} = $param.{minimum} if defined $param.{minimum};
-#NYI 
-#NYI     # 'validate' is a required parameter.
-#NYI     if ( not exists $param.{validate} ) {
-#NYI         warn "Parameter 'validate' is required in data_validation()";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of  valid validation types.
-#NYI     my %valid_type = (
-#NYI         'any'          => 'none',
-#NYI         'any value'    => 'none',
-#NYI         'whole number' => 'whole',
-#NYI         'whole'        => 'whole',
-#NYI         'integer'      => 'whole',
-#NYI         'decimal'      => 'decimal',
-#NYI         'list'         => 'list',
-#NYI         'date'         => 'date',
-#NYI         'time'         => 'time',
-#NYI         'text length'  => 'textLength',
-#NYI         'length'       => 'textLength',
-#NYI         'custom'       => 'custom',
-#NYI     );
-#NYI 
-#NYI 
-#NYI     # Check for valid validation types.
-#NYI     if ( not exists $valid_type{ lc( $param.{validate} ) } ) {
-#NYI         warn "Unknown validation type '$param.{validate}' for parameter "
-#NYI           . "'validate' in data_validation()";
-#NYI         return -3;
-#NYI     }
-#NYI     else {
-#NYI         $param.{validate} = $valid_type{ lc( $param.{validate} ) };
-#NYI     }
-#NYI 
-#NYI     # No action is required for validation type 'any'
-#NYI     # unless there are input messages.
-#NYI     if (   $param.{validate} eq 'none'
-#NYI         && !defined $param.{input_message}
-#NYI         && !defined $param.{input_title} )
-#NYI     {
-#NYI         return 0;
-#NYI     }
-#NYI 
-#NYI     # The any, list and custom validations don't have a criteria
-#NYI     # so we use a default of 'between'.
-#NYI     if (   $param.{validate} eq 'none'
-#NYI         || $param.{validate} eq 'list'
-#NYI         || $param.{validate} eq 'custom' )
-#NYI     {
-#NYI         $param.{criteria} = 'between';
-#NYI         $param.{maximum}  = undef;
-#NYI     }
-#NYI 
-#NYI     # 'criteria' is a required parameter.
-#NYI     if ( not exists $param.{criteria} ) {
-#NYI         warn "Parameter 'criteria' is required in data_validation()";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of valid criteria types.
-#NYI     my %criteria_type = (
-#NYI         'between'                  => 'between',
-#NYI         'not between'              => 'notBetween',
-#NYI         'equal to'                 => 'equal',
-#NYI         '='                        => 'equal',
-#NYI         '=='                       => 'equal',
-#NYI         'not equal to'             => 'notEqual',
-#NYI         '!='                       => 'notEqual',
-#NYI         '<>'                       => 'notEqual',
-#NYI         'greater than'             => 'greaterThan',
-#NYI         '>'                        => 'greaterThan',
-#NYI         'less than'                => 'lessThan',
-#NYI         '<'                        => 'lessThan',
-#NYI         'greater than or equal to' => 'greaterThanOrEqual',
-#NYI         '>='                       => 'greaterThanOrEqual',
-#NYI         'less than or equal to'    => 'lessThanOrEqual',
-#NYI         '<='                       => 'lessThanOrEqual',
-#NYI     );
-#NYI 
-#NYI     # Check for valid criteria types.
-#NYI     if ( not exists $criteria_type{ lc( $param.{criteria} ) } ) {
-#NYI         warn "Unknown criteria type '$param.{criteria}' for parameter "
-#NYI           . "'criteria' in data_validation()";
-#NYI         return -3;
-#NYI     }
-#NYI     else {
-#NYI         $param.{criteria} = $criteria_type{ lc( $param.{criteria} ) };
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # 'Between' and 'Not between' criteria require 2 values.
-#NYI     if ( $param.{criteria} eq 'between' || $param.{criteria} eq 'notBetween' )
-#NYI     {
-#NYI         if ( not exists $param.{maximum} ) {
-#NYI             warn "Parameter 'maximum' is required in data_validation() "
-#NYI               . "when using 'between' or 'not between' criteria";
-#NYI             return -3;
-#NYI         }
-#NYI     }
-#NYI     else {
-#NYI         $param.{maximum} = undef;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of valid error dialog types.
-#NYI     my %error_type = (
-#NYI         'stop'        => 0,
-#NYI         'warning'     => 1,
-#NYI         'information' => 2,
-#NYI     );
-#NYI 
-#NYI     # Check for valid error dialog types.
-#NYI     if ( not exists $param.{error_type} ) {
-#NYI         $param.{error_type} = 0;
-#NYI     }
-#NYI     elsif ( not exists $error_type{ lc( $param.{error_type} ) } ) {
-#NYI         warn "Unknown criteria type '$param.{error_type}' for parameter "
-#NYI           . "'error_type' in data_validation()";
-#NYI         return -3;
-#NYI     }
-#NYI     else {
-#NYI         $param.{error_type} = $error_type{ lc( $param.{error_type} ) };
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Convert date/times value if required.
-#NYI     if ( $param.{validate} eq 'date' || $param.{validate} eq 'time' ) {
-#NYI         if ( $param.{value} =~ /T/ ) {
-#NYI             my $date_time = $self.convert_date_time( $param.{value} );
-#NYI 
-#NYI             if ( !defined $date_time ) {
-#NYI                 warn "Invalid date/time value '$param.{value}' "
-#NYI                   . "in data_validation()";
-#NYI                 return -3;
-#NYI             }
-#NYI             else {
-#NYI                 $param.{value} = $date_time;
-#NYI             }
-#NYI         }
-#NYI         if ( defined $param.{maximum} && $param.{maximum} =~ /T/ ) {
-#NYI             my $date_time = $self.convert_date_time( $param.{maximum} );
-#NYI 
-#NYI             if ( !defined $date_time ) {
-#NYI                 warn "Invalid date/time value '$param.{maximum}' "
-#NYI                   . "in data_validation()";
-#NYI                 return -3;
-#NYI             }
-#NYI             else {
-#NYI                 $param.{maximum} = $date_time;
-#NYI             }
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Check that the input title doesn't exceed the maximum length.
-#NYI     if ( $param.{input_title} and length $param.{input_title} > 32 ) {
-#NYI         warn "Length of input title '$param.{input_title}'"
-#NYI           . " exceeds Excel's limit of 32";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # Check that the error title don't exceed the maximum length.
-#NYI     if ( $param.{error_title} and length $param.{error_title} > 32 ) {
-#NYI         warn "Length of error title '$param.{error_title}'"
-#NYI           . " exceeds Excel's limit of 32";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # Check that the input message don't exceed the maximum length.
-#NYI     if ( $param.{input_message} and length $param.{input_message} > 255 ) {
-#NYI         warn "Length of input message '$param.{input_message}'"
-#NYI           . " exceeds Excel's limit of 255";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # Check that the error message don't exceed the maximum length.
-#NYI     if ( $param.{error_message} and length $param.{error_message} > 255 ) {
-#NYI         warn "Length of error message '$param.{error_message}'"
-#NYI           . " exceeds Excel's limit of 255";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # Check that the input list don't exceed the maximum length.
-#NYI     if ( $param.{validate} eq 'list' ) {
-#NYI 
-#NYI         if ( ref $param.{value} eq 'ARRAY' ) {
-#NYI 
-#NYI             my $formula = join ',', @{ $param.{value} };
-#NYI             if ( length $formula > 255 ) {
-#NYI                 warn "Length of list items '$formula' exceeds Excel's "
-#NYI                   . "limit of 255, use a formula range instead";
-#NYI                 return -3;
-#NYI             }
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Set some defaults if they haven't been defined by the user.
-#NYI     $param.{ignore_blank} = 1 if !defined $param.{ignore_blank};
-#NYI     $param.{dropdown}     = 1 if !defined $param.{dropdown};
-#NYI     $param.{show_input}   = 1 if !defined $param.{show_input};
-#NYI     $param.{show_error}   = 1 if !defined $param.{show_error};
-#NYI 
-#NYI 
-#NYI     # These are the cells to which the validation is applied.
-#NYI     $param.{cells} = [ [ $row1, $col1, $row2, $col2 ] ];
-#NYI 
-#NYI     # A (for now) undocumented parameter to pass additional cell ranges.
-#NYI     if ( exists $param.{other_cells} ) {
-#NYI 
-#NYI         push @{ $param.{cells} }, @{ $param.{other_cells} };
-#NYI     }
-#NYI 
-#NYI     # Store the validation information until we close the worksheet.
-#NYI     push @{ $self.{_validations} }, $param;
-#NYI }
+multi method data-validation($ref where /^\D/, *%args) {
+   my @rowargs = self.substitute-cellref(@($ref));
+   callwith(|@rowargs, |%args);
+}
+
+multi method data-validation($row, $col, $row1, $col1, *%param) {
+    callwith($row, $col, $row1, $col1, $row1, $col1, |%param);
+}
+
+multi method data-validation($row, $col, $row1, $col1, $row2, $col2, *%param) {
+
+    # Check that row and col are valid without storing the values.
+    return -2 if self!check-dimensions($row1, $col1, 1, 1);
+    return -2 if self!check-dimensions($row2, $col2, 1, 1);
+
+    # List of valid input parameters.
+    my %valid-parameter = (
+        validate      => 1,
+        criteria      => 1,
+        value         => 1,
+        source        => 1,
+        minimum       => 1,
+        maximum       => 1,
+        ignore-blank  => 1,
+        dropdown      => 1,
+        show-input    => 1,
+        input-title   => 1,
+        input-message => 1,
+        show-error    => 1,
+        error-title   => 1,
+        error-message => 1,
+        error-type    => 1,
+        other-cells   => 1,
+    );
+
+    # Check for valid input parameters.
+    for %param.keys -> $param-key {
+        if not %valid-parameter{$param-key}.exists {
+            warn "Unknown parameter '$param-key' in data-validation()";
+            return -3;
+        }
+    }
+
+    # Map alternative parameter names 'source' or 'minimum' to 'value'.
+    %param<value> = %param<source>  if %param<source>.defined;
+    %param<value> = %param<minimum> if %param<minimum>.defined;
+
+    # 'validate' is a required parameter.
+    if not %param<validate>.exists {
+        warn "Parameter 'validate' is required in data-validation()";
+        return -3;
+    }
+
+
+     # List of  valid validation types.
+    my %valid-type = (
+        'any'          => 'none',
+        'any value'    => 'none',
+        'whole number' => 'whole',
+        'whole'        => 'whole',
+        'integer'      => 'whole',
+        'decimal'      => 'decimal',
+        'list'         => 'list',
+        'date'         => 'date',
+        'time'         => 'time',
+        'text length'  => 'textLength',
+        'length'       => 'textLength',
+        'custom'       => 'custom',
+    );
+
+    # Check for valid validation types.
+    if not %valid-type{%param<validate>}.exists {
+        warn "Unknown validation type '%param<validate>' for parameter "
+          ~ "'validate' in data-validation()";
+        return -3;
+    }
+    else {
+        %param<validate> = %valid-type{%param<validate>.lc};
+    }
+
+    # No action is required for validation type 'any'
+    # unless there are input messages.
+    if     %param<validate> eq 'none'
+        && !%param<input-message>.defined
+        && !%param<input-title>.defined
+    {
+        return 0;
+    }
+
+    # The any, list and custom validations don't have a criteria
+    # so we use a default of 'between'.
+    if     %param<validate> eq 'none'
+        || %param<validate> eq 'list'
+        || %param<validate> eq 'custom'
+    {
+        %param<criteria> = 'between';
+        %param<maximum>  = Nil;
+    }
+
+    # 'criteria' is a required parameter.
+    if not %param<criteria>.exists {
+        warn "Parameter 'criteria' is required in data-validation()";
+        return -3;
+    }
+
+
+    # List of valid criteria types.
+    my %criteria-type = (
+        'between'                  => 'between',
+        'not between'              => 'notBetween',
+        'equal to'                 => 'equal',
+        '='                        => 'equal',
+        '=='                       => 'equal',
+        'not equal to'             => 'notEqual',
+        '!='                       => 'notEqual',
+        '<>'                       => 'notEqual',
+        'greater than'             => 'greaterThan',
+        '>'                        => 'greaterThan',
+        'less than'                => 'lessThan',
+        '<'                        => 'lessThan',
+        'greater than or equal to' => 'greaterThanOrEqual',
+        '>='                       => 'greaterThanOrEqual',
+        'less than or equal to'    => 'lessThanOrEqual',
+        '<='                       => 'lessThanOrEqual',
+    );
+
+    # Check for valid criteria types.
+    if not %criteria-type{%param<criteria>.lc}.exists {
+        warn "Unknown criteria type '%param<criteria>' for parameter "
+          ~ "'criteria' in data-validation()";
+        return -3;
+    }
+    else {
+        %param<criteria> = %criteria-type{%param<criteria>.lc};
+    }
+
+    # 'Between' and 'Not between' criteria require 2 values.
+    if %param<criteria> eq 'between' || %param<criteria> eq 'notBetween'
+    {
+        if not %param<maximum>.exists {
+            warn "Parameter 'maximum' is required in data-validation() "
+              ~ "when using 'between' or 'not between' criteria";
+            return -3;
+        }
+    }
+    else {
+        %param<maximum> = Nil;
+    }
+
+
+    # List of valid error dialog types.
+    my %error-type = (
+        'stop'        => 0,
+        'warning'     => 1,
+        'information' => 2,
+    );
+
+    # Check for valid error dialog types.
+    if not %param<error-type>.exists {
+        %param<error-type> = 0;
+    }
+    elsif not %error-type{%param<error-type>.lc}.exists {
+        warn "Unknown criteria type '%param<error-type>' for parameter "
+          ~ "'error-type' in data-validation()";
+        return -3;
+    }
+    else {
+        %param<error-type> = %error-type{%param<error-type>.lc};
+    }
+
+
+    # Convert date/times value if required.
+    if %param<validate> eq 'date' || %param<validate> eq 'time' {
+        if %param<value> ~~ /T/ {
+            my $date-time = self.convert-date-time(%param<value>);
+
+            if ! $date-time.defined {
+                warn "Invalid date/time value '%param<value>' "
+                  ~ "in data-validation()";
+                return -3;
+            }
+            else {
+                %param<value> = $date-time;
+            }
+        }
+        if %param<maximum>.defined && %param<maximum> ~~ /T/ {
+            my $date-time = self.convert-date-time(%param<maximum>);
+
+            if ! $date-time.defined {
+                warn "Invalid date/time value '%param<maximum>' "
+                  ~ "in data_validation()";
+                return -3;
+            }
+            else {
+                %param<maximum> = $date-time;
+            }
+        }
+    }
+
+    # Check that the input title doesn't exceed the maximum length.
+    if %param<input-title>.exists and %param<input-title>.bytes > 32 {
+        warn "Length of input title '%param<input-title>'"
+          ~ " exceeds Excel's limit of 32";
+        return -3;
+    }
+
+    # Check that the error title don't exceed the maximum length.
+    if %param<error-title> and %param<error-title>.bytes > 32 {
+        warn "Length of error title '%param<error-title>'"
+          ~ " exceeds Excel's limit of 32";
+        return -3;
+    }
+
+    # Check that the input message don't exceed the maximum length.
+    if %param<input-message> and %param<input-message>.bytes > 255 {
+        warn "Length of input message '%param<input-message>'"
+          ~ " exceeds Excel's limit of 255";
+        return -3;
+    }
+
+    # Check that the error message don't exceed the maximum length.
+    if %param<error-message> and %param<error-message>.bytes > 255 {
+        warn "Length of error message '%param<error-message>'"
+          ~ " exceeds Excel's limit of 255";
+        return -3;
+    }
+
+    # Check that the input list don't exceed the maximum length.
+    if %param<validate> eq 'list' {
+        if %param<value> ~~ (Array) {
+            my $formula = %param<value>.join: ',';
+            if $formula.bytes > 255 {
+                warn "Length of list items '$formula' exceeds Excel's "
+                  ~ "limit of 255, use a formula range instead";
+                return -3;
+            }
+        }
+    }
+
+    # Set some defaults if they haven't been defined by the user.
+    %param<ignore-blank> = 1 if ! %param<ignore-blank>.defined;
+    %param<dropdown>     = 1 if ! %param<dropdown>.defined;
+    %param<show-input>   = 1 if ! %param<show-input>.defined;
+    %param<show-error>   = 1 if ! %param<show-error>.defined;
+
+
+    # These are the cells to which the validation is applied.
+    %param<cells> = @( @($row1, $col1, $row2, $col2) );
+
+    # A (for now) undocumented parameter to pass additional cell ranges.
+    if %param<other-cells>.exists {
+        %param<cells>.append: %param<other-cells>;
+    }
+
+    # Store the validation information until we close the worksheet.
+    @!validations.push: %param;
+}
 
 
 ###############################################################################
 #
-# conditional_formatting($row, $col, {...})
+# conditional-formatting($row, $col, {...})
 #
 # This method handles the interface to Excel conditional formatting.
 #
@@ -3434,474 +3260,468 @@ method escape-url($url) {
 #         -2 : row or column out of range
 #         -3 : incorrect parameter.
 #
-#NYI sub conditional_formatting {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $user_range = '';
-#NYI 
-#NYI     # Check for a cell reference in A1 notation and substitute row and column
-#NYI     if ( $_[0] =~ /^\D/ ) {
-#NYI 
-#NYI         # Check for a user defined multiple range like B3:K6,B8:K11.
-#NYI         if ( $_[0] =~ /,/ ) {
-#NYI             $user_range = $_[0];
-#NYI             $user_range =~ s/^=//;
-#NYI             $user_range =~ s/\s*,\s*/ /g;
-#NYI             $user_range =~ s/\$//g;
-#NYI         }
-#NYI 
-#NYI         @_ = $self._substitute_cellref( @_ );
-#NYI     }
-#NYI 
-#NYI     # The final hashref contains the validation parameters.
-#NYI     my $options = pop;
-#NYI 
-#NYI     # Make the last row/col the same as the first if not defined.
-#NYI     my ( $row1, $col1, $row2, $col2 ) = @_;
-#NYI     if ( !defined $row2 ) {
-#NYI         $row2 = $row1;
-#NYI         $col2 = $col1;
-#NYI     }
-#NYI 
-#NYI     # Check that row and col are valid without storing the values.
-#NYI     return -2 if $self._check_dimensions( $row1, $col1, 1, 1 );
-#NYI     return -2 if $self._check_dimensions( $row2, $col2, 1, 1 );
-#NYI 
-#NYI 
-#NYI     # Check that the last parameter is a hash list.
-#NYI     if ( ref $options ne 'HASH' ) {
-#NYI         warn "Last parameter in conditional_formatting() "
-#NYI           . "must be a hash ref";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI     # Copy the user params.
-#NYI     my $param = {%$options};
-#NYI 
-#NYI     # List of valid input parameters.
-#NYI     my %valid_parameter = (
-#NYI         type          => 1,
-#NYI         format        => 1,
-#NYI         criteria      => 1,
-#NYI         value         => 1,
-#NYI         minimum       => 1,
-#NYI         maximum       => 1,
-#NYI         stop_if_true  => 1,
-#NYI         min_type      => 1,
-#NYI         mid_type      => 1,
-#NYI         max_type      => 1,
-#NYI         min_value     => 1,
-#NYI         mid_value     => 1,
-#NYI         max_value     => 1,
-#NYI         min_color     => 1,
-#NYI         mid_color     => 1,
-#NYI         max_color     => 1,
-#NYI         bar_color     => 1,
-#NYI         icon_style    => 1,
-#NYI         reverse_icons => 1,
-#NYI         icons_only    => 1,
-#NYI         icons         => 1,
-#NYI     );
-#NYI 
-#NYI     # Check for valid input parameters.
-#NYI     for my $param_key ( keys %$param ) {
-#NYI         if ( not exists $valid_parameter{$param_key} ) {
-#NYI             warn "Unknown parameter '$param_key' in conditional_formatting()";
-#NYI             return -3;
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # 'type' is a required parameter.
-#NYI     if ( not exists $param.{type} ) {
-#NYI         warn "Parameter 'type' is required in conditional_formatting()";
-#NYI         return -3;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of  valid validation types.
-#NYI     my %valid_type = (
-#NYI         'cell'          => 'cellIs',
-#NYI         'date'          => 'date',
-#NYI         'time'          => 'time',
-#NYI         'average'       => 'aboveAverage',
-#NYI         'duplicate'     => 'duplicateValues',
-#NYI         'unique'        => 'uniqueValues',
-#NYI         'top'           => 'top10',
-#NYI         'bottom'        => 'top10',
-#NYI         'text'          => 'text',
-#NYI         'time_period'   => 'timePeriod',
-#NYI         'blanks'        => 'containsBlanks',
-#NYI         'no_blanks'     => 'notContainsBlanks',
-#NYI         'errors'        => 'containsErrors',
-#NYI         'no_errors'     => 'notContainsErrors',
-#NYI         '2_color_scale' => '2_color_scale',
-#NYI         '3_color_scale' => '3_color_scale',
-#NYI         'data_bar'      => 'dataBar',
-#NYI         'formula'       => 'expression',
-#NYI         'icon_set'      => 'iconSet',
-#NYI     );
-#NYI 
-#NYI     # Check for valid validation types.
-#NYI     if ( not exists $valid_type{ lc( $param.{type} ) } ) {
-#NYI         warn "Unknown validation type '$param.{type}' for parameter "
-#NYI           . "'type' in conditional_formatting()";
-#NYI         return -3;
-#NYI     }
-#NYI     else {
-#NYI         $param.{direction} = 'bottom' if $param.{type} eq 'bottom';
-#NYI         $param.{type} = $valid_type{ lc( $param.{type} ) };
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of valid criteria types.
-#NYI     my %criteria_type = (
-#NYI         'between'                  => 'between',
-#NYI         'not between'              => 'notBetween',
-#NYI         'equal to'                 => 'equal',
-#NYI         '='                        => 'equal',
-#NYI         '=='                       => 'equal',
-#NYI         'not equal to'             => 'notEqual',
-#NYI         '!='                       => 'notEqual',
-#NYI         '<>'                       => 'notEqual',
-#NYI         'greater than'             => 'greaterThan',
-#NYI         '>'                        => 'greaterThan',
-#NYI         'less than'                => 'lessThan',
-#NYI         '<'                        => 'lessThan',
-#NYI         'greater than or equal to' => 'greaterThanOrEqual',
-#NYI         '>='                       => 'greaterThanOrEqual',
-#NYI         'less than or equal to'    => 'lessThanOrEqual',
-#NYI         '<='                       => 'lessThanOrEqual',
-#NYI         'containing'               => 'containsText',
-#NYI         'not containing'           => 'notContains',
-#NYI         'begins with'              => 'beginsWith',
-#NYI         'ends with'                => 'endsWith',
-#NYI         'yesterday'                => 'yesterday',
-#NYI         'today'                    => 'today',
-#NYI         'last 7 days'              => 'last7Days',
-#NYI         'last week'                => 'lastWeek',
-#NYI         'this week'                => 'thisWeek',
-#NYI         'next week'                => 'nextWeek',
-#NYI         'last month'               => 'lastMonth',
-#NYI         'this month'               => 'thisMonth',
-#NYI         'next month'               => 'nextMonth',
-#NYI     );
-#NYI 
-#NYI     # Check for valid criteria types.
-#NYI     if ( defined $param.{criteria}
-#NYI         && exists $criteria_type{ lc( $param.{criteria} ) } )
-#NYI     {
-#NYI         $param.{criteria} = $criteria_type{ lc( $param.{criteria} ) };
-#NYI     }
-#NYI 
-#NYI     # Convert date/times value if required.
-#NYI     if ( $param.{type} eq 'date' || $param.{type} eq 'time' ) {
-#NYI         $param.{type} = 'cellIs';
-#NYI 
-#NYI         if ( defined $param.{value} && $param.{value} =~ /T/ ) {
-#NYI             my $date_time = $self.convert_date_time( $param.{value} );
-#NYI 
-#NYI             if ( !defined $date_time ) {
-#NYI                 warn "Invalid date/time value '$param.{value}' "
-#NYI                   . "in conditional_formatting()";
-#NYI                 return -3;
-#NYI             }
-#NYI             else {
-#NYI                 $param.{value} = $date_time;
-#NYI             }
-#NYI         }
-#NYI 
-#NYI         if ( defined $param.{minimum} && $param.{minimum} =~ /T/ ) {
-#NYI             my $date_time = $self.convert_date_time( $param.{minimum} );
-#NYI 
-#NYI             if ( !defined $date_time ) {
-#NYI                 warn "Invalid date/time value '$param.{minimum}' "
-#NYI                   . "in conditional_formatting()";
-#NYI                 return -3;
-#NYI             }
-#NYI             else {
-#NYI                 $param.{minimum} = $date_time;
-#NYI             }
-#NYI         }
-#NYI 
-#NYI         if ( defined $param.{maximum} && $param.{maximum} =~ /T/ ) {
-#NYI             my $date_time = $self.convert_date_time( $param.{maximum} );
-#NYI 
-#NYI             if ( !defined $date_time ) {
-#NYI                 warn "Invalid date/time value '$param.{maximum}' "
-#NYI                   . "in conditional_formatting()";
-#NYI                 return -3;
-#NYI             }
-#NYI             else {
-#NYI                 $param.{maximum} = $date_time;
-#NYI             }
-#NYI         }
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # List of valid icon styles.
-#NYI     my %icon_set_styles = (
-#NYI         "3_arrows"                => "3Arrows",            # 1
-#NYI         "3_flags"                 => "3Flags",             # 2
-#NYI         "3_traffic_lights_rimmed" => "3TrafficLights2",    # 3
-#NYI         "3_symbols_circled"       => "3Symbols",           # 4
-#NYI         "4_arrows"                => "4Arrows",            # 5
-#NYI         "4_red_to_black"          => "4RedToBlack",        # 6
-#NYI         "4_traffic_lights"        => "4TrafficLights",     # 7
-#NYI         "5_arrows_gray"           => "5ArrowsGray",        # 8
-#NYI         "5_quarters"              => "5Quarters",          # 9
-#NYI         "3_arrows_gray"           => "3ArrowsGray",        # 10
-#NYI         "3_traffic_lights"        => "3TrafficLights",     # 11
-#NYI         "3_signs"                 => "3Signs",             # 12
-#NYI         "3_symbols"               => "3Symbols2",          # 13
-#NYI         "4_arrows_gray"           => "4ArrowsGray",        # 14
-#NYI         "4_ratings"               => "4Rating",            # 15
-#NYI         "5_arrows"                => "5Arrows",            # 16
-#NYI         "5_ratings"               => "5Rating",            # 17
-#NYI     );
-#NYI 
-#NYI 
-#NYI     # Set properties for icon sets.
-#NYI     if ( $param.{type} eq 'iconSet' ) {
-#NYI 
-#NYI         if ( !defined $param.{icon_style} ) {
-#NYI             warn "The 'icon_style' parameter must be specified when "
-#NYI               . "'type' == 'icon_set' in conditional_formatting()";
-#NYI             return -3;
-#NYI         }
-#NYI 
-#NYI         # Check for valid icon styles.
-#NYI         if ( not exists $icon_set_styles{ $param.{icon_style} } ) {
-#NYI             warn "Unknown icon style '$param.{icon_style}' for parameter "
-#NYI               . "'icon_style' in conditional_formatting()";
-#NYI             return -3;
-#NYI         }
-#NYI         else {
-#NYI             $param.{icon_style} = $icon_set_styles{ $param.{icon_style} };
-#NYI         }
-#NYI 
-#NYI         # Set the number of icons for the icon style.
-#NYI         $param.{total_icons} = 3;
-#NYI         if ( $param.{icon_style} =~ /^4/ ) {
-#NYI             $param.{total_icons} = 4;
-#NYI         }
-#NYI         elsif ( $param.{icon_style} =~ /^5/ ) {
-#NYI             $param.{total_icons} = 5;
-#NYI         }
-#NYI 
-#NYI         $param.{icons} =
-#NYI           $self._set_icon_properties( $param.{total_icons}, $param.{icons} );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Set the formatting range.
-#NYI     my $range      = '';
-#NYI     my $start_cell = '';    # Use for formulas.
-#NYI 
-#NYI     # Swap last row/col for first row/col as necessary
-#NYI     if ( $row1 > $row2 ) {
-#NYI         ( $row1, $row2 ) = ( $row2, $row1 );
-#NYI     }
-#NYI 
-#NYI     if ( $col1 > $col2 ) {
-#NYI         ( $col1, $col2 ) = ( $col2, $col1 );
-#NYI     }
-#NYI 
-#NYI     # If the first and last cell are the same write a single cell.
-#NYI     if ( ( $row1 == $row2 ) && ( $col1 == $col2 ) ) {
-#NYI         $range = xl-rowcol-to-cell( $row1, $col1 );
-#NYI         $start_cell = $range;
-#NYI     }
-#NYI     else {
-#NYI         $range = xl-range( $row1, $row2, $col1, $col2 );
-#NYI         $start_cell = xl-rowcol-to-cell( $row1, $col1 );
-#NYI     }
-#NYI 
-#NYI     # Override with user defined multiple range if provided.
-#NYI     if ( $user_range ) {
-#NYI         $range = $user_range;
-#NYI     }
-#NYI 
-#NYI     # Get the dxf format index.
-#NYI     if ( defined $param.{format} && ref $param.{format} ) {
-#NYI         $param.{format} = $param.{format}.get_dxf_index();
-#NYI     }
-#NYI 
-#NYI     # Set the priority based on the order of adding.
-#NYI     $param.{priority} = $self.{_dxf_priority}++;
-#NYI 
-#NYI     # Special handling of text criteria.
-#NYI     if ( $param.{type} eq 'text' ) {
-#NYI 
-#NYI         if ( $param.{criteria} eq 'containsText' ) {
-#NYI             $param.{type}    = 'containsText';
-#NYI             $param.{formula} = sprintf 'NOT(ISERROR(SEARCH("%s",%s)))',
-#NYI               $param.{value}, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'notContains' ) {
-#NYI             $param.{type}    = 'notContainsText';
-#NYI             $param.{formula} = sprintf 'ISERROR(SEARCH("%s",%s))',
-#NYI               $param.{value}, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'beginsWith' ) {
-#NYI             $param.{type}    = 'beginsWith';
-#NYI             $param.{formula} = sprintf 'LEFT(%s,%d)="%s"',
-#NYI               $start_cell, length( $param.{value} ), $param.{value};
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'endsWith' ) {
-#NYI             $param.{type}    = 'endsWith';
-#NYI             $param.{formula} = sprintf 'RIGHT(%s,%d)="%s"',
-#NYI               $start_cell, length( $param.{value} ), $param.{value};
-#NYI         }
-#NYI         else {
-#NYI             warn "Invalid text criteria '$param.{criteria}' "
-#NYI               . "in conditional_formatting()";
-#NYI         }
-#NYI     }
-#NYI 
-#NYI     # Special handling of time time_period criteria.
-#NYI     if ( $param.{type} eq 'timePeriod' ) {
-#NYI 
-#NYI         if ( $param.{criteria} eq 'yesterday' ) {
-#NYI             $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()-1', $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'today' ) {
-#NYI             $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()', $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'tomorrow' ) {
-#NYI             $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()+1', $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'last7Days' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf 'AND(TODAY()-FLOOR(%s,1)<=6,FLOOR(%s,1)<=TODAY())',
-#NYI               $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'lastWeek' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf 'AND(TODAY()-ROUNDDOWN(%s,0)>=(WEEKDAY(TODAY())),'
-#NYI               . 'TODAY()-ROUNDDOWN(%s,0)<(WEEKDAY(TODAY())+7))',
-#NYI               $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'thisWeek' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf 'AND(TODAY()-ROUNDDOWN(%s,0)<=WEEKDAY(TODAY())-1,'
-#NYI               . 'ROUNDDOWN(%s,0)-TODAY()<=7-WEEKDAY(TODAY()))',
-#NYI               $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'nextWeek' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf 'AND(ROUNDDOWN(%s,0)-TODAY()>(7-WEEKDAY(TODAY())),'
-#NYI               . 'ROUNDDOWN(%s,0)-TODAY()<(15-WEEKDAY(TODAY())))',
-#NYI               $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'lastMonth' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf
-#NYI               'AND(MONTH(%s)=MONTH(TODAY())-1,OR(YEAR(%s)=YEAR(TODAY()),'
-#NYI               . 'AND(MONTH(%s)=1,YEAR(A1)=YEAR(TODAY())-1)))',
-#NYI               $start_cell, $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'thisMonth' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf 'AND(MONTH(%s)=MONTH(TODAY()),YEAR(%s)=YEAR(TODAY()))',
-#NYI               $start_cell, $start_cell;
-#NYI         }
-#NYI         elsif ( $param.{criteria} eq 'nextMonth' ) {
-#NYI             $param.{formula} =
-#NYI               sprintf
-#NYI               'AND(MONTH(%s)=MONTH(TODAY())+1,OR(YEAR(%s)=YEAR(TODAY()),'
-#NYI               . 'AND(MONTH(%s)=12,YEAR(%s)=YEAR(TODAY())+1)))',
-#NYI               $start_cell, $start_cell, $start_cell, $start_cell;
-#NYI         }
-#NYI         else {
-#NYI             warn "Invalid time_period criteria '$param.{criteria}' "
-#NYI               . "in conditional_formatting()";
-#NYI         }
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Special handling of blanks/error types.
-#NYI     if ( $param.{type} eq 'containsBlanks' ) {
-#NYI         $param.{formula} = sprintf 'LEN(TRIM(%s))=0', $start_cell;
-#NYI     }
-#NYI 
-#NYI     if ( $param.{type} eq 'notContainsBlanks' ) {
-#NYI         $param.{formula} = sprintf 'LEN(TRIM(%s))>0', $start_cell;
-#NYI     }
-#NYI 
-#NYI     if ( $param.{type} eq 'containsErrors' ) {
-#NYI         $param.{formula} = sprintf 'ISERROR(%s)', $start_cell;
-#NYI     }
-#NYI 
-#NYI     if ( $param.{type} eq 'notContainsErrors' ) {
-#NYI         $param.{formula} = sprintf 'NOT(ISERROR(%s))', $start_cell;
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Special handling for 2 color scale.
-#NYI     if ( $param.{type} eq '2_color_scale' ) {
-#NYI         $param.{type} = 'colorScale';
-#NYI 
-#NYI         # Color scales don't use any additional formatting.
-#NYI         $param.{format} = undef;
-#NYI 
-#NYI         # Turn off 3 color parameters.
-#NYI         $param.{mid_type}  = undef;
-#NYI         $param.{mid_color} = undef;
-#NYI 
-#NYI         $param.{min_type}  ||= 'min';
-#NYI         $param.{max_type}  ||= 'max';
-#NYI         $param.{min_value} ||= 0;
-#NYI         $param.{max_value} ||= 0;
-#NYI         $param.{min_color} ||= '#FF7128';
-#NYI         $param.{max_color} ||= '#FFEF9C';
-#NYI 
-#NYI         $param.{max_color} = $self._get_palette_color( $param.{max_color} );
-#NYI         $param.{min_color} = $self._get_palette_color( $param.{min_color} );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Special handling for 3 color scale.
-#NYI     if ( $param.{type} eq '3_color_scale' ) {
-#NYI         $param.{type} = 'colorScale';
-#NYI 
-#NYI         # Color scales don't use any additional formatting.
-#NYI         $param.{format} = undef;
-#NYI 
-#NYI         $param.{min_type}  ||= 'min';
-#NYI         $param.{mid_type}  ||= 'percentile';
-#NYI         $param.{max_type}  ||= 'max';
-#NYI         $param.{min_value} ||= 0;
-#NYI         $param.{mid_value} = 50 unless defined $param.{mid_value};
-#NYI         $param.{max_value} ||= 0;
-#NYI         $param.{min_color} ||= '#F8696B';
-#NYI         $param.{mid_color} ||= '#FFEB84';
-#NYI         $param.{max_color} ||= '#63BE7B';
-#NYI 
-#NYI         $param.{max_color} = $self._get_palette_color( $param.{max_color} );
-#NYI         $param.{mid_color} = $self._get_palette_color( $param.{mid_color} );
-#NYI         $param.{min_color} = $self._get_palette_color( $param.{min_color} );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Special handling for data bar.
-#NYI     if ( $param.{type} eq 'dataBar' ) {
-#NYI 
-#NYI         # Color scales don't use any additional formatting.
-#NYI         $param.{format} = undef;
-#NYI 
-#NYI         $param.{min_type}  ||= 'min';
-#NYI         $param.{max_type}  ||= 'max';
-#NYI         $param.{min_value} ||= 0;
-#NYI         $param.{max_value} ||= 0;
-#NYI         $param.{bar_color} ||= '#638EC6';
-#NYI 
-#NYI         $param.{bar_color} = $self._get_palette_color( $param.{bar_color} );
-#NYI     }
-#NYI 
-#NYI 
-#NYI     # Store the validation information until we close the worksheet.
-#NYI     push @{ $self.{_cond_formats}.{$range} }, $param;
-#NYI }
+multi method conditional-formatting($ref ~~ /^\D/, *%options) {
+    my $user-range = $ref;
+    $user-range ~~ s/^\=//;
+    $user-range ~~ s:g/\s*\,\s*/ /;
+    $user-range ~~ s:g/\$//;
+
+    callwith ???????;
+}
+
+        @_ = $self._substitute_cellref( @_ );
+    }
+
+
+    # The final hashref contains the validation parameters.
+    my $options = pop;
+
+    # Make the last row/col the same as the first if not defined.
+    my ( $row1, $col1, $row2, $col2 ) = @_;
+    if ( !defined $row2 ) {
+        $row2 = $row1;
+        $col2 = $col1;
+    }
+
+    # Check that row and col are valid without storing the values.
+    return -2 if $self._check_dimensions( $row1, $col1, 1, 1 );
+    return -2 if $self._check_dimensions( $row2, $col2, 1, 1 );
+
+
+    # Check that the last parameter is a hash list.
+    if ( ref $options ne 'HASH' ) {
+        warn "Last parameter in conditional_formatting() "
+          . "must be a hash ref";
+        return -3;
+    }
+
+    # Copy the user params.
+    my $param = {%$options};
+
+    # List of valid input parameters.
+    my %valid_parameter = (
+        type          => 1,
+        format        => 1,
+        criteria      => 1,
+        value         => 1,
+        minimum       => 1,
+        maximum       => 1,
+        stop_if_true  => 1,
+        min_type      => 1,
+        mid_type      => 1,
+        max_type      => 1,
+        min_value     => 1,
+        mid_value     => 1,
+        max_value     => 1,
+        min_color     => 1,
+        mid_color     => 1,
+        max_color     => 1,
+        bar_color     => 1,
+        icon_style    => 1,
+        reverse_icons => 1,
+        icons_only    => 1,
+        icons         => 1,
+    );
+
+    # Check for valid input parameters.
+    for my $param_key ( keys %$param ) {
+        if ( not exists $valid_parameter{$param_key} ) {
+            warn "Unknown parameter '$param_key' in conditional_formatting()";
+            return -3;
+        }
+    }
+
+    # 'type' is a required parameter.
+    if ( not exists $param.{type} ) {
+        warn "Parameter 'type' is required in conditional_formatting()";
+        return -3;
+    }
+
+
+    # List of  valid validation types.
+    my %valid_type = (
+        'cell'          => 'cellIs',
+        'date'          => 'date',
+        'time'          => 'time',
+        'average'       => 'aboveAverage',
+        'duplicate'     => 'duplicateValues',
+        'unique'        => 'uniqueValues',
+        'top'           => 'top10',
+        'bottom'        => 'top10',
+        'text'          => 'text',
+        'time_period'   => 'timePeriod',
+        'blanks'        => 'containsBlanks',
+        'no_blanks'     => 'notContainsBlanks',
+        'errors'        => 'containsErrors',
+        'no_errors'     => 'notContainsErrors',
+        '2_color_scale' => '2_color_scale',
+        '3_color_scale' => '3_color_scale',
+        'data_bar'      => 'dataBar',
+        'formula'       => 'expression',
+        'icon_set'      => 'iconSet',
+    );
+
+    # Check for valid validation types.
+    if ( not exists $valid_type{ lc( $param.{type} ) } ) {
+        warn "Unknown validation type '$param.{type}' for parameter "
+          . "'type' in conditional_formatting()";
+        return -3;
+    }
+    else {
+        $param.{direction} = 'bottom' if $param.{type} eq 'bottom';
+        $param.{type} = $valid_type{ lc( $param.{type} ) };
+    }
+
+
+    # List of valid criteria types.
+    my %criteria_type = (
+        'between'                  => 'between',
+        'not between'              => 'notBetween',
+        'equal to'                 => 'equal',
+        '='                        => 'equal',
+        '=='                       => 'equal',
+        'not equal to'             => 'notEqual',
+        '!='                       => 'notEqual',
+        '<>'                       => 'notEqual',
+        'greater than'             => 'greaterThan',
+        '>'                        => 'greaterThan',
+        'less than'                => 'lessThan',
+        '<'                        => 'lessThan',
+        'greater than or equal to' => 'greaterThanOrEqual',
+        '>='                       => 'greaterThanOrEqual',
+        'less than or equal to'    => 'lessThanOrEqual',
+        '<='                       => 'lessThanOrEqual',
+        'containing'               => 'containsText',
+        'not containing'           => 'notContains',
+        'begins with'              => 'beginsWith',
+        'ends with'                => 'endsWith',
+        'yesterday'                => 'yesterday',
+        'today'                    => 'today',
+        'last 7 days'              => 'last7Days',
+        'last week'                => 'lastWeek',
+        'this week'                => 'thisWeek',
+        'next week'                => 'nextWeek',
+        'last month'               => 'lastMonth',
+        'this month'               => 'thisMonth',
+        'next month'               => 'nextMonth',
+    );
+
+    # Check for valid criteria types.
+    if ( defined $param.{criteria}
+        && exists $criteria_type{ lc( $param.{criteria} ) } )
+    {
+        $param.{criteria} = $criteria_type{ lc( $param.{criteria} ) };
+    }
+
+    # Convert date/times value if required.
+    if ( $param.{type} eq 'date' || $param.{type} eq 'time' ) {
+        $param.{type} = 'cellIs';
+
+        if ( defined $param.{value} && $param.{value} =~ /T/ ) {
+            my $date_time = $self.convert_date_time( $param.{value} );
+
+            if ( !defined $date_time ) {
+                warn "Invalid date/time value '$param.{value}' "
+                  . "in conditional_formatting()";
+                return -3;
+            }
+            else {
+                $param.{value} = $date_time;
+            }
+        }
+
+        if ( defined $param.{minimum} && $param.{minimum} =~ /T/ ) {
+            my $date_time = $self.convert_date_time( $param.{minimum} );
+
+            if ( !defined $date_time ) {
+                warn "Invalid date/time value '$param.{minimum}' "
+                  . "in conditional_formatting()";
+                return -3;
+            }
+            else {
+                $param.{minimum} = $date_time;
+            }
+        }
+
+        if ( defined $param.{maximum} && $param.{maximum} =~ /T/ ) {
+            my $date_time = $self.convert_date_time( $param.{maximum} );
+
+            if ( !defined $date_time ) {
+                warn "Invalid date/time value '$param.{maximum}' "
+                  . "in conditional_formatting()";
+                return -3;
+            }
+            else {
+                $param.{maximum} = $date_time;
+            }
+        }
+    }
+
+
+    # List of valid icon styles.
+    my %icon_set_styles = (
+        "3_arrows"                => "3Arrows",            # 1
+        "3_flags"                 => "3Flags",             # 2
+        "3_traffic_lights_rimmed" => "3TrafficLights2",    # 3
+        "3_symbols_circled"       => "3Symbols",           # 4
+        "4_arrows"                => "4Arrows",            # 5
+        "4_red_to_black"          => "4RedToBlack",        # 6
+        "4_traffic_lights"        => "4TrafficLights",     # 7
+        "5_arrows_gray"           => "5ArrowsGray",        # 8
+        "5_quarters"              => "5Quarters",          # 9
+        "3_arrows_gray"           => "3ArrowsGray",        # 10
+        "3_traffic_lights"        => "3TrafficLights",     # 11
+        "3_signs"                 => "3Signs",             # 12
+        "3_symbols"               => "3Symbols2",          # 13
+        "4_arrows_gray"           => "4ArrowsGray",        # 14
+        "4_ratings"               => "4Rating",            # 15
+        "5_arrows"                => "5Arrows",            # 16
+        "5_ratings"               => "5Rating",            # 17
+    );
+
+
+    # Set properties for icon sets.
+    if ( $param.{type} eq 'iconSet' ) {
+
+        if ( !defined $param.{icon_style} ) {
+            warn "The 'icon_style' parameter must be specified when "
+              . "'type' == 'icon_set' in conditional_formatting()";
+            return -3;
+        }
+
+        # Check for valid icon styles.
+        if ( not exists $icon_set_styles{ $param.{icon_style} } ) {
+            warn "Unknown icon style '$param.{icon_style}' for parameter "
+              . "'icon_style' in conditional_formatting()";
+            return -3;
+        }
+        else {
+            $param.{icon_style} = $icon_set_styles{ $param.{icon_style} };
+        }
+
+        # Set the number of icons for the icon style.
+        $param.{total_icons} = 3;
+        if ( $param.{icon_style} =~ /^4/ ) {
+            $param.{total_icons} = 4;
+        }
+        elsif ( $param.{icon_style} =~ /^5/ ) {
+            $param.{total_icons} = 5;
+        }
+
+        $param.{icons} =
+          $self._set_icon_properties( $param.{total_icons}, $param.{icons} );
+    }
+
+
+    # Set the formatting range.
+    my $range      = '';
+    my $start_cell = '';    # Use for formulas.
+
+    # Swap last row/col for first row/col as necessary
+    if ( $row1 > $row2 ) {
+        ( $row1, $row2 ) = ( $row2, $row1 );
+    }
+
+    if ( $col1 > $col2 ) {
+        ( $col1, $col2 ) = ( $col2, $col1 );
+    }
+
+    # If the first and last cell are the same write a single cell.
+    if ( ( $row1 == $row2 ) && ( $col1 == $col2 ) ) {
+        $range = xl-rowcol-to-cell( $row1, $col1 );
+        $start_cell = $range;
+    }
+    else {
+        $range = xl-range( $row1, $row2, $col1, $col2 );
+        $start_cell = xl-rowcol-to-cell( $row1, $col1 );
+    }
+
+    # Override with user defined multiple range if provided.
+    if ( $user_range ) {
+        $range = $user_range;
+    }
+
+    # Get the dxf format index.
+    if ( defined $param.{format} && ref $param.{format} ) {
+        $param.{format} = $param.{format}.get_dxf_index();
+    }
+
+    # Set the priority based on the order of adding.
+    $param.{priority} = $self.{_dxf_priority}++;
+
+    # Special handling of text criteria.
+    if ( $param.{type} eq 'text' ) {
+
+        if ( $param.{criteria} eq 'containsText' ) {
+            $param.{type}    = 'containsText';
+            $param.{formula} = sprintf 'NOT(ISERROR(SEARCH("%s",%s)))',
+              $param.{value}, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'notContains' ) {
+            $param.{type}    = 'notContainsText';
+            $param.{formula} = sprintf 'ISERROR(SEARCH("%s",%s))',
+              $param.{value}, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'beginsWith' ) {
+            $param.{type}    = 'beginsWith';
+            $param.{formula} = sprintf 'LEFT(%s,%d)="%s"',
+              $start_cell, length( $param.{value} ), $param.{value};
+        }
+        elsif ( $param.{criteria} eq 'endsWith' ) {
+            $param.{type}    = 'endsWith';
+            $param.{formula} = sprintf 'RIGHT(%s,%d)="%s"',
+              $start_cell, length( $param.{value} ), $param.{value};
+        }
+        else {
+            warn "Invalid text criteria '$param.{criteria}' "
+              . "in conditional_formatting()";
+        }
+    }
+
+    # Special handling of time time_period criteria.
+    if ( $param.{type} eq 'timePeriod' ) {
+
+        if ( $param.{criteria} eq 'yesterday' ) {
+            $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()-1', $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'today' ) {
+            $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()', $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'tomorrow' ) {
+            $param.{formula} = sprintf 'FLOOR(%s,1)=TODAY()+1', $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'last7Days' ) {
+            $param.{formula} =
+              sprintf 'AND(TODAY()-FLOOR(%s,1)<=6,FLOOR(%s,1)<=TODAY())',
+              $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'lastWeek' ) {
+            $param.{formula} =
+              sprintf 'AND(TODAY()-ROUNDDOWN(%s,0)>=(WEEKDAY(TODAY())),'
+              . 'TODAY()-ROUNDDOWN(%s,0)<(WEEKDAY(TODAY())+7))',
+              $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'thisWeek' ) {
+            $param.{formula} =
+              sprintf 'AND(TODAY()-ROUNDDOWN(%s,0)<=WEEKDAY(TODAY())-1,'
+              . 'ROUNDDOWN(%s,0)-TODAY()<=7-WEEKDAY(TODAY()))',
+              $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'nextWeek' ) {
+            $param.{formula} =
+              sprintf 'AND(ROUNDDOWN(%s,0)-TODAY()>(7-WEEKDAY(TODAY())),'
+              . 'ROUNDDOWN(%s,0)-TODAY()<(15-WEEKDAY(TODAY())))',
+              $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'lastMonth' ) {
+            $param.{formula} =
+              sprintf
+              'AND(MONTH(%s)=MONTH(TODAY())-1,OR(YEAR(%s)=YEAR(TODAY()),'
+              . 'AND(MONTH(%s)=1,YEAR(A1)=YEAR(TODAY())-1)))',
+              $start_cell, $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'thisMonth' ) {
+            $param.{formula} =
+              sprintf 'AND(MONTH(%s)=MONTH(TODAY()),YEAR(%s)=YEAR(TODAY()))',
+              $start_cell, $start_cell;
+        }
+        elsif ( $param.{criteria} eq 'nextMonth' ) {
+            $param.{formula} =
+              sprintf
+              'AND(MONTH(%s)=MONTH(TODAY())+1,OR(YEAR(%s)=YEAR(TODAY()),'
+              . 'AND(MONTH(%s)=12,YEAR(%s)=YEAR(TODAY())+1)))',
+              $start_cell, $start_cell, $start_cell, $start_cell;
+        }
+        else {
+            warn "Invalid time_period criteria '$param.{criteria}' "
+              . "in conditional_formatting()";
+        }
+    }
+
+
+    # Special handling of blanks/error types.
+    if ( $param.{type} eq 'containsBlanks' ) {
+        $param.{formula} = sprintf 'LEN(TRIM(%s))=0', $start_cell;
+    }
+
+    if ( $param.{type} eq 'notContainsBlanks' ) {
+        $param.{formula} = sprintf 'LEN(TRIM(%s))>0', $start_cell;
+    }
+
+    if ( $param.{type} eq 'containsErrors' ) {
+        $param.{formula} = sprintf 'ISERROR(%s)', $start_cell;
+    }
+
+    if ( $param.{type} eq 'notContainsErrors' ) {
+        $param.{formula} = sprintf 'NOT(ISERROR(%s))', $start_cell;
+    }
+
+
+    # Special handling for 2 color scale.
+    if ( $param.{type} eq '2_color_scale' ) {
+        $param.{type} = 'colorScale';
+
+        # Color scales don't use any additional formatting.
+        $param.{format} = undef;
+
+        # Turn off 3 color parameters.
+        $param.{mid_type}  = undef;
+        $param.{mid_color} = undef;
+
+        $param.{min_type}  ||= 'min';
+        $param.{max_type}  ||= 'max';
+        $param.{min_value} ||= 0;
+        $param.{max_value} ||= 0;
+        $param.{min_color} ||= '#FF7128';
+        $param.{max_color} ||= '#FFEF9C';
+
+        $param.{max_color} = $self._get_palette_color( $param.{max_color} );
+        $param.{min_color} = $self._get_palette_color( $param.{min_color} );
+    }
+
+
+    # Special handling for 3 color scale.
+    if ( $param.{type} eq '3_color_scale' ) {
+        $param.{type} = 'colorScale';
+
+        # Color scales don't use any additional formatting.
+        $param.{format} = undef;
+
+        $param.{min_type}  ||= 'min';
+        $param.{mid_type}  ||= 'percentile';
+        $param.{max_type}  ||= 'max';
+        $param.{min_value} ||= 0;
+        $param.{mid_value} = 50 unless defined $param.{mid_value};
+        $param.{max_value} ||= 0;
+        $param.{min_color} ||= '#F8696B';
+        $param.{mid_color} ||= '#FFEB84';
+        $param.{max_color} ||= '#63BE7B';
+
+        $param.{max_color} = $self._get_palette_color( $param.{max_color} );
+        $param.{mid_color} = $self._get_palette_color( $param.{mid_color} );
+        $param.{min_color} = $self._get_palette_color( $param.{min_color} );
+    }
+
+
+    # Special handling for data bar.
+    if ( $param.{type} eq 'dataBar' ) {
+
+        # Color scales don't use any additional formatting.
+        $param.{format} = undef;
+
+        $param.{min_type}  ||= 'min';
+        $param.{max_type}  ||= 'max';
+        $param.{min_value} ||= 0;
+        $param.{max_value} ||= 0;
+        $param.{bar_color} ||= '#638EC6';
+
+        $param.{bar_color} = $self._get_palette_color( $param.{bar_color} );
+    }
+
+
+    # Store the validation information until we close the worksheet.
+    push @{ $self.{_cond_formats}.{$range} }, $param;
+}
 
 
 ###############################################################################
@@ -4639,7 +4459,7 @@ method escape-url($url) {
 #
 # Ex: ("A4", "Hello") is converted to (3, 0, "Hello").
 #
-method substitute-cellref($cell, *@args) {
+method !substitute-cellref($cell, *@args) {
     $cell .=  uc;
 
     # Convert a column range: 'A:A' or 'B:G'.
@@ -6910,139 +6730,124 @@ method write-sheet-protection {
 
 ##############################################################################
 #
-# _write_data_validations()
+# write-data-validations()
 #
 # Write the <dataValidations> element.
 #
-#NYI sub _write_data_validations {
-#NYI 
-#NYI     my $self        = shift;
-#NYI     my @validations = @{ $self.{_validations} };
-#NYI     my $count       = @validations;
-#NYI 
-#NYI     return unless $count;
-#NYI 
-#NYI     my @attributes = ( 'count' => $count );
-#NYI 
-#NYI     $self.xml_start_tag( 'dataValidations', @attributes );
-#NYI 
-#NYI     for my $validation ( @validations ) {
-#NYI 
-#NYI         # Write the dataValidation element.
-#NYI         $self._write_data_validation( $validation );
-#NYI     }
-#NYI 
-#NYI     $self.xml_end_tag( 'dataValidations' );
-#NYI }
+method !write-data-validations {
+
+    my @validations = @!validations;
+    my $count       = +@validations;
+
+    return unless $count;
+
+    my @attributes = ( 'count' => $count );
+
+    self.xml-start-tag: 'dataValidations', @attributes;
+
+    for @validations -> $validation {
+
+        # Write the dataValidation element.
+        self!write-data-validation($validation);
+    }
+
+    self.xml-end-tag: 'dataValidations';
+}
 
 
 ##############################################################################
 #
-# _write_data_validation()
+# write-data-validation()
 #
 # Write the <dataValidation> element.
-#
-#NYI sub _write_data_validation {
-#NYI 
-#NYI     my $self       = shift;
-#NYI     my $param      = shift;
-#NYI     my $sqref      = '';
-#NYI     my @attributes = ();
-#NYI 
-#NYI 
-#NYI     # Set the cell range(s) for the data validation.
-#NYI     for my $cells ( @{ $param.{cells} } ) {
-#NYI 
-#NYI         # Add a space between multiple cell ranges.
-#NYI         $sqref .= ' ' if $sqref ne '';
-#NYI 
-#NYI         my ( $row_first, $col_first, $row_last, $col_last ) = @$cells;
-#NYI 
-#NYI         # Swap last row/col for first row/col as necessary
-#NYI         if ( $row_first > $row_last ) {
-#NYI             ( $row_first, $row_last ) = ( $row_last, $row_first );
-#NYI         }
-#NYI 
-#NYI         if ( $col_first > $col_last ) {
-#NYI             ( $col_first, $col_last ) = ( $col_last, $col_first );
-#NYI         }
-#NYI 
-#NYI         # If the first and last cell are the same write a single cell.
-#NYI         if ( ( $row_first == $row_last ) && ( $col_first == $col_last ) ) {
-#NYI             $sqref .= xl-rowcol-to-cell( $row_first, $col_first );
-#NYI         }
-#NYI         else {
-#NYI             $sqref .= xl-range( $row_first, $row_last, $col_first, $col_last );
-#NYI         }
-#NYI     }
+
+method !write-data-validation(%param) {
+
+   my $sqref      = '';
+   my @attributes = ();
 
 
-#NYI     if ( $param.{validate} ne 'none' ) {
-#NYI 
-#NYI         push @attributes, ( 'type' => $param.{validate} );
-#NYI 
-#NYI         if ( $param.{criteria} ne 'between' ) {
-#NYI             push @attributes, ( 'operator' => $param.{criteria} );
-#NYI         }
-#NYI 
-#NYI     }
-#NYI 
-#NYI     if ( $param.{error_type} ) {
-#NYI         push @attributes, ( 'errorStyle' => 'warning' )
-#NYI           if $param.{error_type} == 1;
-#NYI         push @attributes, ( 'errorStyle' => 'information' )
-#NYI           if $param.{error_type} == 2;
-#NYI     }
-#NYI 
-#NYI     push @attributes, ( 'allowBlank'       => 1 ) if $param.{ignore_blank};
-#NYI     push @attributes, ( 'showDropDown'     => 1 ) if !$param.{dropdown};
-#NYI     push @attributes, ( 'showInputMessage' => 1 ) if $param.{show_input};
-#NYI     push @attributes, ( 'showErrorMessage' => 1 ) if $param.{show_error};
-#NYI 
-#NYI     push @attributes, ( 'errorTitle' => $param.{error_title} )
-#NYI       if $param.{error_title};
-#NYI 
-#NYI     push @attributes, ( 'error' => $param.{error_message} )
-#NYI       if $param.{error_message};
-#NYI 
-#NYI     push @attributes, ( 'promptTitle' => $param.{input_title} )
-#NYI       if $param.{input_title};
-#NYI 
-#NYI     push @attributes, ( 'prompt' => $param.{input_message} )
-#NYI       if $param.{input_message};
-#NYI 
-#NYI     push @attributes, ( 'sqref' => $sqref );
-#NYI 
-#NYI     if ( $param.{validate} eq 'none' ) {
-#NYI         $self.xml_empty_tag( 'dataValidation', @attributes );
-#NYI     }
-#NYI     else {
-#NYI         $self.xml_start_tag( 'dataValidation', @attributes );
-#NYI 
-#NYI         # Write the formula1 element.
-#NYI         $self._write_formula_1( $param.{value} );
-#NYI 
-#NYI         # Write the formula2 element.
-#NYI         $self._write_formula_2( $param.{maximum} )
-#NYI           if defined $param.{maximum};
-#NYI 
-#NYI         $self.xml_end_tag( 'dataValidation' );
-#NYI     }
-#NYI }
+    # Set the cell range(s) for the data validation.
+    for @!cells -> $cell {
+
+        # Add a space between multiple cell ranges.
+        $sqref ~= ' ' if $sqref ne '';
+
+        my ( $row-first, $col-first, $row-last, $col-last ) = @!cells;
+
+        # Swap last row/col for first row/col as necessary
+        if $row-first > $row-last {
+            ( $row-first, $row-last ) = ( $row-last, $row-first );
+        }
+
+        if $col-first > $col-last {
+            ( $col-first, $col-last ) = ( $col-last, $col-first );
+        }
+
+        # If the first and last cell are the same write a single cell.
+        if ( $row-first == $row-last ) && ( $col-first == $col-last ) {
+            $sqref ~= xl-rowcol-to-cell( $row-first, $col-first );
+        }
+        else {
+            $sqref ~= xl-range( $row-first, $row-last, $col-first, $col-last );
+        }
+    }
+
+
+    if %param<validate> ne 'none' {
+
+        @attributes.push: 'type' => %param<validate>;
+
+        if %param<criteria> ne 'between' {
+            @attributes.push: 'operator' => %param<criteria>;
+        }
+
+    }
+
+    if %param<error-type> {
+        @attributes.push: 'errorStyle' => 'warning'     if %param<error-type> == 1;
+        @attributes.push: 'errorStyle' => 'information' if %param<error-type> == 2;
+    }
+
+    @attributes.push: 'allowBlank'       => 1 if  %param<ignore-blank>;
+    @attributes.push: 'showDropDown'     => 1 if !%param<dropdown>;
+    @attributes.push: 'showInputMessage' => 1 if  %param<show-input>;
+    @attributes.push: 'showErrorMessage' => 1 if  %param<show-error>;
+    @attributes.push: 'errorTitle'  => %param<error-title>   if %param<error-title>;
+    @attributes.push: 'error'       => %param<error-message> if %param<error-message>;
+    @attributes.push: 'promptTitle' => %param<input-title>   if %param<input-title>;
+    @attributes.push: 'prompt'      => %param<input-message> if %param<input-message>;
+    @attributes.push: 'sqref'       => $sqref;
+
+    if %param<validate> eq 'none' {
+        self.xml-empty-tag: 'dataValidation', @attributes;
+    }
+    else {
+        self.xml-start-tag: 'dataValidation', @attributes;
+
+        # Write the formula1 element.
+        self!write-formula1: %param<value>;
+
+        # Write the formula2 element.
+        self!write-formula2: %param<maximum> if defined %param<maximum>;
+
+        self.xml-end-tag: 'dataValidation';
+    }
+}
 
 
 ##############################################################################
 #
-# write-formula_1()
+# write-formula1()
 #
 #| Write the <formula1> element.
-#
-method !write_formula_1($formula) {
+
+method !write-formula1($formula) {
 
     # Convert a list array ref into a comma separated string.
     if $formula ~~ (Array) {
         $formula = $formula.join: ',';
-        $formula = qq("$formula");
+#FIX        $formula = qq("$formula");
     }
 
     $formula ~~ s/^ \=//;    # Remove formula symbol.
@@ -7053,19 +6858,16 @@ method !write_formula_1($formula) {
 
 ##############################################################################
 #
-# _write_formula_2()
+# write-formula2()
 #
 # Write the <formula2> element.
-#
-#NYI sub _write_formula_2 {
-#NYI 
-#NYI     my $self    = shift;
-#NYI     my $formula = shift;
-#NYI 
-#NYI     $formula =~ s/^=//;    # Remove formula symbol.
-#NYI 
-#NYI     $self.xml_data_element( 'formula2', $formula );
-#NYI }
+
+method !write-formula2($formula) {
+
+    $formula ~~ s/^ \=//;    # Remove formula symbol.
+
+    self.xml-data-element: 'formula2', $formula;
+}
 
 
 ##############################################################################
@@ -7080,7 +6882,7 @@ method !write-conditional-formats {
 
     return unless +@ranges;
 
-    for @ranges ->$range {
+    for @ranges -> $range {
         self!write-conditional-formatting: $range, %!cond-formats{$range};
     }
 }
@@ -7091,7 +6893,7 @@ method !write-conditional-formats {
 # write-conditional-formatting()
 #
 #| Write the <conditionalFormatting> element.
-#
+
 method !write-conditional-formatting($range, @params) {
 
     my @attributes = ( 'sqref' => $range );
@@ -7280,7 +7082,7 @@ method !write-color-scale($param) {
     self!write-cfvo: $param<min-type>, $param<min-value>;
 
     if $param<mid-type>.defined {
-        self!write_cfvo: $param<mid-type>, $param<mid-value>;
+        self.write-cfvo: $param<mid-type>, $param<mid-value>;
     }
 
     self!write-cfvo: $param<max-type>, $param<max-value>;
@@ -7310,7 +7112,7 @@ method !write-data-bar($param) {
     self!write-cfvo: $param<min-type>, $param<min-value>;
     self!write-cfvo: $param<max-type>, $param<max-value>;
 
-    self!write_color: 'rgb' => $param<bar-color>;
+    self.write_color: 'rgb' => $param<bar-color>;
 
     self.xml-end-tag: 'dataBar';
 }
@@ -7776,7 +7578,7 @@ Kevin Pye     kjpye@cpan.org
 =head1 COPYRIGHT
 
 (c) MM-MMXVII, John McNamara.
-(c) MMXVII-MMXVIII, Kevin Pye
+(c) MMXVII-MMXIX, Kevin Pye
 
 All Rights Reserved. This module is free software. It may be used, redistributed and/or modified under the same terms as Perl itself.
 =end pod
